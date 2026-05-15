@@ -47,6 +47,23 @@ const demoAnimationData: AnimationData = {
 }
 
 async function getPlay(id: string): Promise<Play | null> {
+  if (id === 'new' || id === 'local') {
+    return {
+      id,
+      user_id: 'local',
+      title: id === 'local' ? 'Saved move' : 'New move',
+      description:
+        id === 'local'
+          ? 'Continue editing a locally saved move.'
+          : 'Start from a blank board or load one of your saved formations.',
+      category: 'Attacking',
+      animation_data: { frames: [] },
+      is_public: false,
+      updated_at: new Date().toISOString(),
+      profiles: null,
+    }
+  }
+
   if (id === 'demo') {
     return {
       id: 'demo',
@@ -161,7 +178,7 @@ export default async function PlaybookPage({ params }: PageProps) {
           </div>
         </header>
 
-        <TacticalBoard initialFrames={play.animation_data.frames} />
+        <TacticalBoard initialFrames={play.animation_data.frames} playTitle={play.title} />
       </div>
     </main>
   )

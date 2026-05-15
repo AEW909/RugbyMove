@@ -7,6 +7,7 @@ import type { Frame, PlayerPosition } from '@/types/play'
 
 type TacticalBoardProps = {
   initialFrames?: Frame[]
+  playTitle?: string
   onFramesChange?: (frames: Frame[]) => void
 }
 
@@ -23,7 +24,18 @@ type Formation = {
   createdAt: string
 }
 
+type SavedMove = {
+  id: string
+  title: string
+  frames: Frame[]
+  updatedAt: string
+  sourceMoveId?: string
+}
+
 const formationsStorageKey = 'rugbyslate.formations.v1'
+const movesStorageKey = 'rugbyslate.moves.v1'
+const pendingFormationStorageKey = 'rugbyslate.pendingFormation.v1'
+const pendingMoveStorageKey = 'rugbyslate.pendingMove.v1'
 
 const tokens: Token[] = [
   ...Array.from({ length: 15 }, (_, index) => ({
@@ -180,7 +192,18 @@ function createAnimatedSvg(frames: Frame[]) {
 </svg>`
 }
 
-export default function TacticalBoard({ initialFrames, onFramesChange }: TacticalBoardProps) {
+function saveMoveToStorage(move: SavedMove) {
+  const saved = window.localStorage.getItem(movesStorageKey)
+  const moves = saved ? (JSON.parse(saved) as SavedMove[]) : []
+  const nextMoves = [move, ...moves.filter((item) => item.id !== move.id)].slice(0, 24)
+  window.localStorage.setItem(movesStorageKey, JSON.stringify(nextMoves))
+}
+
+export default function TacticalBoard({
+  initialFrames,
+  playTitle = 'Untitled move',
+  onFramesChange,
+}: TacticalBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null)
   const animationRef = useRef<number | null>(null)
   const [frames, setFrames] = useState<Frame[]>(() => normalizeFrames(initialFrames))
@@ -189,11 +212,39 @@ export default function TacticalBoard({ initialFrames, onFramesChange }: Tactica
   const [isPlaying, setIsPlaying] = useState(false)
   const [formations, setFormations] = useState<Formation[]>([])
   const [formationName, setFormationName] = useState('')
+  const [saveStatus, setSaveStatus] = useState('')
 
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(formationsStorageKey)
       setFormations(saved ? JSON.parse(saved) : [])
+
+      const pendingMove = window.localStorage.getItem(pendingMoveStorageKey)
+      if (pendingMove) {
+        const move = JSON.parse(pendingMove) as SavedMove
+        window.localStorage.removeItem(pendingMoveStorageKey)
+        setFrames(normalizeFrames(move.frames))
+        setActiveFrameIndex(0)
+        return
+      }
+
+      const pendingFormation = window.localStorage.getItem(pendingFormationStorageKey)
+      if (pendingFormation) {
+        const formation = JSON.parse(pendingFormation) as Formation
+        window.localStorage.removeItem(pendingFormationStorageKey)
+        setFrames((currentFrames) => {
+          const firstFrame = currentFrames[0] ?? defaultFrame
+          return [
+            {
+              ...firstFrame,
+              players: firstFrame.players.map((player) => {
+                const savedPlayer = formation.players.find((item) => item.id === player.id)
+                return savedPlayer ? { ...savedPlayer } : player
+              }),
+            },
+          ]
+        })
+      }
     } catch {
       setFormations([])
     }
@@ -349,6 +400,18 @@ export default function TacticalBoard({ initialFrames, onFramesChange }: Tactica
     downloadTextFile('rugbyslate-move.svg', svg, 'image/svg+xml')
   }
 
+  const saveCurrentMove = (asVariation = false) => {
+    const title = asVariation ? `${playTitle} variation` : playTitle
+    saveMoveToStorage({
+      id: crypto.randomUUID(),
+      title,
+      frames: normalizeFrames(frames),
+      updatedAt: new Date().toISOString(),
+      sourceMoveId: asVariation ? playTitle : undefined,
+    })
+    setSaveStatus(asVariation ? 'Saved as variation' : 'Saved move')
+  }
+
   const playFrames = () => {
     const playbackFrames = normalizeFrames(frames).filter((frame) => frame.players.length > 0)
 
@@ -389,7 +452,7 @@ export default function TacticalBoard({ initialFrames, onFramesChange }: Tactica
   }
 
   return (
-    <section className="overflow-hidden rounded-lg border border-emerald-900/10 bg-white shadow-toolbar">
+    <section className="overflow-visible rounded-lg border border-emerald-900/10 bg-white shadow-toolbar">
       <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
         <div>
           <h2 className="text-lg font-semibold text-slate-950">Tactical board</h2>
@@ -442,7 +505,27 @@ export default function TacticalBoard({ initialFrames, onFramesChange }: Tactica
             <Download className="h-4 w-4" />
             Export SVG
           </button>
+          <button
+            type="button"
+            onClick={() => saveCurrentMove(false)}
+            className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+          >
+            <Save className="h-4 w-4" />
+            Save move
+          </button>
+          <button
+            type="button"
+            onClick={() => saveCurrentMove(true)}
+            className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+          >
+            Save as variation
+          </button>
         </div>
+        {saveStatus ? (
+          <p className="text-sm font-medium text-emerald-700 lg:basis-full lg:text-right">
+            {saveStatus}
+          </p>
+        ) : null}
       </div>
 
       <div className="grid gap-4 p-4 xl:grid-cols-[1fr_220px]">
