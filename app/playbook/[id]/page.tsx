@@ -178,7 +178,14 @@ export default async function PlaybookPage({ params }: PageProps) {
           </div>
         </header>
 
-        <TacticalBoard initialFrames={play.animation_data.frames} playTitle={play.title} />
+        <TacticalBoard
+          initialFrames={play.animation_data.frames}
+          playId={play.id}
+          playTitle={play.title}
+          playDescription={play.description}
+          playCategory={play.category}
+          isPublic={play.is_public}
+        />
       </div>
     </main>
   )

@@ -2,12 +2,17 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Download, Pause, Play, Plus, RotateCcw, Save, Trash2 } from 'lucide-react'
+import { savePlay } from '@/app/actions/plays'
 import { cn } from '@/lib/utils'
-import type { Frame, PlayerPosition } from '@/types/play'
+import type { Frame, PlayerPosition, PlayCategory } from '@/types/play'
 
 type TacticalBoardProps = {
   initialFrames?: Frame[]
+  playId?: string
   playTitle?: string
+  playDescription?: string | null
+  playCategory?: PlayCategory
+  isPublic?: boolean
   onFramesChange?: (frames: Frame[]) => void
 }
 
@@ -211,7 +216,11 @@ function saveMoveToStorage(move: SavedMove) {
 
 export default function TacticalBoard({
   initialFrames,
+  playId,
   playTitle = 'Untitled move',
+  playDescription,
+  playCategory = 'Attacking',
+  isPublic = false,
   onFramesChange,
 }: TacticalBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null)
@@ -411,16 +420,44 @@ export default function TacticalBoard({
     downloadTextFile('rugbyslate-move.svg', svg, 'image/svg+xml')
   }
 
-  const saveCurrentMove = (asVariation = false) => {
+  const saveCurrentMove = async (asVariation = false) => {
     const title = asVariation ? `${playTitle} variation` : playTitle
+    const normalizedFrames = normalizeFrames(frames)
+
     saveMoveToStorage({
       id: crypto.randomUUID(),
       title,
-      frames: normalizeFrames(frames),
+      frames: normalizedFrames,
       updatedAt: new Date().toISOString(),
       sourceMoveId: asVariation ? playTitle : undefined,
     })
-    setSaveStatus(asVariation ? 'Saved as variation' : 'Saved move')
+
+    try {
+      const shouldUpdateExisting =
+        !asVariation &&
+        playId &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+          playId,
+        )
+
+      await savePlay({
+        id: shouldUpdateExisting ? playId : undefined,
+        title,
+        description: playDescription,
+        category: playCategory,
+        is_public: isPublic,
+        animation_data: {
+          frames: normalizedFrames,
+        },
+      })
+      setSaveStatus(asVariation ? 'Saved variation to account' : 'Saved move to account')
+    } catch (error) {
+      setSaveStatus(
+        error instanceof Error && error.message.includes('signed in')
+          ? 'Saved locally. Log in to save to your account.'
+          : 'Saved locally. Account save failed.',
+      )
+    }
   }
 
   const playFrames = () => {

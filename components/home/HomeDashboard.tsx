@@ -63,6 +63,12 @@ export default function HomeDashboard() {
             <Plus className="h-4 w-4" />
             Start from scratch
           </Link>
+          <Link
+            href="/account"
+            className="inline-flex items-center justify-center rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-white"
+          >
+            Account
+          </Link>
         </header>
 
         <section className="grid gap-4 md:grid-cols-3">
