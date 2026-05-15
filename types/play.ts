@@ -37,3 +37,23 @@ export type Play = {
     team_name: string | null
   } | null
 }
+
+export type PlaybookRole = 'owner' | 'coach' | 'player'
+
+export type Playbook = {
+  id: string
+  owner_id: string
+  name: string
+  description: string | null
+  visibility: 'private' | 'team' | 'public'
+  created_at: string
+  updated_at: string
+}
+
+export type PlaybookMember = {
+  id: string
+  playbook_id: string
+  user_id: string
+  role: PlaybookRole
+  created_at: string
+}
