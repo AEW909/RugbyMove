@@ -36,6 +36,8 @@ const formationsStorageKey = 'rugbyslate.formations.v1'
 const movesStorageKey = 'rugbyslate.moves.v1'
 const pendingFormationStorageKey = 'rugbyslate.pendingFormation.v1'
 const pendingMoveStorageKey = 'rugbyslate.pendingMove.v1'
+const pitchLeft = 18
+const pitchWidth = 64
 
 const tokens: Token[] = [
   ...Array.from({ length: 15 }, (_, index) => ({
@@ -95,7 +97,7 @@ function clamp(value: number) {
 }
 
 function clampBoardX(value: number) {
-  return Math.min(112, Math.max(-22, value))
+  return Math.min(112, Math.max(-12, value))
 }
 
 function clampBoardY(value: number) {
@@ -130,6 +132,14 @@ function downloadTextFile(filename: string, content: string, type: string) {
 
 function tokenForId(id: string) {
   return tokens.find((token) => token.id === id)
+}
+
+function boardXToStageX(x: number) {
+  return pitchLeft + (x / 100) * pitchWidth
+}
+
+function stageXToBoardX(x: number) {
+  return ((x - pitchLeft) / pitchWidth) * 100
 }
 
 function svgPositionValues(frames: Frame[], id: string, axis: 'x' | 'y') {
@@ -281,7 +291,8 @@ export default function TacticalBoard({
       }
 
       const rect = board.getBoundingClientRect()
-      const x = clampBoardX(((clientX - rect.left) / rect.width) * 100)
+      const stageX = ((clientX - rect.left) / rect.width) * 100
+      const x = clampBoardX(stageXToBoardX(stageX))
       const y = clampBoardY(((clientY - rect.top) / rect.height) * 100)
 
       const nextFrames = frames.map((frame, index) => {
@@ -531,50 +542,52 @@ export default function TacticalBoard({
       <div className="grid gap-4 p-4 xl:grid-cols-[1fr_220px]">
         <div
           ref={boardRef}
-          className="relative aspect-[1.65/1] min-h-[360px] overflow-visible rounded-md border-4 border-white bg-emerald-700 shadow-inner"
-          aria-label="Rugby tactical pitch"
+          className="relative aspect-[2.25/1] min-h-[360px] overflow-hidden rounded-md border border-slate-200 bg-slate-100 shadow-inner"
+          aria-label="Rugby tactical board"
         >
-          <div className="absolute -left-[23%] top-0 flex h-full w-[20%] items-center justify-center rounded-l-md border border-dashed border-blue-300 bg-blue-50/80 text-xs font-semibold uppercase text-blue-700">
+          <div className="absolute inset-y-0 left-0 flex w-[18%] items-center justify-center border-r border-dashed border-blue-300 bg-blue-50 text-xs font-semibold uppercase text-blue-700">
             Attack tray
           </div>
-          <div className="absolute -right-[13%] top-0 flex h-full w-[11%] items-center justify-center rounded-r-md border border-dashed border-red-300 bg-red-50/80 text-xs font-semibold uppercase text-red-700">
+          <div className="absolute inset-y-0 right-0 flex w-[18%] items-center justify-center border-l border-dashed border-red-300 bg-red-50 text-xs font-semibold uppercase text-red-700">
             Defence tray
           </div>
-          <div className="absolute -left-[10%] top-[44%] h-12 w-12 rounded-full border border-dashed border-slate-300 bg-white/80" />
-          <div className="absolute inset-0 grid grid-cols-10">
-            {Array.from({ length: 10 }, (_, index) => (
-              <div
-                key={index}
-                className={cn(
-                  'border-r border-white/35',
-                  index === 0 || index === 9 ? 'bg-emerald-900/15' : 'bg-transparent',
-                )}
-              />
-            ))}
+          <div className="absolute left-[8.5%] top-[44%] h-12 w-12 rounded-full border border-dashed border-slate-300 bg-white" />
+          <div className="absolute inset-y-0 left-[18%] w-[64%] overflow-hidden border-4 border-white bg-emerald-700">
+            <div className="absolute inset-0 grid grid-cols-10">
+              {Array.from({ length: 10 }, (_, index) => (
+                <div
+                  key={index}
+                  className={cn(
+                    'border-r border-white/35',
+                    index === 0 || index === 9 ? 'bg-emerald-900/15' : 'bg-transparent',
+                  )}
+                />
+              ))}
+            </div>
+
+            <div className="absolute inset-y-0 left-1/2 w-px bg-white/70" />
+            <div className="absolute inset-x-0 top-1/2 h-px bg-white/40" />
+            <div className="absolute left-[5%] top-0 h-full w-px bg-white/80" />
+            <div className="absolute right-[5%] top-0 h-full w-px bg-white/80" />
+            <div className="absolute left-[22%] top-0 h-full w-px border-l border-dashed border-white/65" />
+            <div className="absolute right-[22%] top-0 h-full w-px border-l border-dashed border-white/65" />
+
+            <svg className="pointer-events-none absolute inset-0 h-full w-full">
+              {activeFrame.lines.map((line) => (
+                <line
+                  key={line.id}
+                  x1={`${line.from.x}%`}
+                  y1={`${line.from.y}%`}
+                  x2={`${line.to.x}%`}
+                  y2={`${line.to.y}%`}
+                  stroke={line.color ?? '#f8fafc'}
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeDasharray={line.dashed ? '8 8' : undefined}
+                />
+              ))}
+            </svg>
           </div>
-
-          <div className="absolute inset-y-0 left-1/2 w-px bg-white/70" />
-          <div className="absolute inset-x-0 top-1/2 h-px bg-white/40" />
-          <div className="absolute left-[5%] top-0 h-full w-px bg-white/80" />
-          <div className="absolute right-[5%] top-0 h-full w-px bg-white/80" />
-          <div className="absolute left-[22%] top-0 h-full w-px border-l border-dashed border-white/65" />
-          <div className="absolute right-[22%] top-0 h-full w-px border-l border-dashed border-white/65" />
-
-          <svg className="pointer-events-none absolute inset-0 h-full w-full">
-            {activeFrame.lines.map((line) => (
-              <line
-                key={line.id}
-                x1={`${line.from.x}%`}
-                y1={`${line.from.y}%`}
-                x2={`${line.to.x}%`}
-                y2={`${line.to.y}%`}
-                stroke={line.color ?? '#f8fafc'}
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeDasharray={line.dashed ? '8 8' : undefined}
-              />
-            ))}
-          </svg>
 
           {tokens.map((token) => {
             const player = playerById.get(token.id)
@@ -597,7 +610,7 @@ export default function TacticalBoard({
                   token.side !== 'ball' && 'h-9 w-9 rounded-full',
                 )}
                 style={{
-                  left: `${player.x}%`,
+                  left: `${boardXToStageX(player.x)}%`,
                   top: `${player.y}%`,
                   transform: 'translate(-50%, -50%)',
                 }}
