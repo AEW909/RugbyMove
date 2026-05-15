@@ -545,10 +545,10 @@ export default function TacticalBoard({
           className="relative aspect-[2.25/1] min-h-[360px] overflow-hidden rounded-md border border-slate-200 bg-slate-100 shadow-inner"
           aria-label="Rugby tactical board"
         >
-          <div className="absolute inset-y-0 left-0 flex w-[11%] items-center justify-center border-r border-dashed border-blue-300 bg-blue-50 text-[11px] font-semibold uppercase text-blue-700 [writing-mode:vertical-rl]">
+          <div className="absolute inset-y-0 left-0 flex w-[11%] items-center justify-start border-r border-dashed border-blue-300 bg-blue-50 px-1 py-3 text-[11px] font-semibold uppercase text-blue-700 [writing-mode:vertical-rl]">
             Attack tray
           </div>
-          <div className="absolute inset-y-0 right-0 flex w-[11%] items-center justify-center border-l border-dashed border-red-300 bg-red-50 text-[11px] font-semibold uppercase text-red-700 [writing-mode:vertical-rl]">
+          <div className="absolute inset-y-0 right-0 flex w-[11%] items-center justify-start border-l border-dashed border-red-300 bg-red-50 px-1 py-3 text-[11px] font-semibold uppercase text-red-700 [writing-mode:vertical-rl]">
             Defence tray
           </div>
           <div className="absolute inset-y-0 left-[11%] w-[78%] overflow-hidden border-4 border-white bg-emerald-700">
