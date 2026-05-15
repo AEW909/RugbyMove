@@ -36,8 +36,8 @@ const formationsStorageKey = 'rugbyslate.formations.v1'
 const movesStorageKey = 'rugbyslate.moves.v1'
 const pendingFormationStorageKey = 'rugbyslate.pendingFormation.v1'
 const pendingMoveStorageKey = 'rugbyslate.pendingMove.v1'
-const pitchLeft = 18
-const pitchWidth = 64
+const pitchLeft = 11
+const pitchWidth = 78
 
 const tokens: Token[] = [
   ...Array.from({ length: 15 }, (_, index) => ({
@@ -56,18 +56,18 @@ const tokens: Token[] = [
 function createDefaultPlayers(): PlayerPosition[] {
   return tokens.map((token, index) => {
     if (token.side === 'ball') {
-      return { id: token.id, x: -7, y: 50 }
+      return { id: token.id, x: 50, y: 50 }
     }
 
     const teamIndex = token.side === 'attack' ? index : index - 15
-    const row = Math.floor(teamIndex / 5)
-    const col = teamIndex % 5
-    const xBase = token.side === 'attack' ? -18 : 104
+    const row = teamIndex % 8
+    const col = Math.floor(teamIndex / 8)
+    const xBase = token.side === 'attack' ? -9 : 104
 
     return {
       id: token.id,
-      x: xBase + col * 3.5,
-      y: 12 + row * 13,
+      x: xBase + col * 4,
+      y: 9 + row * 11,
     }
   })
 }
@@ -97,7 +97,7 @@ function clamp(value: number) {
 }
 
 function clampBoardX(value: number) {
-  return Math.min(112, Math.max(-12, value))
+  return Math.min(110, Math.max(-10, value))
 }
 
 function clampBoardY(value: number) {
@@ -545,14 +545,13 @@ export default function TacticalBoard({
           className="relative aspect-[2.25/1] min-h-[360px] overflow-hidden rounded-md border border-slate-200 bg-slate-100 shadow-inner"
           aria-label="Rugby tactical board"
         >
-          <div className="absolute inset-y-0 left-0 flex w-[18%] items-center justify-center border-r border-dashed border-blue-300 bg-blue-50 text-xs font-semibold uppercase text-blue-700">
+          <div className="absolute inset-y-0 left-0 flex w-[11%] items-center justify-center border-r border-dashed border-blue-300 bg-blue-50 text-[11px] font-semibold uppercase text-blue-700 [writing-mode:vertical-rl]">
             Attack tray
           </div>
-          <div className="absolute inset-y-0 right-0 flex w-[18%] items-center justify-center border-l border-dashed border-red-300 bg-red-50 text-xs font-semibold uppercase text-red-700">
+          <div className="absolute inset-y-0 right-0 flex w-[11%] items-center justify-center border-l border-dashed border-red-300 bg-red-50 text-[11px] font-semibold uppercase text-red-700 [writing-mode:vertical-rl]">
             Defence tray
           </div>
-          <div className="absolute left-[8.5%] top-[44%] h-12 w-12 rounded-full border border-dashed border-slate-300 bg-white" />
-          <div className="absolute inset-y-0 left-[18%] w-[64%] overflow-hidden border-4 border-white bg-emerald-700">
+          <div className="absolute inset-y-0 left-[11%] w-[78%] overflow-hidden border-4 border-white bg-emerald-700">
             <div className="absolute inset-0 grid grid-cols-10">
               {Array.from({ length: 10 }, (_, index) => (
                 <div
