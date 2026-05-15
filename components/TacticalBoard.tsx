@@ -9,6 +9,7 @@ import type { Frame, PlayerPosition, PlayCategory } from '@/types/play'
 type TacticalBoardProps = {
   initialFrames?: Frame[]
   playId?: string
+  mode?: 'fresh' | 'local' | 'saved'
   playTitle?: string
   playDescription?: string | null
   playCategory?: PlayCategory
@@ -217,6 +218,7 @@ function saveMoveToStorage(move: SavedMove) {
 export default function TacticalBoard({
   initialFrames,
   playId,
+  mode = 'saved',
   playTitle = 'Untitled move',
   playDescription,
   playCategory = 'Attacking',
@@ -238,7 +240,7 @@ export default function TacticalBoard({
       const saved = window.localStorage.getItem(formationsStorageKey)
       setFormations(saved ? JSON.parse(saved) : [])
 
-      const pendingMove = window.localStorage.getItem(pendingMoveStorageKey)
+      const pendingMove = mode === 'local' ? window.localStorage.getItem(pendingMoveStorageKey) : null
       if (pendingMove) {
         const move = JSON.parse(pendingMove) as SavedMove
         window.localStorage.removeItem(pendingMoveStorageKey)
@@ -247,7 +249,16 @@ export default function TacticalBoard({
         return
       }
 
-      const pendingFormation = window.localStorage.getItem(pendingFormationStorageKey)
+      if (mode === 'fresh') {
+        window.localStorage.removeItem(pendingMoveStorageKey)
+        window.localStorage.removeItem(pendingFormationStorageKey)
+        setFrames([defaultFrame])
+        setActiveFrameIndex(0)
+        return
+      }
+
+      const pendingFormation =
+        mode === 'local' ? window.localStorage.getItem(pendingFormationStorageKey) : null
       if (pendingFormation) {
         const formation = JSON.parse(pendingFormation) as Formation
         window.localStorage.removeItem(pendingFormationStorageKey)
@@ -267,7 +278,7 @@ export default function TacticalBoard({
     } catch {
       setFormations([])
     }
-  }, [])
+  }, [mode])
 
   const activeFrame = frames[activeFrameIndex] ?? frames[0] ?? defaultFrame
   const visiblePlayers = displayPlayers ?? activeFrame.players
@@ -582,10 +593,10 @@ export default function TacticalBoard({
           className="relative aspect-[2.25/1] min-h-[360px] overflow-hidden rounded-md border border-slate-200 bg-slate-100 shadow-inner"
           aria-label="Rugby tactical board"
         >
-          <div className="absolute inset-y-0 left-0 flex w-[11%] items-center justify-start border-r border-dashed border-blue-300 bg-blue-50 px-1 py-3 text-[11px] font-semibold uppercase text-blue-700 [writing-mode:vertical-rl]">
+          <div className="absolute inset-y-0 left-0 flex w-[11%] items-start justify-center border-r border-dashed border-blue-300 bg-blue-50 px-1 py-3 text-[11px] font-semibold uppercase text-blue-700">
             Attack tray
           </div>
-          <div className="absolute inset-y-0 right-0 flex w-[11%] items-center justify-start border-l border-dashed border-red-300 bg-red-50 px-1 py-3 text-[11px] font-semibold uppercase text-red-700 [writing-mode:vertical-rl]">
+          <div className="absolute inset-y-0 right-0 flex w-[11%] items-start justify-center border-l border-dashed border-red-300 bg-red-50 px-1 py-3 text-right text-[11px] font-semibold uppercase text-red-700">
             Defence tray
           </div>
           <div className="absolute inset-y-0 left-[11%] w-[78%] overflow-hidden border-4 border-white bg-emerald-700">

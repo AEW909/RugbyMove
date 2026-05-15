@@ -181,6 +181,7 @@ export default async function PlaybookPage({ params }: PageProps) {
         <TacticalBoard
           initialFrames={play.animation_data.frames}
           playId={play.id}
+          mode={play.id === 'new' ? 'fresh' : play.id === 'local' ? 'local' : 'saved'}
           playTitle={play.title}
           playDescription={play.description}
           playCategory={play.category}
