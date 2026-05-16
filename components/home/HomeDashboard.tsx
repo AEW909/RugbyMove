@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { ClipboardList, FolderOpen, Plus, Rows3 } from 'lucide-react'
+import { BookOpen, ClipboardList, FolderOpen, Plus, Rows3 } from 'lucide-react'
 import type { Frame, PlayerPosition } from '@/types/play'
 
 type SavedMove = {
@@ -71,7 +71,7 @@ export default function HomeDashboard() {
           </Link>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-3">
+        <section className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Link
             href="/playbook/new"
             className="rounded-lg border border-emerald-900/10 bg-white p-5 shadow-toolbar transition hover:-translate-y-0.5"
@@ -93,6 +93,14 @@ export default function HomeDashboard() {
             <h2 className="mt-4 text-lg font-semibold">Start from formation</h2>
             <p className="mt-2 text-sm leading-6 text-slate-600">Saved shapes appear here once created in the editor.</p>
           </div>
+          <Link
+            href="/playbooks"
+            className="rounded-lg border border-emerald-900/10 bg-white p-5 shadow-toolbar transition hover:-translate-y-0.5"
+          >
+            <BookOpen className="h-6 w-6 text-emerald-700" />
+            <h2 className="mt-4 text-lg font-semibold">Playbooks</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Organise moves into shareable collections for your squad.</p>
+          </Link>
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
