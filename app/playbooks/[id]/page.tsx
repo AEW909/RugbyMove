@@ -104,7 +104,7 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
               {playbookPlaysRows && playbookPlaysRows.length > 0 ? (
                 <ul className="mt-4 space-y-2">
                   {playbookPlaysRows.map((row) => {
-                    const play = row.plays as {
+                    const play = row.plays as unknown as {
                       id: string
                       title: string
                       category: string
@@ -292,7 +292,7 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                 </li>
 
                 {members?.map((m) => {
-                  const profile = m.profiles as { username: string | null } | null
+                  const profile = m.profiles as unknown as { username: string | null } | null
                   return (
                     <li key={m.id} className="flex items-center justify-between gap-2 text-sm">
                       <span className="truncate font-medium">

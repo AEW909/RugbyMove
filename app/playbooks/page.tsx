@@ -115,7 +115,7 @@ export default async function PlaybooksPage({ searchParams }: PageProps) {
             <h2 className="mb-3 text-lg font-semibold">Shared with you</h2>
             <div className="grid gap-3 sm:grid-cols-2">
               {memberPlaybooks.map((m) => {
-                const pb = m.playbooks as {
+                const pb = m.playbooks as unknown as {
                   id: string
                   name: string
                   description: string | null
