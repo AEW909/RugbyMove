@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Download, Pause, Play, Plus, RotateCcw, Save, Trash2 } from 'lucide-react'
+import { Download, Home, Pause, Play, Plus, RotateCcw, Save, Trash2 } from 'lucide-react'
 import { savePlay } from '@/app/actions/plays'
 import { cn } from '@/lib/utils'
 import type { Frame, PlayerPosition, PlayCategory } from '@/types/play'
@@ -513,11 +513,20 @@ export default function TacticalBoard({
   return (
     <section className="overflow-visible rounded-lg border border-emerald-900/10 bg-white shadow-toolbar">
       <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-950">Tactical board</h2>
-          <p className="text-sm text-slate-500">
-            Frame {activeFrameIndex + 1} of {frames.length}
-          </p>
+        <div className="flex items-center gap-3">
+          <a
+            href="/"
+            aria-label="Home"
+            className="inline-flex items-center justify-center rounded-md border border-slate-200 p-2 text-slate-500 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950"
+          >
+            <Home className="h-4 w-4" />
+          </a>
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">Tactical board</h2>
+            <p className="text-sm text-slate-500">
+              Frame {activeFrameIndex + 1} of {frames.length}
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

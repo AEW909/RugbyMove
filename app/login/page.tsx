@@ -12,7 +12,7 @@ export default function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#f7faf8] px-4 py-10 text-slate-950">
       <section className="w-full max-w-md rounded-lg border border-emerald-900/10 bg-white p-6 shadow-toolbar">
-        <h1 className="text-2xl font-bold">Log in to RugbySlate</h1>
+        <h1 className="text-2xl font-bold">Log in to RugbyMove</h1>
         <p className="mt-2 text-sm leading-6 text-slate-600">
           Save moves, manage formations, and keep variations in your account.
         </p>

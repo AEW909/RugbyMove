@@ -51,7 +51,7 @@ export default function HomeDashboard() {
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
         <header className="flex flex-col gap-4 border-b border-emerald-900/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">RugbySlate</h1>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">RugbyMove</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
               Build moves from scratch, reuse starting formations, and keep variations for match-week planning.
             </p>

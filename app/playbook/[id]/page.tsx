@@ -77,7 +77,7 @@ async function getPlay(id: string): Promise<Play | null> {
       updated_at: new Date().toISOString(),
       profiles: {
         username: 'coach-demo',
-        team_name: 'RugbySlate XV',
+        team_name: 'RugbyMove XV',
       },
     }
   }
@@ -125,13 +125,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const description =
     play.description ??
-    `${play.category} Rugby Union tactical play by ${play.profiles?.team_name ?? 'RugbySlate'}`
+    `${play.category} Rugby Union tactical play by ${play.profiles?.team_name ?? 'RugbyMove'}`
 
   return {
     title: play.title,
     description,
     openGraph: {
-      title: `${play.title} | RugbySlate`,
+      title: `${play.title} | RugbyMove`,
       description,
       type: 'article',
       url: `/playbook/${play.id}`,
