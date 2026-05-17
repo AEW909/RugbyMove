@@ -3,27 +3,8 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { BookOpen, ClipboardList, FolderOpen, Plus } from 'lucide-react'
-import type { Frame, PlayerPosition } from '@/types/play'
-
-type SavedMove = {
-  id: string
-  title: string
-  frames: Frame[]
-  updatedAt: string
-}
-
-type Formation = {
-  id: string
-  name: string
-  category?: string
-  players: PlayerPosition[]
-  createdAt: string
-}
-
-const movesStorageKey = 'rugbymove.moves.v1'
-const formationsStorageKey = 'rugbymove.formations.v1'
-const pendingFormationStorageKey = 'rugbymove.pendingFormation.v1'
-const pendingMoveStorageKey = 'rugbymove.pendingMove.v1'
+import { storageKeys } from '@/lib/board/storage'
+import type { Formation, SavedMove } from '@/lib/board/storage'
 
 export default function HomeDashboard() {
   const [moves, setMoves] = useState<SavedMove[]>([])
@@ -31,8 +12,8 @@ export default function HomeDashboard() {
 
   useEffect(() => {
     try {
-      setMoves(JSON.parse(window.localStorage.getItem(movesStorageKey) ?? '[]'))
-      setFormations(JSON.parse(window.localStorage.getItem(formationsStorageKey) ?? '[]'))
+      setMoves(JSON.parse(window.localStorage.getItem(storageKeys.moves) ?? '[]'))
+      setFormations(JSON.parse(window.localStorage.getItem(storageKeys.formations) ?? '[]'))
     } catch {
       setMoves([])
       setFormations([])
@@ -40,11 +21,11 @@ export default function HomeDashboard() {
   }, [])
 
   const startFromFormation = (formation: Formation) => {
-    window.localStorage.setItem(pendingFormationStorageKey, JSON.stringify(formation))
+    window.localStorage.setItem(storageKeys.pendingFormation, JSON.stringify(formation))
   }
 
   const openSavedMove = (move: SavedMove) => {
-    window.localStorage.setItem(pendingMoveStorageKey, JSON.stringify(move))
+    window.localStorage.setItem(storageKeys.pendingMove, JSON.stringify(move))
   }
 
   return (

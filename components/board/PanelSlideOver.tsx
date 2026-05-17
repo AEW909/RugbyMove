@@ -3,24 +3,11 @@
 import { useEffect, useState } from 'react'
 import { BookOpen, ChevronDown, ChevronUp, Download, Layers, Save, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { Frame, PlayerPosition } from '@/types/play'
+import { FORMATION_CATEGORIES } from '@/lib/board/storage'
+import type { Formation, SavedMove } from '@/lib/board/storage'
+import type { Frame } from '@/types/play'
 
-type FormationCategory = 'Scrum' | 'Lineout' | 'Penalty' | 'Open Play'
-
-type Formation = {
-  id: string
-  name: string
-  category: FormationCategory
-  players: PlayerPosition[]
-  createdAt: string
-}
-
-type SavedPlay = {
-  id: string
-  title: string
-  frames: Frame[]
-  updatedAt: string
-}
+type SavedPlay = SavedMove
 
 type Playbook = {
   id: string
@@ -48,7 +35,6 @@ type Props = {
   isGuest?: boolean
 }
 
-const FORMATION_CATEGORIES: FormationCategory[] = ['Scrum', 'Lineout', 'Penalty', 'Open Play']
 
 export default function PanelSlideOver({
   isOpen,
