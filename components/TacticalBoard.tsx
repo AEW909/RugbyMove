@@ -1,10 +1,13 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Download, Grid3x3, Home, Pause, Play, Plus, RotateCcw, Save, Trash2, X } from 'lucide-react'
+import { Grid3x3, Home, Pause, Play, Plus, RotateCcw, SidebarOpen, Trash2, X } from 'lucide-react'
 import { savePlay } from '@/app/actions/plays'
+import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import type { Frame, PlayerPosition, PlayCategory } from '@/types/play'
+import PanelSlideOver from '@/components/board/PanelSlideOver'
+import type { PanelTab } from '@/components/board/PanelSlideOver'
 
 type TacticalBoardProps = {
   initialFrames?: Frame[]
@@ -239,6 +242,10 @@ export default function TacticalBoard({
   const [saveStatus, setSaveStatus] = useState('')
   const [snapGrid, setSnapGrid] = useState(false)
   const [showFormationModal, setShowFormationModal] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [panelTab, setPanelTab] = useState<PanelTab>('formations')
+  const [savedPlays, setSavedPlays] = useState<SavedMove[]>([])
+  const [playbooks, setPlaybooks] = useState<{ id: string; name: string }[]>([])
 
   useEffect(() => {
     try {
@@ -284,6 +291,21 @@ export default function TacticalBoard({
       setFormations([])
     }
   }, [mode])
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(movesStorageKey)
+      setSavedPlays(stored ? (JSON.parse(stored) as SavedMove[]) : [])
+    } catch {
+      setSavedPlays([])
+    }
+    const supabase = createClient()
+    supabase
+      .from('playbooks')
+      .select('id,name')
+      .order('name')
+      .then(({ data }) => setPlaybooks(data ?? []))
+  }, [])
 
   const activeFrame = frames[activeFrameIndex] ?? frames[0] ?? defaultFrame
   const visiblePlayers = displayPlayers ?? activeFrame.players
@@ -445,6 +467,76 @@ export default function TacticalBoard({
     downloadTextFile('rugbymove-move.svg', svg, 'image/svg+xml')
   }
 
+  const persistLocally = useCallback(
+    (title: string): SavedMove => {
+      const move: SavedMove = {
+        id: crypto.randomUUID(),
+        title,
+        frames: normalizeFrames(frames),
+        updatedAt: new Date().toISOString(),
+      }
+      saveMoveToStorage(move)
+      setSavedPlays((prev) => [move, ...prev.filter((p) => p.id !== move.id)].slice(0, 24))
+      return move
+    },
+    [frames],
+  )
+
+  const handleSaveLocally = useCallback(
+    (title: string) => {
+      persistLocally(title)
+      setSaveStatus('Saved locally.')
+    },
+    [persistLocally],
+  )
+
+  const handleSaveToPlaybook = useCallback(
+    async (playbookId: string, title: string) => {
+      const move = persistLocally(title)
+      const normalizedFrames = move.frames
+      try {
+        const play = await savePlay({
+          id:
+            playId &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+              playId,
+            )
+              ? playId
+              : undefined,
+          title,
+          description: playDescription,
+          category: playCategory,
+          is_public: isPublic,
+          animation_data: { frames: normalizedFrames },
+        })
+        const supabase = createClient()
+        await supabase
+          .from('playbook_plays')
+          .upsert(
+            { playbook_id: playbookId, play_id: play.id },
+            { onConflict: 'playbook_id,play_id' },
+          )
+        setSaveStatus('Saved to playbook.')
+      } catch (error) {
+        setSaveStatus(
+          error instanceof Error && error.message.includes('signed in')
+            ? 'Saved locally. Log in to save to your account.'
+            : 'Saved locally. Account save failed.',
+        )
+      }
+    },
+    [frames, isPublic, playCategory, playDescription, playId, persistLocally],
+  )
+
+  const handleLoadPlay = useCallback(
+    (play: SavedMove) => {
+      stopPlayback()
+      setFrames(normalizeFrames(play.frames))
+      setActiveFrameIndex(0)
+    },
+    [stopPlayback],
+  )
+
   const saveCurrentMove = async (asVariation = false) => {
     const title = asVariation ? `${playTitle} variation` : playTitle
     const normalizedFrames = normalizeFrames(frames)
@@ -526,104 +618,71 @@ export default function TacticalBoard({
 
   return (
     <section className="overflow-visible rounded-lg border border-emerald-900/10 bg-white shadow-toolbar">
-      <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex items-center gap-3">
-          <a
-            href="/"
-            className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950"
-          >
-            <Home className="h-4 w-4" />
-            Home
-          </a>
-          <div>
-            <h2 className="text-lg font-semibold text-slate-950">Tactical board</h2>
-            <p className="text-sm text-slate-500">
-              Frame {activeFrameIndex + 1} of {frames.length}
-            </p>
-          </div>
-        </div>
+      {/* ── Toolbar ── */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-4 py-3">
+        <a
+          href="/"
+          className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950"
+        >
+          <Home className="h-4 w-4" />
+          Home
+        </a>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="h-5 w-px bg-slate-200" />
+
+        <button
+          type="button"
+          onClick={isPlaying ? stopPlayback : playFrames}
+          disabled={frames.length < 2}
+          className="inline-flex items-center gap-2 rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-50"
+        >
+          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          {isPlaying ? 'Pause' : 'Play'}
+        </button>
+        <button
+          type="button"
+          onClick={captureFrame}
+          className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+        >
+          <Plus className="h-4 w-4" />
+          Frame
+        </button>
+        <button
+          type="button"
+          onClick={resetBoard}
+          className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+        >
+          <RotateCcw className="h-4 w-4" />
+          Reset
+        </button>
+        <button
+          type="button"
+          onClick={() => setSnapGrid((prev) => !prev)}
+          className={cn(
+            'inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold transition',
+            snapGrid
+              ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
+              : 'border-slate-300 text-slate-800 hover:bg-slate-50',
+          )}
+        >
+          <Grid3x3 className="h-4 w-4" />
+          Snap
+        </button>
+
+        <div className="ml-auto">
           <button
             type="button"
-            onClick={isPlaying ? stopPlayback : playFrames}
-            disabled={frames.length < 2}
-            className="inline-flex items-center gap-2 rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-50"
-          >
-            {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-            {isPlaying ? 'Pause' : 'Play'}
-          </button>
-          <button
-            type="button"
-            onClick={captureFrame}
-            className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
-          >
-            <Plus className="h-4 w-4" />
-            Add frame
-          </button>
-          {onFramesChange ? (
-            <button
-              type="button"
-              className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
-              onClick={() => onFramesChange(frames)}
-            >
-              <Save className="h-4 w-4" />
-              Save frames
-            </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={resetBoard}
-            className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Reset
-          </button>
-          <button
-            type="button"
-            onClick={exportMove}
-            className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
-          >
-            <Download className="h-4 w-4" />
-            Export SVG
-          </button>
-          <button
-            type="button"
-            onClick={() => setSnapGrid((prev) => !prev)}
-            className={cn(
-              'inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold transition',
-              snapGrid
-                ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
-                : 'border-slate-300 text-slate-800 hover:bg-slate-50',
-            )}
-          >
-            <Grid3x3 className="h-4 w-4" />
-            Snap
-          </button>
-          <button
-            type="button"
-            onClick={() => saveCurrentMove(false)}
-            className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
-          >
-            <Save className="h-4 w-4" />
-            Save move
-          </button>
-          <button
-            type="button"
-            onClick={() => saveCurrentMove(true)}
+            onClick={() => setPanelOpen(true)}
             className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
-            Save as variation
+            <SidebarOpen className="h-4 w-4" />
+            Panel
           </button>
         </div>
-        {saveStatus ? (
-          <p className="text-sm font-medium text-emerald-700 lg:basis-full lg:text-right">
-            {saveStatus}
-          </p>
-        ) : null}
       </div>
 
-      <div className="grid gap-4 p-4 xl:grid-cols-[1fr_220px]">
+      {/* ── Board ── */}
+      <div className="p-4">
         <div
           ref={boardRef}
           className="relative aspect-[4/3] min-h-[360px] overflow-hidden rounded-md border border-slate-200 bg-slate-100 shadow-inner"
@@ -731,81 +790,63 @@ export default function TacticalBoard({
           })}
         </div>
 
-        <aside className="flex flex-col gap-3">
-          <h3 className="text-sm font-semibold uppercase text-slate-500">Frames</h3>
-          <div className="grid grid-cols-4 gap-2 xl:grid-cols-2">
-            {frames.map((frame, index) => (
-              <div
-                key={`${frame.players.length}-${index}`}
-                className={cn(
-                  'flex overflow-hidden rounded-md border transition',
-                  activeFrameIndex === index
-                    ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
-                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    stopPlayback()
-                    setActiveFrameIndex(index)
-                  }}
-                  className="min-w-0 flex-1 px-3 py-2 text-sm font-semibold"
-                  aria-label={`Select frame ${index + 1}`}
-                >
-                  {index + 1}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => deleteFrame(index)}
-                  className="flex w-9 items-center justify-center border-l border-inherit text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                  aria-label={`Delete frame ${index + 1}`}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-2 rounded-md bg-slate-950 p-4 text-sm leading-6 text-slate-100">
-            <p className="font-semibold">Tokens</p>
-            <p className="mt-2 text-slate-300">Blue 1-15 attack, red 1-15 defend, ball animates between frames.</p>
-          </div>
-
-          <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold uppercase text-slate-500">Formations</h3>
+        {/* ── Frame strip ── */}
+        <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
+          <span className="shrink-0 text-xs font-semibold uppercase text-slate-400">Frames</span>
+          {frames.map((frame, index) => (
+            <div
+              key={`${frame.players.length}-${index}`}
+              className={cn(
+                'flex shrink-0 overflow-hidden rounded-md border transition',
+                activeFrameIndex === index
+                  ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
+                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+              )}
+            >
               <button
                 type="button"
-                onClick={() => setShowFormationModal(true)}
-                className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+                onClick={() => {
+                  stopPlayback()
+                  setActiveFrameIndex(index)
+                }}
+                className="px-3 py-1.5 text-sm font-semibold"
+                aria-label={`Select frame ${index + 1}`}
               >
-                <Plus className="h-3 w-3" />
-                Save
+                {index + 1}
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteFrame(index)}
+                className="flex w-8 items-center justify-center border-l border-inherit text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                aria-label={`Delete frame ${index + 1}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
               </button>
             </div>
-            {formations.length === 0 ? (
-              <p className="mt-2 text-xs text-slate-400">No formations saved yet. Arrange your players and click Save.</p>
-            ) : (
-              <div className="mt-2 flex flex-col gap-1.5">
-                {formations.map((formation) => (
-                  <button
-                    type="button"
-                    key={formation.id}
-                    onClick={() => loadFormation(formation)}
-                    className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm transition hover:border-emerald-700"
-                  >
-                    <span className="font-medium text-slate-700">{formation.name}</span>
-                    <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
-                      {formation.category ?? 'Formation'}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </aside>
+          ))}
+        </div>
       </div>
+
+      <PanelSlideOver
+        isOpen={panelOpen}
+        onClose={() => setPanelOpen(false)}
+        activeTab={panelTab}
+        onTabChange={setPanelTab}
+        formations={formations}
+        savedPlays={savedPlays}
+        playbooks={playbooks}
+        onLoadFormation={loadFormation}
+        onOpenSaveFormation={() => {
+          setPanelOpen(false)
+          setShowFormationModal(true)
+        }}
+        onLoadPlay={handleLoadPlay}
+        onSaveToPlaybook={handleSaveToPlaybook}
+        onSaveLocally={handleSaveLocally}
+        onExport={exportMove}
+        initialTitle={playTitle}
+        saveStatus={saveStatus}
+      />
 
       {showFormationModal && (
         <div
