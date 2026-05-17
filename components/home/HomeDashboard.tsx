@@ -20,10 +20,10 @@ type Formation = {
   createdAt: string
 }
 
-const movesStorageKey = 'rugbyslate.moves.v1'
-const formationsStorageKey = 'rugbyslate.formations.v1'
-const pendingFormationStorageKey = 'rugbyslate.pendingFormation.v1'
-const pendingMoveStorageKey = 'rugbyslate.pendingMove.v1'
+const movesStorageKey = 'rugbymove.moves.v1'
+const formationsStorageKey = 'rugbymove.formations.v1'
+const pendingFormationStorageKey = 'rugbymove.pendingFormation.v1'
+const pendingMoveStorageKey = 'rugbymove.pendingMove.v1'
 
 export default function HomeDashboard() {
   const [moves, setMoves] = useState<SavedMove[]>([])
