@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Download, Grid3x3, Home, Pause, Play, Plus, RotateCcw, Save, Trash2 } from 'lucide-react'
+import { Download, Grid3x3, Home, Pause, Play, Plus, RotateCcw, Save, Trash2, X } from 'lucide-react'
 import { savePlay } from '@/app/actions/plays'
 import { cn } from '@/lib/utils'
 import type { Frame, PlayerPosition, PlayCategory } from '@/types/play'
@@ -238,6 +238,7 @@ export default function TacticalBoard({
   const [formationCategory, setFormationCategory] = useState<FormationCategory>('Open Play')
   const [saveStatus, setSaveStatus] = useState('')
   const [snapGrid, setSnapGrid] = useState(false)
+  const [showFormationModal, setShowFormationModal] = useState(false)
 
   useEffect(() => {
     try {
@@ -322,8 +323,8 @@ export default function TacticalBoard({
       // Invert the display transform: pitch zone (display y 0-75%) → stored y 0-100; tray zone (display y 75-100%) → stored y 75-100
       const storedY = rawY <= 75 ? clampBoardY((rawY / 75) * 100) : clampBoardY(rawY)
 
-      const x = snapGrid ? Math.round(clampedX / 10) * 10 : clampedX
-      const y = snapGrid ? Math.round(storedY / 10) * 10 : storedY
+      const x = snapGrid ? Math.round(clampedX / 5) * 5 : clampedX
+      const y = snapGrid ? Math.min(95, Math.round(storedY / 5) * 5) : storedY
 
       const nextFrames = frames.map((frame, index) => {
         if (index !== activeFrameIndex) {
@@ -417,6 +418,7 @@ export default function TacticalBoard({
     setFormations(nextFormations)
     window.localStorage.setItem(formationsStorageKey, JSON.stringify(nextFormations))
     setFormationName('')
+    setShowFormationModal(false)
   }
 
   const loadFormation = (formation: Formation) => {
@@ -624,7 +626,7 @@ export default function TacticalBoard({
       <div className="grid gap-4 p-4 xl:grid-cols-[1fr_220px]">
         <div
           ref={boardRef}
-          className="relative aspect-[2/1] min-h-[360px] overflow-hidden rounded-md border border-slate-200 bg-slate-100 shadow-inner"
+          className="relative aspect-[4/3] min-h-[360px] overflow-hidden rounded-md border border-slate-200 bg-slate-100 shadow-inner"
           aria-label="Rugby tactical board"
         >
           {/* Pitch — top 75% */}
@@ -771,57 +773,107 @@ export default function TacticalBoard({
           </div>
 
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-            <h3 className="text-sm font-semibold uppercase text-slate-500">Save as formation</h3>
-            <p className="mt-1 text-xs text-slate-400">Saves this frame&apos;s positions as a starting point for new moves.</p>
-            <div className="mt-3 space-y-2">
-              <input
-                value={formationName}
-                onChange={(event) => setFormationName(event.target.value)}
-                placeholder="e.g. Tight scrum left"
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-emerald-700"
-              />
-              <select
-                value={formationCategory}
-                onChange={(event) => setFormationCategory(event.target.value as FormationCategory)}
-                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-emerald-700"
-              >
-                <option value="Scrum">Scrum</option>
-                <option value="Lineout">Lineout</option>
-                <option value="Penalty">Penalty</option>
-                <option value="Open Play">Open Play</option>
-              </select>
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold uppercase text-slate-500">Formations</h3>
               <button
                 type="button"
-                onClick={saveFormation}
-                disabled={!formationName.trim()}
-                className="w-full rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                onClick={() => setShowFormationModal(true)}
+                className="inline-flex items-center gap-1 rounded-md border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
               >
-                Save formation
+                <Plus className="h-3 w-3" />
+                Save
               </button>
             </div>
-            {formations.length > 0 && (
-              <div className="mt-4 border-t border-slate-200 pt-3">
-                <p className="mb-2 text-xs font-semibold uppercase text-slate-400">Saved</p>
-                <div className="flex flex-col gap-1.5">
-                  {formations.map((formation) => (
-                    <button
-                      type="button"
-                      key={formation.id}
-                      onClick={() => loadFormation(formation)}
-                      className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm transition hover:border-emerald-700"
-                    >
-                      <span className="font-medium text-slate-700">{formation.name}</span>
-                      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
-                        {formation.category ?? 'Formation'}
-                      </span>
-                    </button>
-                  ))}
-                </div>
+            {formations.length === 0 ? (
+              <p className="mt-2 text-xs text-slate-400">No formations saved yet. Arrange your players and click Save.</p>
+            ) : (
+              <div className="mt-2 flex flex-col gap-1.5">
+                {formations.map((formation) => (
+                  <button
+                    type="button"
+                    key={formation.id}
+                    onClick={() => loadFormation(formation)}
+                    className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm transition hover:border-emerald-700"
+                  >
+                    <span className="font-medium text-slate-700">{formation.name}</span>
+                    <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                      {formation.category ?? 'Formation'}
+                    </span>
+                  </button>
+                ))}
               </div>
             )}
           </div>
         </aside>
       </div>
+
+      {showFormationModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => setShowFormationModal(false)}
+        >
+          <div
+            className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold text-slate-950">Save formation</h2>
+              <button
+                type="button"
+                onClick={() => setShowFormationModal(false)}
+                className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <p className="mt-1 text-sm text-slate-500">
+              Saves this frame&apos;s player positions as a starting point for new moves.
+            </p>
+            <div className="mt-4 space-y-3">
+              <label className="block text-sm font-semibold text-slate-700">
+                Name
+                <input
+                  value={formationName}
+                  onChange={(e) => setFormationName(e.target.value)}
+                  placeholder="e.g. Tight scrum left"
+                  autoFocus
+                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-normal text-slate-900 outline-none transition focus:border-emerald-700"
+                />
+              </label>
+              <label className="block text-sm font-semibold text-slate-700">
+                Category
+                <select
+                  value={formationCategory}
+                  onChange={(e) => setFormationCategory(e.target.value as FormationCategory)}
+                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-normal text-slate-900 outline-none transition focus:border-emerald-700"
+                >
+                  <option value="Scrum">Scrum</option>
+                  <option value="Lineout">Lineout</option>
+                  <option value="Penalty">Penalty</option>
+                  <option value="Open Play">Open Play</option>
+                </select>
+              </label>
+            </div>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowFormationModal(false)}
+                className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={saveFormation}
+                disabled={!formationName.trim()}
+                className="rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+              >
+                Save formation
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
