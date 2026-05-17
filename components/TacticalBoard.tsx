@@ -1,13 +1,16 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Grid3x3, Home, Pause, Play, Plus, RotateCcw, SidebarOpen, Trash2, X } from 'lucide-react'
+import { ChevronLeft, Grid3x3, Home, Pause, Play, Plus, RotateCcw, Trash2, X } from 'lucide-react'
 import { savePlay } from '@/app/actions/plays'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
 import type { Frame, PlayerPosition, PlayCategory } from '@/types/play'
 import PanelSlideOver from '@/components/board/PanelSlideOver'
 import type { PanelTab } from '@/components/board/PanelSlideOver'
+import DefaultsModal from '@/components/board/DefaultsModal'
+
+type SetupItem = { id: string; name: string }
 
 type TacticalBoardProps = {
   initialFrames?: Frame[]
@@ -18,6 +21,8 @@ type TacticalBoardProps = {
   playCategory?: PlayCategory
   isPublic?: boolean
   onFramesChange?: (frames: Frame[]) => void
+  isGuest?: boolean
+  setupRequired?: { teams: SetupItem[]; playbooks: SetupItem[] }
 }
 
 type Token = {
@@ -229,6 +234,8 @@ export default function TacticalBoard({
   playCategory = 'Attacking',
   isPublic = false,
   onFramesChange,
+  isGuest = false,
+  setupRequired,
 }: TacticalBoardProps) {
   const boardRef = useRef<HTMLDivElement>(null)
   const animationRef = useRef<number | null>(null)
@@ -246,6 +253,7 @@ export default function TacticalBoard({
   const [panelTab, setPanelTab] = useState<PanelTab>('formations')
   const [savedPlays, setSavedPlays] = useState<SavedMove[]>([])
   const [playbooks, setPlaybooks] = useState<{ id: string; name: string }[]>([])
+  const [showDefaultsModal, setShowDefaultsModal] = useState(!!setupRequired)
 
   useEffect(() => {
     try {
@@ -669,17 +677,20 @@ export default function TacticalBoard({
           Snap
         </button>
 
-        <div className="ml-auto">
-          <button
-            type="button"
-            onClick={() => setPanelOpen(true)}
-            className="inline-flex items-center gap-2 rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
-          >
-            <SidebarOpen className="h-4 w-4" />
-            Panel
-          </button>
-        </div>
       </div>
+
+      {/* Fixed side tab — opens the panel */}
+      <button
+        type="button"
+        onClick={() => setPanelOpen(true)}
+        className={cn(
+          'fixed right-0 top-1/2 z-30 -translate-y-1/2 flex items-center rounded-l-xl border border-r-0 border-slate-200 bg-white py-6 pl-1.5 pr-1 shadow-md transition hover:bg-slate-50',
+          panelOpen && 'pointer-events-none opacity-0',
+        )}
+        aria-label="Open panel"
+      >
+        <ChevronLeft className="h-4 w-4 text-slate-500" />
+      </button>
 
       {/* ── Board ── */}
       <div className="p-4">
@@ -846,7 +857,23 @@ export default function TacticalBoard({
         onExport={exportMove}
         initialTitle={playTitle}
         saveStatus={saveStatus}
+        isGuest={isGuest}
       />
+
+      {showDefaultsModal && setupRequired && (
+        <DefaultsModal
+          teams={setupRequired.teams}
+          playbooks={setupRequired.playbooks}
+          onComplete={(teamId, playbookId) => {
+            setShowDefaultsModal(false)
+            setPlaybooks((prev) => {
+              const alreadyInList = prev.some((pb) => pb.id === playbookId)
+              return alreadyInList ? prev : [...prev, { id: playbookId, name: '' }]
+            })
+          }}
+          onSkip={() => setShowDefaultsModal(false)}
+        />
+      )}
 
       {showFormationModal && (
         <div
