@@ -145,12 +145,44 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 }
 
+type SetupItem = { id: string; name: string }
+
+async function getSetupProps(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<{ teams: SetupItem[]; playbooks: SetupItem[] } | null> {
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('default_team_id,default_playbook_id')
+    .eq('id', userId)
+    .single()
+
+  if (profile?.default_team_id && profile.default_playbook_id) {
+    return null
+  }
+
+  const [{ data: teams }, { data: playbooks }] = await Promise.all([
+    supabase.from('teams').select('id,name').eq('owner_id', userId).order('name'),
+    supabase.from('playbooks').select('id,name').eq('owner_id', userId).order('name'),
+  ])
+
+  return { teams: teams ?? [], playbooks: playbooks ?? [] }
+}
+
 export default async function PlaybookPage({ params }: PageProps) {
   const play = await getPlay(params.id)
 
   if (!play) {
     notFound()
   }
+
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const isGuest = !user
+  const setupRequired = user ? await getSetupProps(supabase, user.id) : null
 
   return (
     <main className="min-h-screen bg-[#f7faf8] px-4 py-6 text-slate-950 sm:px-8">
@@ -190,6 +222,8 @@ export default async function PlaybookPage({ params }: PageProps) {
           playDescription={play.description}
           playCategory={play.category}
           isPublic={play.is_public}
+          isGuest={isGuest}
+          setupRequired={setupRequired ?? undefined}
         />
       </div>
     </main>

@@ -45,6 +45,7 @@ type Props = {
   onExport: () => void
   initialTitle: string
   saveStatus: string
+  isGuest?: boolean
 }
 
 const FORMATION_CATEGORIES: FormationCategory[] = ['Scrum', 'Lineout', 'Penalty', 'Open Play']
@@ -65,6 +66,7 @@ export default function PanelSlideOver({
   onExport,
   initialTitle,
   saveStatus,
+  isGuest = false,
 }: Props) {
   const [saveTitle, setSaveTitle] = useState(initialTitle)
   const [selectedPlaybook, setSelectedPlaybook] = useState('')
@@ -84,6 +86,28 @@ export default function PanelSlideOver({
       return next
     })
   }
+
+  const GuestOverlay = () => (
+    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 rounded-lg bg-white/90 p-6 text-center backdrop-blur-[2px]">
+      <p className="text-sm font-semibold text-slate-700">
+        Log in or create an account to save your work.
+      </p>
+      <div className="flex gap-3">
+        <a
+          href="/login"
+          className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+        >
+          Log in
+        </a>
+        <a
+          href="/signup"
+          className="rounded-lg border-2 border-slate-950 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-950 hover:text-white"
+        >
+          Create account
+        </a>
+      </div>
+    </div>
+  )
 
   return (
     <>
@@ -144,15 +168,33 @@ export default function PanelSlideOver({
           {/* ── Formations tab ── */}
           {activeTab === 'formations' && (
             <div className="flex flex-col gap-3 p-4">
-              <div className="flex items-center justify-between gap-2">
+              <div className="relative flex items-center justify-between gap-2">
                 <p className="text-sm text-slate-500">Load a saved starting position.</p>
-                <button
-                  type="button"
-                  onClick={onOpenSaveFormation}
-                  className="shrink-0 rounded-md bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
-                >
-                  + Save current
-                </button>
+                {isGuest ? (
+                  <div className="group relative">
+                    <button
+                      type="button"
+                      disabled
+                      className="shrink-0 rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-400"
+                    >
+                      + Save current
+                    </button>
+                    <div className="absolute right-0 top-full z-10 mt-1 hidden w-52 rounded-lg border border-slate-200 bg-white p-3 shadow-lg group-hover:block">
+                      <p className="text-xs text-slate-600">
+                        <a href="/login" className="font-semibold text-emerald-700">Log in</a> or{' '}
+                        <a href="/signup" className="font-semibold text-emerald-700">create an account</a> to save formations.
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={onOpenSaveFormation}
+                    className="shrink-0 rounded-md bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
+                  >
+                    + Save current
+                  </button>
+                )}
               </div>
 
               {formations.length === 0 ? (
@@ -251,7 +293,8 @@ export default function PanelSlideOver({
 
           {/* ── Save tab ── */}
           {activeTab === 'save' && (
-            <div className="flex flex-col gap-4 p-4">
+            <div className="relative flex flex-col gap-4 p-4">
+              {isGuest && <GuestOverlay />}
               <label className="block text-sm font-semibold text-slate-700">
                 Title
                 <input

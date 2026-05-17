@@ -55,3 +55,73 @@ export async function setDefaultPlaybook(formData: FormData): Promise<void> {
   revalidatePath('/account')
   redirect('/account?message=Default+playbook+updated')
 }
+
+type SetupDefaultsInput = {
+  teamId?: string
+  teamName?: string
+  playbookId?: string
+  playbookName?: string
+}
+
+type SetupDefaultsResult = {
+  success: boolean
+  error?: string
+  teamId?: string
+  playbookId?: string
+}
+
+export async function setupDefaults(
+  input: SetupDefaultsInput,
+): Promise<SetupDefaultsResult> {
+  const supabase = await createClient()
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser()
+
+  if (authError || !user) {
+    return { success: false, error: 'Not authenticated' }
+  }
+
+  let finalTeamId = input.teamId ?? null
+  let finalPlaybookId = input.playbookId ?? null
+
+  if (!finalTeamId && input.teamName?.trim()) {
+    const { data, error } = await supabase
+      .from('teams')
+      .insert({ name: input.teamName.trim(), owner_id: user.id })
+      .select('id')
+      .single()
+    if (error) return { success: false, error: error.message }
+    finalTeamId = data.id
+    revalidatePath('/account')
+  }
+
+  if (!finalPlaybookId && input.playbookName?.trim()) {
+    const { data, error } = await supabase
+      .from('playbooks')
+      .insert({ name: input.playbookName.trim(), owner_id: user.id, visibility: 'private' })
+      .select('id')
+      .single()
+    if (error) return { success: false, error: error.message }
+    finalPlaybookId = data.id
+    revalidatePath('/account')
+  }
+
+  if (!finalTeamId || !finalPlaybookId) {
+    return { success: false, error: 'A team and a playbook are both required.' }
+  }
+
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({
+      default_team_id: finalTeamId,
+      default_playbook_id: finalPlaybookId,
+    })
+    .eq('id', user.id)
+
+  if (profileError) return { success: false, error: profileError.message }
+
+  revalidatePath('/')
+  return { success: true, teamId: finalTeamId, playbookId: finalPlaybookId }
+}
