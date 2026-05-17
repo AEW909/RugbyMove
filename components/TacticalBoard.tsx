@@ -5,6 +5,8 @@ import { ChevronLeft, Grid3x3, Home, Pause, Play, Plus, RotateCcw, Trash2, X } f
 import { savePlay } from '@/app/actions/plays'
 import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
+import { storageKeys } from '@/lib/board/storage'
+import type { Formation, FormationCategory, SavedMove } from '@/lib/board/storage'
 import type { Frame, PlayerPosition, PlayCategory } from '@/types/play'
 import PanelSlideOver from '@/components/board/PanelSlideOver'
 import type { PanelTab } from '@/components/board/PanelSlideOver'
@@ -30,31 +32,6 @@ type Token = {
   label: string
   side: 'attack' | 'defend' | 'ball'
 }
-
-type FormationCategory = 'Scrum' | 'Lineout' | 'Penalty' | 'Open Play'
-
-type Formation = {
-  id: string
-  name: string
-  category: FormationCategory
-  players: PlayerPosition[]
-  createdAt: string
-}
-
-type SavedMove = {
-  id: string
-  title: string
-  frames: Frame[]
-  updatedAt: string
-  sourceMoveId?: string
-}
-
-const formationsStorageKey = 'rugbymove.formations.v1'
-const movesStorageKey = 'rugbymove.moves.v1'
-const pendingFormationStorageKey = 'rugbymove.pendingFormation.v1'
-const pendingMoveStorageKey = 'rugbymove.pendingMove.v1'
-const pitchLeft = 0
-const pitchWidth = 100
 
 const tokens: Token[] = [
   ...Array.from({ length: 15 }, (_, index) => ({
@@ -112,14 +89,6 @@ function clamp(value: number) {
   return Math.min(100, Math.max(0, value))
 }
 
-function clampBoardX(value: number) {
-  return Math.min(100, Math.max(0, value))
-}
-
-function clampBoardY(value: number) {
-  return Math.min(100, Math.max(0, value))
-}
-
 function lerp(start: number, end: number, amount: number) {
   return start + (end - start) * amount
 }
@@ -144,18 +113,6 @@ function downloadTextFile(filename: string, content: string, type: string) {
   anchor.download = filename
   anchor.click()
   URL.revokeObjectURL(url)
-}
-
-function tokenForId(id: string) {
-  return tokens.find((token) => token.id === id)
-}
-
-function boardXToStageX(x: number) {
-  return x
-}
-
-function stageXToBoardX(x: number) {
-  return x
 }
 
 function svgPositionValues(frames: Frame[], id: string, axis: 'x' | 'y') {
@@ -219,10 +176,10 @@ function createAnimatedSvg(frames: Frame[]) {
 }
 
 function saveMoveToStorage(move: SavedMove) {
-  const saved = window.localStorage.getItem(movesStorageKey)
+  const saved = window.localStorage.getItem(storageKeys.moves)
   const moves = saved ? (JSON.parse(saved) as SavedMove[]) : []
   const nextMoves = [move, ...moves.filter((item) => item.id !== move.id)].slice(0, 24)
-  window.localStorage.setItem(movesStorageKey, JSON.stringify(nextMoves))
+  window.localStorage.setItem(storageKeys.moves, JSON.stringify(nextMoves))
 }
 
 export default function TacticalBoard({
@@ -257,31 +214,31 @@ export default function TacticalBoard({
 
   useEffect(() => {
     try {
-      const saved = window.localStorage.getItem(formationsStorageKey)
+      const saved = window.localStorage.getItem(storageKeys.formations)
       setFormations(saved ? JSON.parse(saved) : [])
 
-      const pendingMove = mode === 'local' ? window.localStorage.getItem(pendingMoveStorageKey) : null
+      const pendingMove = mode === 'local' ? window.localStorage.getItem(storageKeys.pendingMove) : null
       if (pendingMove) {
         const move = JSON.parse(pendingMove) as SavedMove
-        window.localStorage.removeItem(pendingMoveStorageKey)
+        window.localStorage.removeItem(storageKeys.pendingMove)
         setFrames(normalizeFrames(move.frames))
         setActiveFrameIndex(0)
         return
       }
 
       if (mode === 'fresh') {
-        window.localStorage.removeItem(pendingMoveStorageKey)
-        window.localStorage.removeItem(pendingFormationStorageKey)
+        window.localStorage.removeItem(storageKeys.pendingMove)
+        window.localStorage.removeItem(storageKeys.pendingFormation)
         setFrames([defaultFrame])
         setActiveFrameIndex(0)
         return
       }
 
       const pendingFormation =
-        mode === 'local' ? window.localStorage.getItem(pendingFormationStorageKey) : null
+        mode === 'local' ? window.localStorage.getItem(storageKeys.pendingFormation) : null
       if (pendingFormation) {
         const formation = JSON.parse(pendingFormation) as Formation
-        window.localStorage.removeItem(pendingFormationStorageKey)
+        window.localStorage.removeItem(storageKeys.pendingFormation)
         setFrames((currentFrames) => {
           const firstFrame = currentFrames[0] ?? defaultFrame
           return [
@@ -302,7 +259,7 @@ export default function TacticalBoard({
 
   useEffect(() => {
     try {
-      const stored = window.localStorage.getItem(movesStorageKey)
+      const stored = window.localStorage.getItem(storageKeys.moves)
       setSavedPlays(stored ? (JSON.parse(stored) as SavedMove[]) : [])
     } catch {
       setSavedPlays([])
@@ -349,9 +306,9 @@ export default function TacticalBoard({
       const rawX = ((clientX - rect.left) / rect.width) * 100
       const rawY = ((clientY - rect.top) / rect.height) * 100
 
-      const clampedX = clampBoardX(rawX)
+      const clampedX = clamp(rawX)
       // Invert the display transform: pitch zone (display y 0-75%) → stored y 0-100; tray zone (display y 75-100%) → stored y 75-100
-      const storedY = rawY <= 75 ? clampBoardY((rawY / 75) * 100) : clampBoardY(rawY)
+      const storedY = rawY <= 75 ? clamp((rawY / 75) * 100) : clamp(rawY)
 
       const x = snapGrid ? Math.round(clampedX / 5) * 5 : clampedX
       const y = snapGrid ? Math.min(95, Math.round(storedY / 5) * 5) : storedY
@@ -446,7 +403,7 @@ export default function TacticalBoard({
     const nextFormations = [nextFormation, ...formations].slice(0, 12)
 
     setFormations(nextFormations)
-    window.localStorage.setItem(formationsStorageKey, JSON.stringify(nextFormations))
+    window.localStorage.setItem(storageKeys.formations, JSON.stringify(nextFormations))
     setFormationName('')
     setShowFormationModal(false)
   }
@@ -544,46 +501,6 @@ export default function TacticalBoard({
     },
     [stopPlayback],
   )
-
-  const saveCurrentMove = async (asVariation = false) => {
-    const title = asVariation ? `${playTitle} variation` : playTitle
-    const normalizedFrames = normalizeFrames(frames)
-
-    saveMoveToStorage({
-      id: crypto.randomUUID(),
-      title,
-      frames: normalizedFrames,
-      updatedAt: new Date().toISOString(),
-      sourceMoveId: asVariation ? playTitle : undefined,
-    })
-
-    try {
-      const shouldUpdateExisting =
-        !asVariation &&
-        playId &&
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-          playId,
-        )
-
-      await savePlay({
-        id: shouldUpdateExisting ? playId : undefined,
-        title,
-        description: playDescription,
-        category: playCategory,
-        is_public: isPublic,
-        animation_data: {
-          frames: normalizedFrames,
-        },
-      })
-      setSaveStatus(asVariation ? 'Saved variation to account' : 'Saved move to account')
-    } catch (error) {
-      setSaveStatus(
-        error instanceof Error && error.message.includes('signed in')
-          ? 'Saved locally. Log in to save to your account.'
-          : 'Saved locally. Account save failed.',
-      )
-    }
-  }
 
   const playFrames = () => {
     const playbackFrames = normalizeFrames(frames).filter((frame) => frame.players.length > 0)
