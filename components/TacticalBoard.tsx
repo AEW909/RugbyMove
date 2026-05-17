@@ -1,545 +1,40 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useRef } from 'react'
 import { ChevronLeft, Grid3x3, Home, Pause, Play, Plus, RotateCcw, Trash2, X } from 'lucide-react'
-import { savePlay } from '@/app/actions/plays'
-import { createClient } from '@/lib/supabase/client'
 import { cn } from '@/lib/utils'
-import { storageKeys } from '@/lib/board/storage'
-import type { Formation, FormationCategory, SavedMove } from '@/lib/board/storage'
-import type { Frame, PlayerPosition, PlayCategory } from '@/types/play'
+import type { FormationCategory } from '@/lib/board/storage'
+import { useTacticalBoard, tokens } from '@/hooks/useTacticalBoard'
+import type { TacticalBoardProps } from '@/hooks/useTacticalBoard'
 import PanelSlideOver from '@/components/board/PanelSlideOver'
-import type { PanelTab } from '@/components/board/PanelSlideOver'
 import DefaultsModal from '@/components/board/DefaultsModal'
 
-type SetupItem = { id: string; name: string }
-
-type TacticalBoardProps = {
-  initialFrames?: Frame[]
-  playId?: string
-  mode?: 'fresh' | 'local' | 'saved'
-  playTitle?: string
-  playDescription?: string | null
-  playCategory?: PlayCategory
-  isPublic?: boolean
-  onFramesChange?: (frames: Frame[]) => void
-  isGuest?: boolean
-  setupRequired?: { teams: SetupItem[]; playbooks: SetupItem[] }
-}
-
-type Token = {
-  id: string
-  label: string
-  side: 'attack' | 'defend' | 'ball'
-}
-
-const tokens: Token[] = [
-  ...Array.from({ length: 15 }, (_, index) => ({
-    id: `attack-${index + 1}`,
-    label: String(index + 1),
-    side: 'attack' as const,
-  })),
-  ...Array.from({ length: 15 }, (_, index) => ({
-    id: `defend-${index + 1}`,
-    label: String(index + 1),
-    side: 'defend' as const,
-  })),
-  { id: 'ball', label: '', side: 'ball' as const },
-]
-
-function createDefaultPlayers(): PlayerPosition[] {
-  return tokens.map((token, index) => {
-    if (token.side === 'ball') {
-      return { id: token.id, x: 50, y: 35 }
-    }
-
-    const teamIndex = token.side === 'attack' ? index : index - 15
-    const col = teamIndex % 5
-    const row = Math.floor(teamIndex / 5)
-
-    return {
-      id: token.id,
-      x: (token.side === 'attack' ? 3 : 57) + col * 10,
-      y: 79 + row * 8,
-    }
-  })
-}
-
-const defaultFrame: Frame = {
-  players: createDefaultPlayers(),
-  lines: [],
-}
-
-function normalizeFrame(frame: Partial<Frame> | undefined): Frame {
-  return {
-    players: Array.isArray(frame?.players) ? frame.players : createDefaultPlayers(),
-    lines: Array.isArray(frame?.lines) ? frame.lines : [],
-  }
-}
-
-function normalizeFrames(nextFrames: Partial<Frame>[] | undefined): Frame[] {
-  if (!Array.isArray(nextFrames) || nextFrames.length === 0) {
-    return [defaultFrame]
-  }
-
-  return nextFrames.map(normalizeFrame)
-}
-
-function clamp(value: number) {
-  return Math.min(100, Math.max(0, value))
-}
-
-function lerp(start: number, end: number, amount: number) {
-  return start + (end - start) * amount
-}
-
-function interpolatePlayers(from: PlayerPosition[], to: PlayerPosition[], amount: number) {
-  return from.map((player) => {
-    const next = to.find((item) => item.id === player.id) ?? player
-
-    return {
-      id: player.id,
-      x: lerp(player.x, next.x, amount),
-      y: lerp(player.y, next.y, amount),
-    }
-  })
-}
-
-function downloadTextFile(filename: string, content: string, type: string) {
-  const blob = new Blob([content], { type })
-  const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  anchor.click()
-  URL.revokeObjectURL(url)
-}
-
-function svgPositionValues(frames: Frame[], id: string, axis: 'x' | 'y') {
-  return frames
-    .map((frame) => clamp(frame.players.find((player) => player.id === id)?.[axis] ?? 50))
-    .join('%;%')
-    .concat('%')
-}
-
-function createAnimatedSvg(frames: Frame[]) {
-  const safeFrames = normalizeFrames(frames)
-  const duration = Math.max(1, safeFrames.length - 1)
-
-  const tokenMarkup = tokens
-    .map((token) => {
-      const first = safeFrames[0].players.find((player) => player.id === token.id)
-      if (!first) {
-        return ''
-      }
-
-      const xValues = svgPositionValues(safeFrames, token.id, 'x')
-      const yValues = svgPositionValues(safeFrames, token.id, 'y')
-      const firstX = clamp(first.x)
-      const firstY = clamp(first.y)
-      const animateX = `<animate attributeName="cx" dur="${duration}s" values="${xValues}" fill="freeze" />`
-      const animateY = `<animate attributeName="cy" dur="${duration}s" values="${yValues}" fill="freeze" />`
-
-      if (token.side === 'ball') {
-        return `
-          <g>
-            <ellipse cx="${firstX}%" cy="${firstY}%" rx="2.8%" ry="1.6%" fill="#f8fafc" stroke="#14532d" stroke-width="0.45%">
-              ${animateX}${animateY}
-            </ellipse>
-          </g>`
-      }
-
-      const fill = token.side === 'attack' ? '#2563eb' : '#dc2626'
-      return `
-        <g>
-          <circle cx="${firstX}%" cy="${firstY}%" r="2.1%" fill="${fill}" stroke="#ffffff" stroke-width="0.35%">
-            ${animateX}${animateY}
-          </circle>
-          <text x="${firstX}%" y="${firstY}%" dominant-baseline="central" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700">${token.label}</text>
-        </g>`
-    })
-    .join('')
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="800" viewBox="0 0 1320 800">
-  <rect width="1320" height="800" fill="#15803d"/>
-  <g stroke="#ffffff" stroke-opacity="0.55" stroke-width="2">
-    <rect x="20" y="20" width="1280" height="760" fill="none" stroke-opacity="0.9" stroke-width="5"/>
-    <line x1="660" y1="20" x2="660" y2="780"/>
-    <line x1="66" y1="20" x2="66" y2="780" stroke-opacity="0.85"/>
-    <line x1="1254" y1="20" x2="1254" y2="780" stroke-opacity="0.85"/>
-    <line x1="290" y1="20" x2="290" y2="780" stroke-dasharray="12 12"/>
-    <line x1="1030" y1="20" x2="1030" y2="780" stroke-dasharray="12 12"/>
-  </g>
-  ${tokenMarkup}
-</svg>`
-}
-
-function saveMoveToStorage(move: SavedMove) {
-  const saved = window.localStorage.getItem(storageKeys.moves)
-  const moves = saved ? (JSON.parse(saved) as SavedMove[]) : []
-  const nextMoves = [move, ...moves.filter((item) => item.id !== move.id)].slice(0, 24)
-  window.localStorage.setItem(storageKeys.moves, JSON.stringify(nextMoves))
-}
-
-export default function TacticalBoard({
-  initialFrames,
-  playId,
-  mode = 'saved',
-  playTitle = 'Untitled move',
-  playDescription,
-  playCategory = 'Attacking',
-  isPublic = false,
-  onFramesChange,
-  isGuest = false,
-  setupRequired,
-}: TacticalBoardProps) {
+export default function TacticalBoard(props: TacticalBoardProps) {
+  const board = useTacticalBoard(props)
   const boardRef = useRef<HTMLDivElement>(null)
-  const animationRef = useRef<number | null>(null)
-  const [frames, setFrames] = useState<Frame[]>(() => normalizeFrames(initialFrames))
-  const [activeFrameIndex, setActiveFrameIndex] = useState(0)
-  const [displayPlayers, setDisplayPlayers] = useState<PlayerPosition[] | null>(null)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [formations, setFormations] = useState<Formation[]>([])
-  const [formationName, setFormationName] = useState('')
-  const [formationCategory, setFormationCategory] = useState<FormationCategory>('Open Play')
-  const [saveStatus, setSaveStatus] = useState('')
-  const [snapGrid, setSnapGrid] = useState(false)
-  const [showFormationModal, setShowFormationModal] = useState(false)
-  const [panelOpen, setPanelOpen] = useState(false)
-  const [panelTab, setPanelTab] = useState<PanelTab>('formations')
-  const [savedPlays, setSavedPlays] = useState<SavedMove[]>([])
-  const [playbooks, setPlaybooks] = useState<{ id: string; name: string }[]>([])
-  const [showDefaultsModal, setShowDefaultsModal] = useState(!!setupRequired)
 
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(storageKeys.formations)
-      setFormations(saved ? JSON.parse(saved) : [])
+  const { isGuest = false, setupRequired, playTitle = 'Untitled move' } = props
 
-      const pendingMove = mode === 'local' ? window.localStorage.getItem(storageKeys.pendingMove) : null
-      if (pendingMove) {
-        const move = JSON.parse(pendingMove) as SavedMove
-        window.localStorage.removeItem(storageKeys.pendingMove)
-        setFrames(normalizeFrames(move.frames))
-        setActiveFrameIndex(0)
-        return
-      }
-
-      if (mode === 'fresh') {
-        window.localStorage.removeItem(storageKeys.pendingMove)
-        window.localStorage.removeItem(storageKeys.pendingFormation)
-        setFrames([defaultFrame])
-        setActiveFrameIndex(0)
-        return
-      }
-
-      const pendingFormation =
-        mode === 'local' ? window.localStorage.getItem(storageKeys.pendingFormation) : null
-      if (pendingFormation) {
-        const formation = JSON.parse(pendingFormation) as Formation
-        window.localStorage.removeItem(storageKeys.pendingFormation)
-        setFrames((currentFrames) => {
-          const firstFrame = currentFrames[0] ?? defaultFrame
-          return [
-            {
-              ...firstFrame,
-              players: firstFrame.players.map((player) => {
-                const savedPlayer = formation.players.find((item) => item.id === player.id)
-                return savedPlayer ? { ...savedPlayer } : player
-              }),
-            },
-          ]
-        })
-      }
-    } catch {
-      setFormations([])
-    }
-  }, [mode])
-
-  useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(storageKeys.moves)
-      setSavedPlays(stored ? (JSON.parse(stored) as SavedMove[]) : [])
-    } catch {
-      setSavedPlays([])
-    }
-    const supabase = createClient()
-    supabase
-      .from('playbooks')
-      .select('id,name')
-      .order('name')
-      .then(({ data }) => setPlaybooks(data ?? []))
-  }, [])
-
-  const activeFrame = frames[activeFrameIndex] ?? frames[0] ?? defaultFrame
-  const visiblePlayers = displayPlayers ?? activeFrame.players
-
-  const playerById = useMemo(() => {
-    return new Map(visiblePlayers.map((player) => [player.id, player]))
-  }, [visiblePlayers])
-
-  const commitFrames = useCallback(
-    (nextFrames: Frame[]) => {
-      setFrames(normalizeFrames(nextFrames))
-    },
-    [],
-  )
-
-  const stopPlayback = useCallback(() => {
-    if (animationRef.current !== null) {
-      cancelAnimationFrame(animationRef.current)
-      animationRef.current = null
-    }
-    setIsPlaying(false)
-    setDisplayPlayers(null)
-  }, [])
-
-  const updatePlayerPosition = useCallback(
-    (id: string, clientX: number, clientY: number) => {
-      const board = boardRef.current
-      if (!board || isPlaying) {
-        return
-      }
-
-      const rect = board.getBoundingClientRect()
-      const rawX = ((clientX - rect.left) / rect.width) * 100
-      const rawY = ((clientY - rect.top) / rect.height) * 100
-
-      const clampedX = clamp(rawX)
-      // Invert the display transform: pitch zone (display y 0-75%) → stored y 0-100; tray zone (display y 75-100%) → stored y 75-100
-      const storedY = rawY <= 75 ? clamp((rawY / 75) * 100) : clamp(rawY)
-
-      const x = snapGrid ? Math.round(clampedX / 5) * 5 : clampedX
-      const y = snapGrid ? Math.min(95, Math.round(storedY / 5) * 5) : storedY
-
-      const nextFrames = frames.map((frame, index) => {
-        if (index !== activeFrameIndex) {
-          return frame
-        }
-        return {
-          ...frame,
-          players: frame.players.map((player) =>
-            player.id === id ? { ...player, x, y } : player,
-          ),
-        }
-      })
-
-      commitFrames(nextFrames)
-    },
-    [activeFrameIndex, commitFrames, frames, isPlaying, snapGrid],
-  )
-
-  const handlePointerDown = (id: string) => (event: React.PointerEvent<HTMLButtonElement>) => {
-    event.currentTarget.setPointerCapture(event.pointerId)
-    updatePlayerPosition(id, event.clientX, event.clientY)
+  const updatePlayerPosition = (id: string, clientX: number, clientY: number) => {
+    const el = boardRef.current
+    if (!el) return
+    const rect = el.getBoundingClientRect()
+    const rawX = ((clientX - rect.left) / rect.width) * 100
+    const rawY = ((clientY - rect.top) / rect.height) * 100
+    board.movePlayer(id, rawX, rawY)
   }
 
-  const handlePointerMove = (id: string) => (event: React.PointerEvent<HTMLButtonElement>) => {
-    if (event.buttons !== 1) {
-      return
+  const handlePointerDown =
+    (id: string) => (event: React.PointerEvent<HTMLButtonElement>) => {
+      event.currentTarget.setPointerCapture(event.pointerId)
+      updatePlayerPosition(id, event.clientX, event.clientY)
     }
 
-    updatePlayerPosition(id, event.clientX, event.clientY)
-  }
-
-  const captureFrame = () => {
-    const source = frames[activeFrameIndex] ?? defaultFrame
-    const nextFrames = [
-      ...frames.slice(0, activeFrameIndex + 1),
-      {
-        players: source.players.map((player) => ({ ...player })),
-        lines: source.lines.map((line) => ({ ...line })),
-      },
-      ...frames.slice(activeFrameIndex + 1),
-    ]
-    commitFrames(nextFrames)
-    setActiveFrameIndex(activeFrameIndex + 1)
-  }
-
-  const deleteFrame = (indexToDelete: number) => {
-    stopPlayback()
-
-    if (frames.length <= 1) {
-      commitFrames([defaultFrame])
-      setActiveFrameIndex(0)
-      return
+  const handlePointerMove =
+    (id: string) => (event: React.PointerEvent<HTMLButtonElement>) => {
+      if (event.buttons !== 1) return
+      updatePlayerPosition(id, event.clientX, event.clientY)
     }
-
-    const nextFrames = frames.filter((_, index) => index !== indexToDelete)
-    commitFrames(nextFrames)
-    setActiveFrameIndex((currentIndex) => {
-      if (currentIndex > indexToDelete) {
-        return currentIndex - 1
-      }
-
-      if (currentIndex === indexToDelete) {
-        return Math.max(0, currentIndex - 1)
-      }
-
-      return Math.min(currentIndex, nextFrames.length - 1)
-    })
-  }
-
-  const resetBoard = () => {
-    stopPlayback()
-    commitFrames([defaultFrame])
-    setActiveFrameIndex(0)
-  }
-
-  const saveFormation = () => {
-    const trimmedName = formationName.trim()
-    if (!trimmedName) {
-      return
-    }
-
-    const nextFormation: Formation = {
-      id: crypto.randomUUID(),
-      name: trimmedName,
-      category: formationCategory,
-      players: activeFrame.players.map((player) => ({ ...player })),
-      createdAt: new Date().toISOString(),
-    }
-    const nextFormations = [nextFormation, ...formations].slice(0, 12)
-
-    setFormations(nextFormations)
-    window.localStorage.setItem(storageKeys.formations, JSON.stringify(nextFormations))
-    setFormationName('')
-    setShowFormationModal(false)
-  }
-
-  const loadFormation = (formation: Formation) => {
-    stopPlayback()
-    const nextFrames = frames.map((frame, index) => {
-      if (index !== activeFrameIndex) {
-        return frame
-      }
-
-      return {
-        ...frame,
-        players: frame.players.map((player) => {
-          const savedPlayer = formation.players.find((item) => item.id === player.id)
-          return savedPlayer ? { ...savedPlayer } : player
-        }),
-      }
-    })
-
-    commitFrames(nextFrames)
-  }
-
-  const exportMove = () => {
-    const svg = createAnimatedSvg(frames)
-    downloadTextFile('rugbymove-move.svg', svg, 'image/svg+xml')
-  }
-
-  const persistLocally = useCallback(
-    (title: string): SavedMove => {
-      const move: SavedMove = {
-        id: crypto.randomUUID(),
-        title,
-        frames: normalizeFrames(frames),
-        updatedAt: new Date().toISOString(),
-      }
-      saveMoveToStorage(move)
-      setSavedPlays((prev) => [move, ...prev.filter((p) => p.id !== move.id)].slice(0, 24))
-      return move
-    },
-    [frames],
-  )
-
-  const handleSaveLocally = useCallback(
-    (title: string) => {
-      persistLocally(title)
-      setSaveStatus('Saved locally.')
-    },
-    [persistLocally],
-  )
-
-  const handleSaveToPlaybook = useCallback(
-    async (playbookId: string, title: string) => {
-      const move = persistLocally(title)
-      const normalizedFrames = move.frames
-      try {
-        const play = await savePlay({
-          id:
-            playId &&
-            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-              playId,
-            )
-              ? playId
-              : undefined,
-          title,
-          description: playDescription,
-          category: playCategory,
-          is_public: isPublic,
-          animation_data: { frames: normalizedFrames },
-        })
-        const supabase = createClient()
-        await supabase
-          .from('playbook_plays')
-          .upsert(
-            { playbook_id: playbookId, play_id: play.id },
-            { onConflict: 'playbook_id,play_id' },
-          )
-        setSaveStatus('Saved to playbook.')
-      } catch (error) {
-        setSaveStatus(
-          error instanceof Error && error.message.includes('signed in')
-            ? 'Saved locally. Log in to save to your account.'
-            : 'Saved locally. Account save failed.',
-        )
-      }
-    },
-    [frames, isPublic, playCategory, playDescription, playId, persistLocally],
-  )
-
-  const handleLoadPlay = useCallback(
-    (play: SavedMove) => {
-      stopPlayback()
-      setFrames(normalizeFrames(play.frames))
-      setActiveFrameIndex(0)
-    },
-    [stopPlayback],
-  )
-
-  const playFrames = () => {
-    const playbackFrames = normalizeFrames(frames).filter((frame) => frame.players.length > 0)
-
-    if (playbackFrames.length < 2 || isPlaying) {
-      return
-    }
-
-    const durationPerSegment = 900
-    const startedAt = performance.now()
-    const totalSegments = playbackFrames.length - 1
-    setIsPlaying(true)
-
-    const tick = (now: number) => {
-      const elapsed = now - startedAt
-      const segment = Math.max(
-        0,
-        Math.min(totalSegments - 1, Math.floor(elapsed / durationPerSegment)),
-      )
-      const segmentProgress = Math.min(1, (elapsed % durationPerSegment) / durationPerSegment)
-      const fromFrame = playbackFrames[segment]
-      const toFrame = playbackFrames[segment + 1]
-
-      setActiveFrameIndex(segment)
-      setDisplayPlayers(interpolatePlayers(fromFrame.players, toFrame.players, segmentProgress))
-
-      if (elapsed < totalSegments * durationPerSegment) {
-        animationRef.current = requestAnimationFrame(tick)
-        return
-      }
-
-      setActiveFrameIndex(playbackFrames.length - 1)
-      setDisplayPlayers(null)
-      setIsPlaying(false)
-      animationRef.current = null
-    }
-
-    animationRef.current = requestAnimationFrame(tick)
-  }
 
   return (
     <section className="overflow-visible rounded-lg border border-emerald-900/10 bg-white shadow-toolbar">
@@ -557,16 +52,16 @@ export default function TacticalBoard({
 
         <button
           type="button"
-          onClick={isPlaying ? stopPlayback : playFrames}
-          disabled={frames.length < 2}
+          onClick={board.isPlaying ? board.stopPlayback : board.playFrames}
+          disabled={board.frames.length < 2}
           className="inline-flex items-center gap-2 rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-50"
         >
-          {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-          {isPlaying ? 'Pause' : 'Play'}
+          {board.isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+          {board.isPlaying ? 'Pause' : 'Play'}
         </button>
         <button
           type="button"
-          onClick={captureFrame}
+          onClick={board.captureFrame}
           className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
         >
           <Plus className="h-4 w-4" />
@@ -574,7 +69,7 @@ export default function TacticalBoard({
         </button>
         <button
           type="button"
-          onClick={resetBoard}
+          onClick={board.resetBoard}
           className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
         >
           <RotateCcw className="h-4 w-4" />
@@ -582,10 +77,10 @@ export default function TacticalBoard({
         </button>
         <button
           type="button"
-          onClick={() => setSnapGrid((prev) => !prev)}
+          onClick={() => board.setSnapGrid((prev) => !prev)}
           className={cn(
             'inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold transition',
-            snapGrid
+            board.snapGrid
               ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
               : 'border-slate-300 text-slate-800 hover:bg-slate-50',
           )}
@@ -593,16 +88,15 @@ export default function TacticalBoard({
           <Grid3x3 className="h-4 w-4" />
           Snap
         </button>
-
       </div>
 
       {/* Fixed side tab — opens the panel */}
       <button
         type="button"
-        onClick={() => setPanelOpen(true)}
+        onClick={() => board.setPanelOpen(true)}
         className={cn(
           'fixed right-0 top-1/2 z-30 -translate-y-1/2 flex items-center rounded-l-xl border border-r-0 border-slate-200 bg-white py-6 pl-1.5 pr-1 shadow-md transition hover:bg-slate-50',
-          panelOpen && 'pointer-events-none opacity-0',
+          board.panelOpen && 'pointer-events-none opacity-0',
         )}
         aria-label="Open panel"
       >
@@ -639,7 +133,7 @@ export default function TacticalBoard({
 
           {/* Move lines SVG — covers full board coordinate space */}
           <svg className="pointer-events-none absolute inset-0 h-full w-full">
-            {activeFrame.lines.map((line) => (
+            {board.activeFrame.lines.map((line) => (
               <line
                 key={line.id}
                 x1={`${line.from.x}%`}
@@ -666,10 +160,8 @@ export default function TacticalBoard({
 
           {/* Player tokens */}
           {tokens.map((token) => {
-            const player = playerById.get(token.id)
-            if (!player) {
-              return null
-            }
+            const player = board.playerById.get(token.id)
+            if (!player) return null
 
             const inPitch = player.y <= 75
             const displayX = player.x
@@ -721,12 +213,12 @@ export default function TacticalBoard({
         {/* ── Frame strip ── */}
         <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
           <span className="shrink-0 text-xs font-semibold uppercase text-slate-400">Frames</span>
-          {frames.map((frame, index) => (
+          {board.frames.map((frame, index) => (
             <div
               key={`${frame.players.length}-${index}`}
               className={cn(
                 'flex shrink-0 overflow-hidden rounded-md border transition',
-                activeFrameIndex === index
+                board.activeFrameIndex === index
                   ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
                   : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
               )}
@@ -734,8 +226,8 @@ export default function TacticalBoard({
               <button
                 type="button"
                 onClick={() => {
-                  stopPlayback()
-                  setActiveFrameIndex(index)
+                  board.stopPlayback()
+                  board.setActiveFrameIndex(index)
                 }}
                 className="px-3 py-1.5 text-sm font-semibold"
                 aria-label={`Select frame ${index + 1}`}
@@ -744,7 +236,7 @@ export default function TacticalBoard({
               </button>
               <button
                 type="button"
-                onClick={() => deleteFrame(index)}
+                onClick={() => board.deleteFrame(index)}
                 className="flex w-8 items-center justify-center border-l border-inherit text-slate-400 transition hover:bg-red-50 hover:text-red-600"
                 aria-label={`Delete frame ${index + 1}`}
               >
@@ -756,46 +248,46 @@ export default function TacticalBoard({
       </div>
 
       <PanelSlideOver
-        isOpen={panelOpen}
-        onClose={() => setPanelOpen(false)}
-        activeTab={panelTab}
-        onTabChange={setPanelTab}
-        formations={formations}
-        savedPlays={savedPlays}
-        playbooks={playbooks}
-        onLoadFormation={loadFormation}
+        isOpen={board.panelOpen}
+        onClose={() => board.setPanelOpen(false)}
+        activeTab={board.panelTab}
+        onTabChange={board.setPanelTab}
+        formations={board.formations}
+        savedPlays={board.savedPlays}
+        playbooks={board.playbooks}
+        onLoadFormation={board.loadFormation}
         onOpenSaveFormation={() => {
-          setPanelOpen(false)
-          setShowFormationModal(true)
+          board.setPanelOpen(false)
+          board.setShowFormationModal(true)
         }}
-        onLoadPlay={handleLoadPlay}
-        onSaveToPlaybook={handleSaveToPlaybook}
-        onSaveLocally={handleSaveLocally}
-        onExport={exportMove}
+        onLoadPlay={board.handleLoadPlay}
+        onSaveToPlaybook={board.handleSaveToPlaybook}
+        onSaveLocally={board.handleSaveLocally}
+        onExport={board.exportMove}
         initialTitle={playTitle}
-        saveStatus={saveStatus}
+        saveStatus={board.saveStatus}
         isGuest={isGuest}
       />
 
-      {showDefaultsModal && setupRequired && (
+      {board.showDefaultsModal && setupRequired && (
         <DefaultsModal
           teams={setupRequired.teams}
           playbooks={setupRequired.playbooks}
           onComplete={(teamId, playbookId) => {
-            setShowDefaultsModal(false)
-            setPlaybooks((prev) => {
+            board.setShowDefaultsModal(false)
+            board.setPlaybooks((prev) => {
               const alreadyInList = prev.some((pb) => pb.id === playbookId)
               return alreadyInList ? prev : [...prev, { id: playbookId, name: '' }]
             })
           }}
-          onSkip={() => setShowDefaultsModal(false)}
+          onSkip={() => board.setShowDefaultsModal(false)}
         />
       )}
 
-      {showFormationModal && (
+      {board.showFormationModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setShowFormationModal(false)}
+          onClick={() => board.setShowFormationModal(false)}
         >
           <div
             className="w-full max-w-sm rounded-lg bg-white p-6 shadow-xl"
@@ -805,7 +297,7 @@ export default function TacticalBoard({
               <h2 className="text-lg font-semibold text-slate-950">Save formation</h2>
               <button
                 type="button"
-                onClick={() => setShowFormationModal(false)}
+                onClick={() => board.setShowFormationModal(false)}
                 className="rounded-md p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
               >
                 <X className="h-4 w-4" />
@@ -818,8 +310,8 @@ export default function TacticalBoard({
               <label className="block text-sm font-semibold text-slate-700">
                 Name
                 <input
-                  value={formationName}
-                  onChange={(e) => setFormationName(e.target.value)}
+                  value={board.formationName}
+                  onChange={(e) => board.setFormationName(e.target.value)}
                   placeholder="e.g. Tight scrum left"
                   autoFocus
                   className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-normal text-slate-900 outline-none transition focus:border-emerald-700"
@@ -828,8 +320,8 @@ export default function TacticalBoard({
               <label className="block text-sm font-semibold text-slate-700">
                 Category
                 <select
-                  value={formationCategory}
-                  onChange={(e) => setFormationCategory(e.target.value as FormationCategory)}
+                  value={board.formationCategory}
+                  onChange={(e) => board.setFormationCategory(e.target.value as FormationCategory)}
                   className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 font-normal text-slate-900 outline-none transition focus:border-emerald-700"
                 >
                   <option value="Scrum">Scrum</option>
@@ -842,15 +334,15 @@ export default function TacticalBoard({
             <div className="mt-5 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setShowFormationModal(false)}
+                onClick={() => board.setShowFormationModal(false)}
                 className="rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={saveFormation}
-                disabled={!formationName.trim()}
+                onClick={board.saveFormation}
+                disabled={!board.formationName.trim()}
                 className="rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
               >
                 Save formation
