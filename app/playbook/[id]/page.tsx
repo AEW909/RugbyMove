@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { CalendarDays, Lock, Share2 } from 'lucide-react'
 import TacticalBoard from '@/components/TacticalBoard'
@@ -77,7 +78,7 @@ async function getPlay(id: string): Promise<Play | null> {
       updated_at: new Date().toISOString(),
       profiles: {
         username: 'coach-demo',
-        team_name: 'RugbySlate XV',
+        team_name: 'RugbyMove XV',
       },
     }
   }
@@ -125,13 +126,13 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const description =
     play.description ??
-    `${play.category} Rugby Union tactical play by ${play.profiles?.team_name ?? 'RugbySlate'}`
+    `${play.category} Rugby Union tactical play by ${play.profiles?.team_name ?? 'RugbyMove'}`
 
   return {
     title: play.title,
     description,
     openGraph: {
-      title: `${play.title} | RugbySlate`,
+      title: `${play.title} | RugbyMove`,
       description,
       type: 'article',
       url: `/playbook/${play.id}`,
@@ -155,6 +156,9 @@ export default async function PlaybookPage({ params }: PageProps) {
     <main className="min-h-screen bg-[#f7faf8] px-4 py-6 text-slate-950 sm:px-8">
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
         <header className="flex flex-col gap-4 border-b border-emerald-900/10 pb-5 lg:flex-row lg:items-end lg:justify-between">
+          <Link href="/" className="text-sm font-medium text-slate-500 hover:text-slate-800">
+            ← Home
+          </Link>
           <div>
             <p className="text-sm font-semibold uppercase text-emerald-700">{play.category}</p>
             <h1 className="mt-2 text-3xl font-bold sm:text-5xl">{play.title}</h1>

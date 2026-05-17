@@ -30,6 +30,12 @@ export async function signIn(formData: FormData) {
 export async function signUp(formData: FormData) {
   const email = emailSchema.parse(formData.get('email'))
   const password = passwordSchema.parse(formData.get('password'))
+  const confirmPassword = formData.get('confirmPassword')
+
+  if (password !== confirmPassword) {
+    redirect('/signup?error=Passwords%20do%20not%20match')
+  }
+
   const supabase = await createClient()
 
   const { error } = await supabase.auth.signUp({
@@ -41,10 +47,10 @@ export async function signUp(formData: FormData) {
   })
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`)
+    redirect(`/signup?error=${encodeURIComponent(error.message)}`)
   }
 
-  redirect('/login?message=Check%20your%20email%20to%20confirm%20your%20account')
+  redirect(`/signup/confirm?email=${encodeURIComponent(email)}`)
 }
 
 export async function signOut() {

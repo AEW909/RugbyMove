@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { ClipboardList, FolderOpen, Plus, Rows3 } from 'lucide-react'
+import { BookOpen, ClipboardList, FolderOpen, Plus } from 'lucide-react'
 import type { Frame, PlayerPosition } from '@/types/play'
 
 type SavedMove = {
@@ -15,14 +15,15 @@ type SavedMove = {
 type Formation = {
   id: string
   name: string
+  category?: string
   players: PlayerPosition[]
   createdAt: string
 }
 
-const movesStorageKey = 'rugbyslate.moves.v1'
-const formationsStorageKey = 'rugbyslate.formations.v1'
-const pendingFormationStorageKey = 'rugbyslate.pendingFormation.v1'
-const pendingMoveStorageKey = 'rugbyslate.pendingMove.v1'
+const movesStorageKey = 'rugbymove.moves.v1'
+const formationsStorageKey = 'rugbymove.formations.v1'
+const pendingFormationStorageKey = 'rugbymove.pendingFormation.v1'
+const pendingMoveStorageKey = 'rugbymove.pendingMove.v1'
 
 export default function HomeDashboard() {
   const [moves, setMoves] = useState<SavedMove[]>([])
@@ -51,7 +52,7 @@ export default function HomeDashboard() {
       <div className="mx-auto flex max-w-7xl flex-col gap-6">
         <header className="flex flex-col gap-4 border-b border-emerald-900/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">RugbySlate</h1>
+            <h1 className="text-3xl font-bold tracking-tight sm:text-5xl">RugbyMove</h1>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">
               Build moves from scratch, reuse starting formations, and keep variations for match-week planning.
             </p>
@@ -71,7 +72,7 @@ export default function HomeDashboard() {
           </Link>
         </header>
 
-        <section className="grid gap-4 md:grid-cols-3">
+        <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Link
             href="/playbook/new"
             className="rounded-lg border border-emerald-900/10 bg-white p-5 shadow-toolbar transition hover:-translate-y-0.5"
@@ -81,18 +82,21 @@ export default function HomeDashboard() {
             <p className="mt-2 text-sm leading-6 text-slate-600">Open the board with every token staged off-pitch.</p>
           </Link>
           <Link
-            href="/playbook/demo"
+            href="/playbooks"
+            className="rounded-lg border border-emerald-900/10 bg-white p-5 shadow-toolbar transition hover:-translate-y-0.5"
+          >
+            <BookOpen className="h-6 w-6 text-emerald-700" />
+            <h2 className="mt-4 text-lg font-semibold">Playbooks</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Organise moves into shareable collections for your squad.</p>
+          </Link>
+          <Link
+            href="/account"
             className="rounded-lg border border-emerald-900/10 bg-white p-5 shadow-toolbar transition hover:-translate-y-0.5"
           >
             <ClipboardList className="h-6 w-6 text-emerald-700" />
-            <h2 className="mt-4 text-lg font-semibold">Demo move</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Open the current two-frame attacking example.</p>
+            <h2 className="mt-4 text-lg font-semibold">Account</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">View your saved moves and manage your account.</p>
           </Link>
-          <div className="rounded-lg border border-emerald-900/10 bg-white p-5 shadow-toolbar">
-            <Rows3 className="h-6 w-6 text-emerald-700" />
-            <h2 className="mt-4 text-lg font-semibold">Start from formation</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Saved shapes appear here once created in the editor.</p>
-          </div>
         </section>
 
         <section className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -125,11 +129,12 @@ export default function HomeDashboard() {
           </div>
 
           <aside>
-            <h2 className="mb-3 text-xl font-semibold">Formations</h2>
+            <h2 className="mb-1 text-xl font-semibold">Formations</h2>
+            <p className="mb-3 text-sm text-slate-500">Saved starting positions. Click one to open a new move with players pre-arranged.</p>
             <div className="grid gap-3">
               {formations.length === 0 ? (
                 <div className="rounded-lg border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">
-                  Save formations from the board to start moves faster.
+                  Set up your players on the board, then use &ldquo;Save as formation&rdquo; to store starting positions for scrums, lineouts, and more.
                 </div>
               ) : (
                 formations.map((formation) => (
@@ -139,8 +144,15 @@ export default function HomeDashboard() {
                     onClick={() => startFromFormation(formation)}
                     className="rounded-lg border border-slate-200 bg-white p-4 transition hover:border-emerald-700"
                   >
-                    <h3 className="font-semibold">{formation.name}</h3>
-                    <p className="mt-1 text-sm text-slate-500">Use as starting positions</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-semibold">{formation.name}</h3>
+                      {formation.category && (
+                        <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                          {formation.category}
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-1 text-sm text-slate-500">Tap to start a new move from this position</p>
                   </Link>
                 ))
               )}

@@ -5,15 +5,15 @@ import './globals.css'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  metadataBase: new URL('https://rugbyslate.com'),
+  metadataBase: new URL('https://rugby-move.vercel.app'),
   title: {
-    default: 'RugbySlate | Rugby tactical playbook',
-    template: '%s | RugbySlate',
+    default: 'RugbyMove | Rugby tactical playbook',
+    template: '%s | RugbyMove',
   },
   description: 'Create, animate, and share Rugby Union tactical plays.',
   openGraph: {
     type: 'website',
-    siteName: 'RugbySlate',
+    siteName: 'RugbyMove',
   },
 }
 

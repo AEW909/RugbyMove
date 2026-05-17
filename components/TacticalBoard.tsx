@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Download, Pause, Play, Plus, RotateCcw, Save, Trash2 } from 'lucide-react'
+import { Download, Grid3x3, Home, Pause, Play, Plus, RotateCcw, Save, Trash2 } from 'lucide-react'
 import { savePlay } from '@/app/actions/plays'
 import { cn } from '@/lib/utils'
 import type { Frame, PlayerPosition, PlayCategory } from '@/types/play'
@@ -23,9 +23,12 @@ type Token = {
   side: 'attack' | 'defend' | 'ball'
 }
 
+type FormationCategory = 'Scrum' | 'Lineout' | 'Penalty' | 'Open Play'
+
 type Formation = {
   id: string
   name: string
+  category: FormationCategory
   players: PlayerPosition[]
   createdAt: string
 }
@@ -38,12 +41,12 @@ type SavedMove = {
   sourceMoveId?: string
 }
 
-const formationsStorageKey = 'rugbyslate.formations.v1'
-const movesStorageKey = 'rugbyslate.moves.v1'
-const pendingFormationStorageKey = 'rugbyslate.pendingFormation.v1'
-const pendingMoveStorageKey = 'rugbyslate.pendingMove.v1'
-const pitchLeft = 11
-const pitchWidth = 78
+const formationsStorageKey = 'rugbymove.formations.v1'
+const movesStorageKey = 'rugbymove.moves.v1'
+const pendingFormationStorageKey = 'rugbymove.pendingFormation.v1'
+const pendingMoveStorageKey = 'rugbymove.pendingMove.v1'
+const pitchLeft = 0
+const pitchWidth = 100
 
 const tokens: Token[] = [
   ...Array.from({ length: 15 }, (_, index) => ({
@@ -62,18 +65,17 @@ const tokens: Token[] = [
 function createDefaultPlayers(): PlayerPosition[] {
   return tokens.map((token, index) => {
     if (token.side === 'ball') {
-      return { id: token.id, x: 50, y: 50 }
+      return { id: token.id, x: 50, y: 35 }
     }
 
     const teamIndex = token.side === 'attack' ? index : index - 15
-    const row = teamIndex % 8
-    const col = Math.floor(teamIndex / 8)
-    const xBase = token.side === 'attack' ? -9 : 104
+    const col = teamIndex % 5
+    const row = Math.floor(teamIndex / 5)
 
     return {
       id: token.id,
-      x: xBase + col * 4,
-      y: 9 + row * 11,
+      x: (token.side === 'attack' ? 3 : 57) + col * 10,
+      y: 79 + row * 8,
     }
   })
 }
@@ -103,7 +105,7 @@ function clamp(value: number) {
 }
 
 function clampBoardX(value: number) {
-  return Math.min(110, Math.max(-10, value))
+  return Math.min(100, Math.max(0, value))
 }
 
 function clampBoardY(value: number) {
@@ -141,11 +143,11 @@ function tokenForId(id: string) {
 }
 
 function boardXToStageX(x: number) {
-  return pitchLeft + (x / 100) * pitchWidth
+  return x
 }
 
 function stageXToBoardX(x: number) {
-  return ((x - pitchLeft) / pitchWidth) * 100
+  return x
 }
 
 function svgPositionValues(frames: Frame[], id: string, axis: 'x' | 'y') {
@@ -233,7 +235,9 @@ export default function TacticalBoard({
   const [isPlaying, setIsPlaying] = useState(false)
   const [formations, setFormations] = useState<Formation[]>([])
   const [formationName, setFormationName] = useState('')
+  const [formationCategory, setFormationCategory] = useState<FormationCategory>('Open Play')
   const [saveStatus, setSaveStatus] = useState('')
+  const [snapGrid, setSnapGrid] = useState(false)
 
   useEffect(() => {
     try {
@@ -311,24 +315,31 @@ export default function TacticalBoard({
       }
 
       const rect = board.getBoundingClientRect()
-      const stageX = ((clientX - rect.left) / rect.width) * 100
-      const x = clampBoardX(stageXToBoardX(stageX))
-      const y = clampBoardY(((clientY - rect.top) / rect.height) * 100)
+      const rawX = ((clientX - rect.left) / rect.width) * 100
+      const rawY = ((clientY - rect.top) / rect.height) * 100
+
+      const clampedX = clampBoardX(rawX)
+      // Invert the display transform: pitch zone (display y 0-75%) → stored y 0-100; tray zone (display y 75-100%) → stored y 75-100
+      const storedY = rawY <= 75 ? clampBoardY((rawY / 75) * 100) : clampBoardY(rawY)
+
+      const x = snapGrid ? Math.round(clampedX / 10) * 10 : clampedX
+      const y = snapGrid ? Math.round(storedY / 10) * 10 : storedY
 
       const nextFrames = frames.map((frame, index) => {
         if (index !== activeFrameIndex) {
           return frame
         }
-
         return {
           ...frame,
-          players: frame.players.map((player) => (player.id === id ? { ...player, x, y } : player)),
+          players: frame.players.map((player) =>
+            player.id === id ? { ...player, x, y } : player,
+          ),
         }
       })
 
       commitFrames(nextFrames)
     },
-    [activeFrameIndex, commitFrames, frames, isPlaying],
+    [activeFrameIndex, commitFrames, frames, isPlaying, snapGrid],
   )
 
   const handlePointerDown = (id: string) => (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -397,6 +408,7 @@ export default function TacticalBoard({
     const nextFormation: Formation = {
       id: crypto.randomUUID(),
       name: trimmedName,
+      category: formationCategory,
       players: activeFrame.players.map((player) => ({ ...player })),
       createdAt: new Date().toISOString(),
     }
@@ -428,7 +440,7 @@ export default function TacticalBoard({
 
   const exportMove = () => {
     const svg = createAnimatedSvg(frames)
-    downloadTextFile('rugbyslate-move.svg', svg, 'image/svg+xml')
+    downloadTextFile('rugbymove-move.svg', svg, 'image/svg+xml')
   }
 
   const saveCurrentMove = async (asVariation = false) => {
@@ -513,11 +525,20 @@ export default function TacticalBoard({
   return (
     <section className="overflow-visible rounded-lg border border-emerald-900/10 bg-white shadow-toolbar">
       <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-slate-950">Tactical board</h2>
-          <p className="text-sm text-slate-500">
-            Frame {activeFrameIndex + 1} of {frames.length}
-          </p>
+        <div className="flex items-center gap-3">
+          <a
+            href="/"
+            className="inline-flex items-center gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950"
+          >
+            <Home className="h-4 w-4" />
+            Home
+          </a>
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">Tactical board</h2>
+            <p className="text-sm text-slate-500">
+              Frame {activeFrameIndex + 1} of {frames.length}
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -566,6 +587,19 @@ export default function TacticalBoard({
           </button>
           <button
             type="button"
+            onClick={() => setSnapGrid((prev) => !prev)}
+            className={cn(
+              'inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold transition',
+              snapGrid
+                ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
+                : 'border-slate-300 text-slate-800 hover:bg-slate-50',
+            )}
+          >
+            <Grid3x3 className="h-4 w-4" />
+            Snap
+          </button>
+          <button
+            type="button"
             onClick={() => saveCurrentMove(false)}
             className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
           >
@@ -590,16 +624,11 @@ export default function TacticalBoard({
       <div className="grid gap-4 p-4 xl:grid-cols-[1fr_220px]">
         <div
           ref={boardRef}
-          className="relative aspect-[2.25/1] min-h-[360px] overflow-hidden rounded-md border border-slate-200 bg-slate-100 shadow-inner"
+          className="relative aspect-[2/1] min-h-[360px] overflow-hidden rounded-md border border-slate-200 bg-slate-100 shadow-inner"
           aria-label="Rugby tactical board"
         >
-          <div className="absolute inset-y-0 left-0 flex w-[11%] items-start justify-center border-r border-dashed border-blue-300 bg-blue-50 px-1 py-3 text-[11px] font-semibold uppercase text-blue-700">
-            Attack tray
-          </div>
-          <div className="absolute inset-y-0 right-0 flex w-[11%] items-start justify-center border-l border-dashed border-red-300 bg-red-50 px-1 py-3 text-right text-[11px] font-semibold uppercase text-red-700">
-            Defence tray
-          </div>
-          <div className="absolute inset-y-0 left-[11%] w-[78%] overflow-hidden border-4 border-white bg-emerald-700">
+          {/* Pitch — top 75% */}
+          <div className="absolute inset-x-0 top-0 h-[75%] overflow-hidden border-b-4 border-white bg-emerald-700">
             <div className="absolute inset-0 grid grid-cols-10">
               {Array.from({ length: 10 }, (_, index) => (
                 <div
@@ -611,36 +640,51 @@ export default function TacticalBoard({
                 />
               ))}
             </div>
-
             <div className="absolute inset-y-0 left-1/2 w-px bg-white/70" />
             <div className="absolute inset-x-0 top-1/2 h-px bg-white/40" />
             <div className="absolute left-[5%] top-0 h-full w-px bg-white/80" />
             <div className="absolute right-[5%] top-0 h-full w-px bg-white/80" />
             <div className="absolute left-[22%] top-0 h-full w-px border-l border-dashed border-white/65" />
             <div className="absolute right-[22%] top-0 h-full w-px border-l border-dashed border-white/65" />
-
-            <svg className="pointer-events-none absolute inset-0 h-full w-full">
-              {activeFrame.lines.map((line) => (
-                <line
-                  key={line.id}
-                  x1={`${line.from.x}%`}
-                  y1={`${line.from.y}%`}
-                  x2={`${line.to.x}%`}
-                  y2={`${line.to.y}%`}
-                  stroke={line.color ?? '#f8fafc'}
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeDasharray={line.dashed ? '8 8' : undefined}
-                />
-              ))}
-            </svg>
           </div>
 
+          {/* Move lines SVG — covers full board coordinate space */}
+          <svg className="pointer-events-none absolute inset-0 h-full w-full">
+            {activeFrame.lines.map((line) => (
+              <line
+                key={line.id}
+                x1={`${line.from.x}%`}
+                y1={`${line.from.y * 0.75}%`}
+                x2={`${line.to.x}%`}
+                y2={`${line.to.y * 0.75}%`}
+                stroke={line.color ?? '#f8fafc'}
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray={line.dashed ? '8 8' : undefined}
+              />
+            ))}
+          </svg>
+
+          {/* Tray area — bottom 25% */}
+          <div className="absolute inset-x-0 bottom-0 flex h-[25%] border-t-2 border-slate-300">
+            <div className="flex flex-1 items-center justify-center border-r border-dashed border-blue-300 bg-blue-50 text-[11px] font-semibold uppercase text-blue-700">
+              Attack tray
+            </div>
+            <div className="flex flex-1 items-center justify-center bg-red-50 text-[11px] font-semibold uppercase text-red-700">
+              Defence tray
+            </div>
+          </div>
+
+          {/* Player tokens */}
           {tokens.map((token) => {
             const player = playerById.get(token.id)
             if (!player) {
               return null
             }
+
+            const inPitch = player.y <= 75
+            const displayX = player.x
+            const displayY = inPitch ? player.y * 0.75 : 75 + (player.y - 75) * 1.0
 
             return (
               <button
@@ -657,8 +701,8 @@ export default function TacticalBoard({
                   token.side !== 'ball' && 'h-9 w-9 rounded-full',
                 )}
                 style={{
-                  left: `${boardXToStageX(player.x)}%`,
-                  top: `${player.y}%`,
+                  left: `${displayX}%`,
+                  top: `${displayY}%`,
                   transform: 'translate(-50%, -50%)',
                 }}
                 aria-label={
@@ -727,39 +771,54 @@ export default function TacticalBoard({
           </div>
 
           <div className="rounded-md border border-slate-200 bg-slate-50 p-3">
-            <h3 className="text-sm font-semibold uppercase text-slate-500">Formations</h3>
-            <div className="mt-3 flex gap-2">
+            <h3 className="text-sm font-semibold uppercase text-slate-500">Save as formation</h3>
+            <p className="mt-1 text-xs text-slate-400">Saves this frame&apos;s positions as a starting point for new moves.</p>
+            <div className="mt-3 space-y-2">
               <input
                 value={formationName}
                 onChange={(event) => setFormationName(event.target.value)}
-                placeholder="Scrum centre"
-                className="min-w-0 flex-1 rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-emerald-700"
+                placeholder="e.g. Tight scrum left"
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-emerald-700"
               />
+              <select
+                value={formationCategory}
+                onChange={(event) => setFormationCategory(event.target.value as FormationCategory)}
+                className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-emerald-700"
+              >
+                <option value="Scrum">Scrum</option>
+                <option value="Lineout">Lineout</option>
+                <option value="Penalty">Penalty</option>
+                <option value="Open Play">Open Play</option>
+              </select>
               <button
                 type="button"
                 onClick={saveFormation}
                 disabled={!formationName.trim()}
-                className="rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                className="w-full rounded-md bg-slate-950 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
               >
-                Save
+                Save formation
               </button>
             </div>
-            <div className="mt-3 flex flex-col gap-2">
-              {formations.length === 0 ? (
-                <p className="text-sm text-slate-500">Save the current frame as a reusable start shape.</p>
-              ) : (
-                formations.map((formation) => (
-                  <button
-                    type="button"
-                    key={formation.id}
-                    onClick={() => loadFormation(formation)}
-                    className="rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm font-medium text-slate-700 transition hover:border-emerald-700 hover:text-emerald-900"
-                  >
-                    {formation.name}
-                  </button>
-                ))
-              )}
-            </div>
+            {formations.length > 0 && (
+              <div className="mt-4 border-t border-slate-200 pt-3">
+                <p className="mb-2 text-xs font-semibold uppercase text-slate-400">Saved</p>
+                <div className="flex flex-col gap-1.5">
+                  {formations.map((formation) => (
+                    <button
+                      type="button"
+                      key={formation.id}
+                      onClick={() => loadFormation(formation)}
+                      className="flex items-center justify-between gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-left text-sm transition hover:border-emerald-700"
+                    >
+                      <span className="font-medium text-slate-700">{formation.name}</span>
+                      <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                        {formation.category ?? 'Formation'}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </aside>
       </div>
