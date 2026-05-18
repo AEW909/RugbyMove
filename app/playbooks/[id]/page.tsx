@@ -5,11 +5,11 @@ import { createClient } from '@/lib/supabase/server'
 import {
   addMember,
   addPlayToPlaybook,
-  deletePlaybook,
   removeMember,
   removePlayFromPlaybook,
   updatePlaybook,
 } from '@/app/actions/playbooks'
+import DeletePlaybookButton from '@/components/playbooks/DeletePlaybookButton'
 
 type PageProps = {
   params: { id: string }
@@ -254,23 +254,10 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                       Save
                     </button>
 
-                    <form action={deletePlaybook} className="inline">
-                      <input type="hidden" name="id" value={params.id} />
-                      <button
-                        type="submit"
-                        className="rounded-md border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
-                        onClick={(e) => {
-                          if (
-                            !confirm(
-                              `Delete "${playbook.name}"? This cannot be undone.`,
-                            )
-                          )
-                            e.preventDefault()
-                        }}
-                      >
-                        Delete playbook
-                      </button>
-                    </form>
+                    <DeletePlaybookButton
+                      playbookId={params.id}
+                      playbookName={playbook.name}
+                    />
                   </div>
                 </form>
               </section>
