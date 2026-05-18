@@ -30,15 +30,14 @@ export const tokens: Token[] = [
 function createDefaultPlayers(): PlayerPosition[] {
   return tokens.map((token, index) => {
     if (token.side === 'ball') {
-      return { id: token.id, x: 50, y: 35 }
+      return { id: token.id, x: 50, y: 45 }
     }
     const teamIndex = token.side === 'attack' ? index : index - 15
-    const col = teamIndex % 5
-    const row = Math.floor(teamIndex / 5)
+    const y = 4 + teamIndex * 6.5
     return {
       id: token.id,
-      x: (token.side === 'attack' ? 3 : 57) + col * 10,
-      y: 79 + row * 8,
+      x: token.side === 'attack' ? 4 : 96,
+      y,
     }
   })
 }
@@ -318,11 +317,8 @@ export function useTacticalBoard({
   const movePlayer = useCallback(
     (id: string, rawX: number, rawY: number) => {
       if (isPlaying) return
-      const clampedX = clamp(rawX)
-      // Invert the display transform: pitch zone (display y 0-75%) → stored y 0-100; tray zone (display y 75-100%) → stored y 75-100
-      const storedY = rawY <= 75 ? clamp((rawY / 75) * 100) : clamp(rawY)
-      const x = snapGrid ? Math.round(clampedX / 5) * 5 : clampedX
-      const y = snapGrid ? Math.min(95, Math.round(storedY / 5) * 5) : storedY
+      const x = snapGrid ? Math.round(clamp(rawX) / 5) * 5 : clamp(rawX)
+      const y = snapGrid ? Math.round(clamp(rawY) / 5) * 5 : clamp(rawY)
       setFrames((currentFrames) =>
         normalizeFrames(
           currentFrames.map((frame, index) => {

@@ -13,15 +13,23 @@ export default async function HomePage() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-[#f7faf8] px-4 py-12 text-slate-950">
-      <div className="w-full max-w-sm">
+    <main className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-black px-4 py-12 text-white">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
+
+      <div className="relative z-10 w-full max-w-sm">
         {/* Brand */}
         <div className="mb-10 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-700 shadow-lg">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/30">
             <span className="text-2xl font-black text-white">RM</span>
           </div>
-          <h1 className="text-4xl font-black tracking-tight text-slate-950">RugbyMove</h1>
-          <p className="mt-2 text-sm text-slate-500">
+          <h1 className="text-4xl font-black tracking-tight text-white">RugbyMove</h1>
+          <p className="mt-3 text-lg font-black tracking-tight text-white">
+            Build tactics.{' '}
+            <span className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+              Coach smarter.
+            </span>
+          </p>
+          <p className="mt-2 text-sm text-white/60">
             Build tactics. Share playbooks. Coach smarter.
           </p>
         </div>
@@ -30,13 +38,13 @@ export default async function HomePage() {
         <div className="flex flex-col gap-3">
           <Link
             href="/login"
-            className="flex items-center justify-center rounded-lg bg-emerald-700 px-6 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-800"
+            className="flex items-center justify-center rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-3 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90"
           >
             Log in
           </Link>
           <Link
             href="/signup"
-            className="flex items-center justify-center rounded-lg border-2 border-slate-950 bg-transparent px-6 py-3 text-sm font-semibold text-slate-950 transition hover:bg-slate-950 hover:text-white"
+            className="flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
           >
             Create account
           </Link>
@@ -44,21 +52,21 @@ export default async function HomePage() {
 
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-slate-200" />
+            <div className="w-full border-t border-white/10" />
           </div>
           <div className="relative flex justify-center">
-            <span className="bg-[#f7faf8] px-3 text-xs text-slate-400">or</span>
+            <span className="bg-black px-3 text-xs text-white/40">or</span>
           </div>
         </div>
 
         <Link
           href="/playbook/new"
-          className="flex items-center justify-center rounded-lg border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-600 transition hover:bg-slate-50"
+          className="flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
         >
           Continue as guest
         </Link>
 
-        <p className="mt-4 text-center text-xs text-slate-400">
+        <p className="mt-4 text-center text-xs text-white/40">
           Guest mode lets you build and play moves, but saving to a playbook requires an account.
         </p>
       </div>

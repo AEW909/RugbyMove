@@ -185,22 +185,27 @@ export default async function PlaybookPage({ params }: PageProps) {
   const setupRequired = user ? await getSetupProps(supabase, user.id) : null
 
   return (
-    <main className="min-h-screen bg-[#f7faf8] px-4 py-6 text-slate-950 sm:px-8">
-      <div className="mx-auto flex max-w-7xl flex-col gap-6">
-        <header className="flex flex-col gap-4 border-b border-emerald-900/10 pb-5 lg:flex-row lg:items-end lg:justify-between">
-          <Link href="/" className="text-sm font-medium text-slate-500 hover:text-slate-800">
+    <main className="relative min-h-screen overflow-hidden bg-black px-4 py-6 text-white sm:px-8">
+      {/* BG gradient overlay */}
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
+
+      <div className="relative z-10 mx-auto flex max-w-7xl flex-col gap-6">
+        <header className="flex flex-col gap-4 pb-5 lg:flex-row lg:items-end lg:justify-between">
+          <Link href="/" className="text-sm font-medium text-white/40 transition-colors hover:text-white">
             ← Home
           </Link>
           <div>
-            <p className="text-sm font-semibold uppercase text-emerald-700">{play.category}</p>
-            <h1 className="mt-2 text-3xl font-bold sm:text-5xl">{play.title}</h1>
+            <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold uppercase text-white/60">
+              {play.category}
+            </span>
+            <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-5xl">{play.title}</h1>
             {play.description ? (
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 sm:text-base">
+              <p className="mt-3 max-w-3xl text-sm leading-6 text-white/60 sm:text-base">
                 {play.description}
               </p>
             ) : null}
           </div>
-          <div className="flex flex-wrap items-center gap-3 text-sm text-slate-600">
+          <div className="flex flex-wrap items-center gap-3 text-sm text-white/40">
             <span className="inline-flex items-center gap-2">
               <CalendarDays className="h-4 w-4" />
               {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(

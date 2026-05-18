@@ -105,113 +105,8 @@ export default function TacticalBoard(props: TacticalBoardProps) {
 
       {/* ── Board ── */}
       <div className="p-4">
-        <div
-          ref={boardRef}
-          className="relative aspect-[4/3] min-h-[360px] overflow-hidden rounded-md border border-slate-200 bg-slate-100 shadow-inner"
-          aria-label="Rugby tactical board"
-        >
-          {/* Pitch — top 75% */}
-          <div className="absolute inset-x-0 top-0 h-[75%] overflow-hidden border-b-4 border-white bg-emerald-700">
-            <div className="absolute inset-0 grid grid-cols-10">
-              {Array.from({ length: 10 }, (_, index) => (
-                <div
-                  key={index}
-                  className={cn(
-                    'border-r border-white/35',
-                    index === 0 || index === 9 ? 'bg-emerald-900/15' : 'bg-transparent',
-                  )}
-                />
-              ))}
-            </div>
-            <div className="absolute inset-y-0 left-1/2 w-px bg-white/70" />
-            <div className="absolute inset-x-0 top-1/2 h-px bg-white/40" />
-            <div className="absolute left-[5%] top-0 h-full w-px bg-white/80" />
-            <div className="absolute right-[5%] top-0 h-full w-px bg-white/80" />
-            <div className="absolute left-[22%] top-0 h-full w-px border-l border-dashed border-white/65" />
-            <div className="absolute right-[22%] top-0 h-full w-px border-l border-dashed border-white/65" />
-          </div>
-
-          {/* Move lines SVG — covers full board coordinate space */}
-          <svg className="pointer-events-none absolute inset-0 h-full w-full">
-            {board.activeFrame.lines.map((line) => (
-              <line
-                key={line.id}
-                x1={`${line.from.x}%`}
-                y1={`${line.from.y * 0.75}%`}
-                x2={`${line.to.x}%`}
-                y2={`${line.to.y * 0.75}%`}
-                stroke={line.color ?? '#f8fafc'}
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeDasharray={line.dashed ? '8 8' : undefined}
-              />
-            ))}
-          </svg>
-
-          {/* Tray area — bottom 25% */}
-          <div className="absolute inset-x-0 bottom-0 flex h-[25%] border-t-2 border-slate-300">
-            <div className="flex flex-1 items-center justify-center border-r border-dashed border-blue-300 bg-blue-50 text-[11px] font-semibold uppercase text-blue-700">
-              Attack tray
-            </div>
-            <div className="flex flex-1 items-center justify-center bg-red-50 text-[11px] font-semibold uppercase text-red-700">
-              Defence tray
-            </div>
-          </div>
-
-          {/* Player tokens */}
-          {tokens.map((token) => {
-            const player = board.playerById.get(token.id)
-            if (!player) return null
-
-            const inPitch = player.y <= 75
-            const displayX = player.x
-            const displayY = inPitch ? player.y * 0.75 : 75 + (player.y - 75) * 1.0
-
-            return (
-              <button
-                type="button"
-                key={token.id}
-                onPointerDown={handlePointerDown(token.id)}
-                onPointerMove={handlePointerMove(token.id)}
-                className={cn(
-                  'absolute flex touch-none select-none items-center justify-center border-2 text-xs font-bold shadow-lg transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-yellow-300',
-                  token.side === 'attack' && 'border-blue-100 bg-blue-600 text-white',
-                  token.side === 'defend' && 'border-red-100 bg-red-600 text-white',
-                  token.side === 'ball' &&
-                    'h-8 w-12 rounded-[50%] border-emerald-900 bg-slate-50 text-transparent',
-                  token.side !== 'ball' && 'h-9 w-9 rounded-full',
-                )}
-                style={{
-                  left: `${displayX}%`,
-                  top: `${displayY}%`,
-                  transform: 'translate(-50%, -50%)',
-                }}
-                aria-label={
-                  token.side === 'ball'
-                    ? 'Ball'
-                    : `${token.side === 'attack' ? 'Attacking' : 'Defending'} player ${token.label}`
-                }
-              >
-                {token.side === 'ball' ? (
-                  <>
-                    <span className="absolute inset-[2px] rounded-[50%] border-t-2 border-[#e11d48]" />
-                    <span className="absolute inset-[4px] rounded-[50%] border-b-2 border-[#2563eb]" />
-                    <span className="absolute left-[7px] top-1/2 h-[18px] w-[5px] -translate-y-1/2 rounded-[50%] border-l-2 border-[#16a34a]" />
-                    <span className="absolute right-[7px] top-1/2 h-[18px] w-[5px] -translate-y-1/2 rounded-[50%] border-r-2 border-[#16a34a]" />
-                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[7px] font-black tracking-[0.08em] text-slate-900">
-                      G
-                    </span>
-                  </>
-                ) : (
-                  token.label
-                )}
-              </button>
-            )
-          })}
-        </div>
-
         {/* ── Frame strip ── */}
-        <div className="mt-3 flex items-center gap-2 overflow-x-auto pb-1">
+        <div className="mb-3 flex items-center gap-2 overflow-x-auto pb-1">
           <span className="shrink-0 text-xs font-semibold uppercase text-slate-400">Frames</span>
           {board.frames.map((frame, index) => (
             <div
@@ -244,6 +139,102 @@ export default function TacticalBoard(props: TacticalBoardProps) {
               </button>
             </div>
           ))}
+        </div>
+
+        <div
+          ref={boardRef}
+          className="relative aspect-[4/3] min-h-[360px] overflow-hidden rounded-md border border-slate-200 bg-emerald-700 shadow-inner"
+          aria-label="Rugby tactical board"
+        >
+          {/* Pitch — full height */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="absolute inset-0 grid grid-cols-10">
+              {Array.from({ length: 10 }, (_, index) => (
+                <div
+                  key={index}
+                  className={cn(
+                    'border-r border-white/35',
+                    index === 0 || index === 9 ? 'bg-emerald-900/15' : 'bg-transparent',
+                  )}
+                />
+              ))}
+            </div>
+            <div className="absolute inset-y-0 left-1/2 w-px bg-white/70" />
+            <div className="absolute inset-x-0 top-1/2 h-px bg-white/40" />
+            <div className="absolute left-[5%] top-0 h-full w-px bg-white/80" />
+            <div className="absolute right-[5%] top-0 h-full w-px bg-white/80" />
+            <div className="absolute left-[22%] top-0 h-full w-px border-l border-dashed border-white/65" />
+            <div className="absolute right-[22%] top-0 h-full w-px border-l border-dashed border-white/65" />
+          </div>
+
+          {/* Attack tray — left strip */}
+          <div className="absolute inset-y-0 left-0 w-[8%] border-r border-dashed border-blue-300/60 bg-blue-900/30" />
+          {/* Defence tray — right strip */}
+          <div className="absolute inset-y-0 right-0 w-[8%] border-l border-dashed border-red-300/60 bg-red-900/30" />
+
+          {/* Move lines SVG */}
+          <svg className="pointer-events-none absolute inset-0 h-full w-full">
+            {board.activeFrame.lines.map((line) => (
+              <line
+                key={line.id}
+                x1={`${line.from.x}%`}
+                y1={`${line.from.y}%`}
+                x2={`${line.to.x}%`}
+                y2={`${line.to.y}%`}
+                stroke={line.color ?? '#f8fafc'}
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeDasharray={line.dashed ? '8 8' : undefined}
+              />
+            ))}
+          </svg>
+
+          {/* Player tokens */}
+          {tokens.map((token) => {
+            const player = board.playerById.get(token.id)
+            if (!player) return null
+
+            return (
+              <button
+                type="button"
+                key={token.id}
+                onPointerDown={handlePointerDown(token.id)}
+                onPointerMove={handlePointerMove(token.id)}
+                className={cn(
+                  'absolute flex touch-none select-none items-center justify-center border-2 text-[10px] font-bold shadow-lg transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-yellow-300',
+                  token.side === 'attack' && 'border-blue-100 bg-blue-600 text-white',
+                  token.side === 'defend' && 'border-red-100 bg-red-600 text-white',
+                  token.side === 'ball' &&
+                    'h-6 w-10 rounded-[50%] border-emerald-900 bg-slate-50 text-transparent',
+                  token.side !== 'ball' && 'h-7 w-7 rounded-full',
+                )}
+                style={{
+                  left: `${player.x}%`,
+                  top: `${player.y}%`,
+                  transform: 'translate(-50%, -50%)',
+                }}
+                aria-label={
+                  token.side === 'ball'
+                    ? 'Ball'
+                    : `${token.side === 'attack' ? 'Attacking' : 'Defending'} player ${token.label}`
+                }
+              >
+                {token.side === 'ball' ? (
+                  <>
+                    <span className="absolute inset-[2px] rounded-[50%] border-t-2 border-[#e11d48]" />
+                    <span className="absolute inset-[4px] rounded-[50%] border-b-2 border-[#2563eb]" />
+                    <span className="absolute left-[5px] top-1/2 h-[14px] w-[4px] -translate-y-1/2 rounded-[50%] border-l-2 border-[#16a34a]" />
+                    <span className="absolute right-[5px] top-1/2 h-[14px] w-[4px] -translate-y-1/2 rounded-[50%] border-r-2 border-[#16a34a]" />
+                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[6px] font-black tracking-[0.08em] text-slate-900">
+                      G
+                    </span>
+                  </>
+                ) : (
+                  token.label
+                )}
+              </button>
+            )
+          })}
         </div>
       </div>
 
