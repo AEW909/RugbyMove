@@ -47,10 +47,8 @@ export const defaultFrame: Frame = {
   lines: [],
 }
 
-// Built-in preset: compact scrum — all players touching (4-unit spacing ≈ token diameter).
-// Shape (y, top→bottom):  9 | 6·4·5·7 | 1·2·3 | 6·4·5·7 | 9  (mirrored for defend)
-//                                           ↑ ball fed here (top of front row)
-// x-rows 4 units apart so every row touches the next.
+// Built-in preset: compact scrum — 3-unit spacing (≈ token diameter at typical board size).
+// 9s sit at the tunnel mouth: touching the outer flanker (y) and the top prop (x).
 export const SCRUM_FORMATION: Formation = {
   id: 'builtin-scrum',
   name: 'Scrum',
@@ -61,30 +59,30 @@ export const SCRUM_FORMATION: Formation = {
     { id: 'ball',      x: 47, y: 44 },
     // Attack front row (x=45)
     { id: 'attack-1',  x: 45, y: 44 },
-    { id: 'attack-2',  x: 45, y: 48 },
-    { id: 'attack-3',  x: 45, y: 52 },
-    // Attack second row (x=41): flankers outside locks
-    { id: 'attack-6',  x: 41, y: 40 },
-    { id: 'attack-4',  x: 41, y: 44 },
-    { id: 'attack-5',  x: 41, y: 48 },
-    { id: 'attack-7',  x: 41, y: 52 },
-    // Attack #8 — between locks at base (x=37)
-    { id: 'attack-8',  x: 37, y: 46 },
-    // Attack scrum half — touching flanker, near the ball at top
-    { id: 'attack-9',  x: 41, y: 36 },
-    // Defend front row (x=49, touching attack: 49−45=4)
-    { id: 'defend-3',  x: 49, y: 44 },
-    { id: 'defend-2',  x: 49, y: 48 },
-    { id: 'defend-1',  x: 49, y: 52 },
-    // Defend second row (x=53)
-    { id: 'defend-7',  x: 53, y: 40 },
-    { id: 'defend-5',  x: 53, y: 44 },
-    { id: 'defend-4',  x: 53, y: 48 },
-    { id: 'defend-6',  x: 53, y: 52 },
-    // Defend #8 (x=57)
-    { id: 'defend-8',  x: 57, y: 46 },
-    // Defend scrum half — touching flanker, near the ball at top
-    { id: 'defend-9',  x: 53, y: 36 },
+    { id: 'attack-2',  x: 45, y: 47 },
+    { id: 'attack-3',  x: 45, y: 50 },
+    // Attack second row (x=42): flankers outside locks
+    { id: 'attack-6',  x: 42, y: 41 },
+    { id: 'attack-4',  x: 42, y: 44 },
+    { id: 'attack-5',  x: 42, y: 47 },
+    { id: 'attack-7',  x: 42, y: 50 },
+    // Attack #8 — between locks at base (x=39)
+    { id: 'attack-8',  x: 39, y: 46 },
+    // Attack 9 — at tunnel mouth: touches flanker (x) and top prop (y)
+    { id: 'attack-9',  x: 44, y: 41 },
+    // Defend front row (x=48, 3 units from attack)
+    { id: 'defend-3',  x: 48, y: 44 },
+    { id: 'defend-2',  x: 48, y: 47 },
+    { id: 'defend-1',  x: 48, y: 50 },
+    // Defend second row (x=51)
+    { id: 'defend-7',  x: 51, y: 41 },
+    { id: 'defend-5',  x: 51, y: 44 },
+    { id: 'defend-4',  x: 51, y: 47 },
+    { id: 'defend-6',  x: 51, y: 50 },
+    // Defend #8 (x=54)
+    { id: 'defend-8',  x: 54, y: 46 },
+    // Defend 9 — at tunnel mouth, mirrored
+    { id: 'defend-9',  x: 49, y: 41 },
   ],
 }
 
