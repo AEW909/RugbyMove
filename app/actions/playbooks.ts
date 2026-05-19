@@ -18,8 +18,8 @@ async function requireUser() {
   return { supabase, admin, user: user! }
 }
 
-const visibilitySchema = z.enum(['private', 'team', 'public'])
-const roleSchema = z.enum(['coach', 'player'])
+const visibilitySchema = z.enum(['private', 'public'])
+const roleSchema = z.enum(['editor', 'viewer'])
 
 export async function createPlaybook(formData: FormData): Promise<void> {
   let id: string | null = null
@@ -147,7 +147,7 @@ export async function addMember(formData: FormData): Promise<void> {
   try {
     playbookId = z.string().uuid().parse(formData.get('playbook_id'))
     const username = z.string().trim().min(1).max(80).parse(formData.get('username'))
-    const role = roleSchema.parse(formData.get('role') ?? 'player')
+    const role = roleSchema.parse(formData.get('role') ?? 'viewer')
 
     const { admin, supabase } = await requireUser()
 

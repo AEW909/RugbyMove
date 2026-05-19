@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { BookOpen, Globe, Lock, Trash2, Users } from 'lucide-react'
+import { BookOpen, Globe, Lock, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import {
   addMember,
@@ -18,7 +18,6 @@ type PageProps = {
 
 const visibilityOptions = [
   { value: 'private', label: 'Private', desc: 'Only you', Icon: Lock },
-  { value: 'team', label: 'Team', desc: 'Members you invite', Icon: Users },
   { value: 'public', label: 'Public', desc: 'Anyone with the link', Icon: Globe },
 ] as const
 
@@ -44,10 +43,10 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
     .from('playbook_members')
     .select('id, user_id, role, profiles(username)')
     .eq('playbook_id', params.id)
-    .order('created_at')
+    .order('joined_at')
 
   const currentMember = members?.find((m) => m.user_id === user.id)
-  const canManage = isOwner || currentMember?.role === 'coach'
+  const canManage = isOwner || currentMember?.role === 'editor'
 
   const { data: playbookPlaysRows } = await supabase
     .from('playbook_plays')
@@ -337,8 +336,8 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                       name="role"
                       className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 [&>option]:bg-zinc-900"
                     >
-                      <option value="player">Player (view only)</option>
-                      <option value="coach">Coach (can edit)</option>
+                      <option value="viewer">Player (view only)</option>
+                      <option value="editor">Coach (can edit)</option>
                     </select>
                   </div>
                   <button

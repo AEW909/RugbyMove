@@ -7,7 +7,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from('plays')
     .select(
-      'id,title,description,category,is_public,updated_at,profiles(username,team_name)',
+      'id,title,description,category,is_public,updated_at,profiles(username)',
     )
     .eq('is_public', true)
     .order('updated_at', { ascending: false })

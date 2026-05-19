@@ -34,18 +34,18 @@ export type Play = {
   updated_at: string
   profiles?: {
     username: string | null
-    team_name: string | null
   } | null
 }
 
-export type PlaybookRole = 'owner' | 'coach' | 'player'
+export type PlaybookRole = 'owner' | 'editor' | 'viewer'
 
 export type Playbook = {
   id: string
   owner_id: string
   name: string
   description: string | null
-  visibility: 'private' | 'team' | 'public'
+  visibility: 'private' | 'public'
+  join_code: string | null
   created_at: string
   updated_at: string
 }
@@ -54,6 +54,6 @@ export type PlaybookMember = {
   id: string
   playbook_id: string
   user_id: string
-  role: PlaybookRole
-  created_at: string
+  role: 'editor' | 'viewer'
+  joined_at: string
 }
