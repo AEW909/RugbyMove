@@ -155,8 +155,6 @@ function saveMoveToStorage(move: SavedMove) {
   window.localStorage.setItem(storageKeys.moves, JSON.stringify(nextMoves))
 }
 
-type SetupItem = { id: string; name: string }
-
 export type TacticalBoardProps = {
   initialFrames?: Frame[]
   playId?: string
@@ -167,7 +165,6 @@ export type TacticalBoardProps = {
   isPublic?: boolean
   onFramesChange?: (frames: Frame[]) => void
   isGuest?: boolean
-  setupRequired?: { teams: SetupItem[]; playbooks: SetupItem[] }
 }
 
 export type UseTacticalBoardReturn = {
@@ -194,8 +191,6 @@ export type UseTacticalBoardReturn = {
   savedPlays: SavedMove[]
   playbooks: { id: string; name: string }[]
   setPlaybooks: Dispatch<SetStateAction<{ id: string; name: string }[]>>
-  showDefaultsModal: boolean
-  setShowDefaultsModal: (show: boolean) => void
   setActiveFrameIndex: Dispatch<SetStateAction<number>>
   movePlayer: (id: string, rawX: number, rawY: number) => void
   captureFrame: () => void
@@ -218,7 +213,6 @@ export function useTacticalBoard({
   playDescription,
   playCategory = 'Attacking',
   isPublic = false,
-  setupRequired,
 }: TacticalBoardProps): UseTacticalBoardReturn {
   const animationRef = useRef<number | null>(null)
   const [frames, setFrames] = useState<Frame[]>(() => normalizeFrames(initialFrames))
@@ -235,7 +229,6 @@ export function useTacticalBoard({
   const [panelTab, setPanelTab] = useState<PanelTab>('formations')
   const [savedPlays, setSavedPlays] = useState<SavedMove[]>([])
   const [playbooks, setPlaybooks] = useState<{ id: string; name: string }[]>([])
-  const [showDefaultsModal, setShowDefaultsModal] = useState(!!setupRequired)
 
   useEffect(() => {
     try {
@@ -554,8 +547,6 @@ export function useTacticalBoard({
     savedPlays,
     playbooks,
     setPlaybooks,
-    showDefaultsModal,
-    setShowDefaultsModal,
     setActiveFrameIndex,
     movePlayer,
     captureFrame,

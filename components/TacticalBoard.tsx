@@ -7,13 +7,12 @@ import type { FormationCategory } from '@/lib/board/storage'
 import { useTacticalBoard, tokens } from '@/hooks/useTacticalBoard'
 import type { TacticalBoardProps } from '@/hooks/useTacticalBoard'
 import PanelSlideOver from '@/components/board/PanelSlideOver'
-import DefaultsModal from '@/components/board/DefaultsModal'
 
 export default function TacticalBoard(props: TacticalBoardProps) {
   const board = useTacticalBoard(props)
   const boardRef = useRef<HTMLDivElement>(null)
 
-  const { isGuest = false, setupRequired, playTitle = 'Untitled move' } = props
+  const { isGuest = false, playTitle = 'Untitled move' } = props
 
   const updatePlayerPosition = (id: string, clientX: number, clientY: number) => {
     const el = boardRef.current
@@ -259,21 +258,6 @@ export default function TacticalBoard(props: TacticalBoardProps) {
         saveStatus={board.saveStatus}
         isGuest={isGuest}
       />
-
-      {board.showDefaultsModal && setupRequired && (
-        <DefaultsModal
-          teams={setupRequired.teams}
-          playbooks={setupRequired.playbooks}
-          onComplete={(teamId, playbookId) => {
-            board.setShowDefaultsModal(false)
-            board.setPlaybooks((prev) => {
-              const alreadyInList = prev.some((pb) => pb.id === playbookId)
-              return alreadyInList ? prev : [...prev, { id: playbookId, name: '' }]
-            })
-          }}
-          onSkip={() => board.setShowDefaultsModal(false)}
-        />
-      )}
 
       {board.showFormationModal && (
         <div
