@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { BookOpen, Globe, Lock, Trash2 } from 'lucide-react'
+import { BookOpen, Globe, Lock, Users, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import {
   addMember,
@@ -18,7 +18,8 @@ type PageProps = {
 
 const visibilityOptions = [
   { value: 'private', label: 'Private', desc: 'Only you', Icon: Lock },
-  { value: 'public', label: 'Public', desc: 'Anyone with the link', Icon: Globe },
+  { value: 'team',    label: 'Team',    desc: 'Members you invite', Icon: Users },
+  { value: 'public',  label: 'Public',  desc: 'Anyone with the link', Icon: Globe },
 ] as const
 
 export default async function PlaybookDetailPage({ params, searchParams }: PageProps) {

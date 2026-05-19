@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { CalendarDays, Lock, Share2 } from 'lucide-react'
+import { CalendarDays, Lock } from 'lucide-react'
 import TacticalBoard from '@/components/TacticalBoard'
 import { createClient } from '@/lib/supabase/server'
 import type { AnimationData, Play } from '@/types/play'
@@ -57,9 +57,8 @@ async function getPlay(id: string): Promise<Play | null> {
         id === 'local'
           ? 'Continue editing a locally saved move.'
           : 'Start from a blank board or load one of your saved formations.',
-      category: 'Attacking',
+      category: 'Other' as const,
       animation_data: { frames: [] },
-      is_public: false,
       updated_at: new Date().toISOString(),
       profiles: null,
     }
@@ -72,9 +71,8 @@ async function getPlay(id: string): Promise<Play | null> {
       title: 'Wide pod launch',
       description:
         'A simple two-frame pattern that shifts the defensive line before releasing the ball wide.',
-      category: 'Attacking',
+      category: 'Open Play' as const,
       animation_data: demoAnimationData,
-      is_public: true,
       updated_at: new Date().toISOString(),
       profiles: {
         username: 'coach-demo',
@@ -86,7 +84,7 @@ async function getPlay(id: string): Promise<Play | null> {
   const { data, error } = await supabase
     .from('plays')
     .select(
-      'id,user_id,title,description,category,animation_data,is_public,updated_at,profiles(username)',
+      'id,user_id,title,description,category,animation_data,updated_at,profiles(username)',
     )
     .eq('id', id)
     .single()
@@ -181,8 +179,8 @@ export default async function PlaybookPage({ params }: PageProps) {
               )}
             </span>
             <span className="inline-flex items-center gap-2">
-              {play.is_public ? <Share2 className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-              {play.is_public ? 'Public' : 'Private'}
+              <Lock className="h-4 w-4" />
+              Private
             </span>
           </div>
         </header>
@@ -194,7 +192,6 @@ export default async function PlaybookPage({ params }: PageProps) {
           playTitle={play.title}
           playDescription={play.description}
           playCategory={play.category}
-          isPublic={play.is_public}
           isGuest={isGuest}
         />
       </div>

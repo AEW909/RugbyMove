@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
-import { savePlay } from '@/app/actions/plays'
+import { savePlay, saveFormation as saveFormationAction } from '@/app/actions/plays'
 import { createClient } from '@/lib/supabase/client'
 import { storageKeys } from '@/lib/board/storage'
 import type { Formation, FormationCategory, SavedMove } from '@/lib/board/storage'
@@ -47,43 +47,40 @@ export const defaultFrame: Frame = {
   lines: [],
 }
 
-// Built-in preset: diagonal scrum.
-// Attack second row extends above the front rows (upper-left), defend second row extends below (lower-right).
-// Ball at top of tunnel; attack-9 right next to ball; defend-9 separated upper-right.
+// Built-in preset: diagonal scrum — loosehead (top-left) to tighthead (bottom-right).
+// Front row pairs are 3 x-units apart (touching). Diagonal step: Δx=2, Δy=3 ≈ 24 px at 800×600.
+// Ball at tunnel mouth (loosehead, top). Both 9s sit tight to the tunnel.
 export const SCRUM_FORMATION: Formation = {
   id: 'builtin-scrum',
   name: 'Scrum',
   category: 'Scrum',
   createdAt: '',
   players: [
-    // Ball — fed at top of tunnel
-    { id: 'ball',      x: 44, y: 41 },
-    // Attack front row (loosehead-hooker-tighthead, top to bottom)
-    { id: 'attack-1',  x: 45, y: 44 },
-    { id: 'attack-2',  x: 45, y: 47 },
-    { id: 'attack-3',  x: 45, y: 50 },
-    // Attack second row — extends ABOVE front row (attack-6 at y=41 creates upper-left diagonal)
-    { id: 'attack-6',  x: 42, y: 41 },
-    { id: 'attack-4',  x: 42, y: 44 },
-    { id: 'attack-5',  x: 42, y: 47 },
-    { id: 'attack-7',  x: 42, y: 50 },
-    // Attack #8
-    { id: 'attack-8',  x: 39, y: 46 },
-    // Attack 9 — right next to ball at tunnel mouth
-    { id: 'attack-9',  x: 46, y: 41 },
-    // Defend front row — same y as attack front (they bind)
-    { id: 'defend-3',  x: 48, y: 44 },
-    { id: 'defend-2',  x: 48, y: 47 },
-    { id: 'defend-1',  x: 48, y: 50 },
-    // Defend second row — extends BELOW front row (defend-6 at y=56 creates lower-right diagonal)
-    { id: 'defend-7',  x: 51, y: 47 },
-    { id: 'defend-5',  x: 51, y: 50 },
-    { id: 'defend-4',  x: 51, y: 53 },
-    { id: 'defend-6',  x: 51, y: 56 },
-    // Defend #8 — anchors the lower-right diagonal
-    { id: 'defend-8',  x: 54, y: 52 },
-    // Defend 9 — separated, upper-right
-    { id: 'defend-9',  x: 60, y: 34 },
+    { id: 'ball',      x: 44, y: 33 },
+    // Attack front row — loosehead → hooker → tighthead (diagonal, Δx=2 Δy=3)
+    { id: 'attack-1',  x: 43, y: 38 },
+    { id: 'attack-2',  x: 45, y: 41 },
+    { id: 'attack-3',  x: 47, y: 44 },
+    // Attack second row (3 x-units behind front row)
+    { id: 'attack-6',  x: 41, y: 36 },
+    { id: 'attack-4',  x: 40, y: 39 },
+    { id: 'attack-5',  x: 42, y: 42 },
+    { id: 'attack-7',  x: 44, y: 47 },
+    { id: 'attack-8',  x: 38, y: 41 },
+    // Attack 9 — at tunnel mouth, loosehead side
+    { id: 'attack-9',  x: 41, y: 33 },
+    // Defend front row — 3 x-units right of attack (touching)
+    { id: 'defend-3',  x: 46, y: 38 },
+    { id: 'defend-2',  x: 48, y: 41 },
+    { id: 'defend-1',  x: 50, y: 44 },
+    // Defend second row (3 x-units right of defend front row)
+    { id: 'defend-7',  x: 49, y: 35 },
+    { id: 'defend-5',  x: 49, y: 39 },
+    { id: 'defend-4',  x: 51, y: 43 },
+    { id: 'defend-6',  x: 53, y: 47 },
+    { id: 'defend-8',  x: 59, y: 43 },
+    // Defend 9 — separated, top-right of cluster
+    { id: 'defend-9',  x: 53, y: 31 },
   ],
 }
 
@@ -158,76 +155,48 @@ function interpolatePlayers(from: PlayerPosition[], to: PlayerPosition[], amount
 function downloadTextFile(filename: string, content: string, type: string) {
   const blob = new Blob([content], { type })
   const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  anchor.click()
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
   URL.revokeObjectURL(url)
 }
 
-function svgPositionValues(frames: Frame[], id: string, axis: 'x' | 'y') {
-  return frames
-    .map((frame) => clamp(frame.players.find((player) => player.id === id)?.[axis] ?? 50))
-    .join('%;%')
-    .concat('%')
-}
+function createAnimatedSvg(frames: Frame[]): string {
+  const W = 800, H = 600
+  const R = 14
+  const dur = frames.length * 0.9
 
-function createAnimatedSvg(frames: Frame[]) {
-  const safeFrames = normalizeFrames(frames)
-  const duration = Math.max(1, safeFrames.length - 1)
-
-  const tokenMarkup = tokens
-    .map((token) => {
-      const first = safeFrames[0].players.find((player) => player.id === token.id)
-      if (!first) return ''
-
-      const xValues = svgPositionValues(safeFrames, token.id, 'x')
-      const yValues = svgPositionValues(safeFrames, token.id, 'y')
-      const firstX = clamp(first.x)
-      const firstY = clamp(first.y)
-      const animateX = `<animate attributeName="cx" dur="${duration}s" values="${xValues}" fill="freeze" />`
-      const animateY = `<animate attributeName="cy" dur="${duration}s" values="${yValues}" fill="freeze" />`
-
-      if (token.side === 'ball') {
-        return `
-          <g>
-            <ellipse cx="${firstX}%" cy="${firstY}%" rx="2.8%" ry="1.6%" fill="#f8fafc" stroke="#14532d" stroke-width="0.45%">
-              ${animateX}${animateY}
-            </ellipse>
-          </g>`
-      }
-
-      const fill = token.side === 'attack' ? '#2563eb' : '#dc2626'
-      return `
-        <g>
-          <circle cx="${firstX}%" cy="${firstY}%" r="2.1%" fill="${fill}" stroke="#ffffff" stroke-width="0.35%">
-            ${animateX}${animateY}
-          </circle>
-          <text x="${firstX}%" y="${firstY}%" dominant-baseline="central" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700">${token.label}</text>
-        </g>`
+  const allIds = frames[0]?.players.map((p) => p.id) ?? []
+  const paths = allIds
+    .map((id) => {
+      const positions = frames.map((f) => f.players.find((p) => p.id === id) ?? { x: 0, y: 0 })
+      const xs = positions.map((p) => ((p.x / 100) * W).toFixed(1)).join(';')
+      const ys = positions.map((p) => ((p.y / 100) * H).toFixed(1)).join(';')
+      const isAttack = id.startsWith('attack')
+      const fill = isAttack ? '#2563eb' : '#dc2626'
+      return `<circle r="${R}" fill="${fill}">
+  <animate attributeName="cx" values="${xs}" dur="${dur}s" repeatCount="indefinite"/>
+  <animate attributeName="cy" values="${ys}" dur="${dur}s" repeatCount="indefinite"/>
+</circle>`
     })
-    .join('')
+    .join('\n')
 
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="800" viewBox="0 0 1320 800">
-  <rect width="1320" height="800" fill="#15803d"/>
-  <g stroke="#ffffff" stroke-opacity="0.55" stroke-width="2">
-    <rect x="20" y="20" width="1280" height="760" fill="none" stroke-opacity="0.9" stroke-width="5"/>
-    <line x1="660" y1="20" x2="660" y2="780"/>
-    <line x1="66" y1="20" x2="66" y2="780" stroke-opacity="0.85"/>
-    <line x1="1254" y1="20" x2="1254" y2="780" stroke-opacity="0.85"/>
-    <line x1="290" y1="20" x2="290" y2="780" stroke-dasharray="12 12"/>
-    <line x1="1030" y1="20" x2="1030" y2="780" stroke-dasharray="12 12"/>
-  </g>
-  ${tokenMarkup}
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}">
+<rect width="${W}" height="${H}" fill="#15803d"/>
+${paths}
 </svg>`
 }
 
 function saveMoveToStorage(move: SavedMove) {
-  const saved = window.localStorage.getItem(storageKeys.moves)
-  const moves = saved ? (JSON.parse(saved) as SavedMove[]) : []
-  const nextMoves = [move, ...moves.filter((item) => item.id !== move.id)].slice(0, 24)
-  window.localStorage.setItem(storageKeys.moves, JSON.stringify(nextMoves))
+  try {
+    const stored = window.localStorage.getItem(storageKeys.moves)
+    const existing: SavedMove[] = stored ? JSON.parse(stored) : []
+    const next = [move, ...existing.filter((m) => m.id !== move.id)].slice(0, 24)
+    window.localStorage.setItem(storageKeys.moves, JSON.stringify(next))
+  } catch {
+    /* storage unavailable */
+  }
 }
 
 export type TacticalBoardProps = {
@@ -237,7 +206,6 @@ export type TacticalBoardProps = {
   playTitle?: string
   playDescription?: string | null
   playCategory?: PlayCategory
-  isPublic?: boolean
   onFramesChange?: (frames: Frame[]) => void
   isGuest?: boolean
 }
@@ -267,7 +235,7 @@ export type UseTacticalBoardReturn = {
   playbooks: { id: string; name: string }[]
   setPlaybooks: Dispatch<SetStateAction<{ id: string; name: string }[]>>
   tool: 'pointer' | 'select'
-  setTool: (t: 'pointer' | 'select') => void
+  setTool: Dispatch<SetStateAction<'pointer' | 'select'>>
   selectedPlayerIds: Set<string>
   setSelectedPlayerIds: Dispatch<SetStateAction<Set<string>>>
   setActiveFrameIndex: Dispatch<SetStateAction<number>>
@@ -290,8 +258,7 @@ export function useTacticalBoard({
   playId,
   mode = 'saved',
   playDescription,
-  playCategory = 'Attacking',
-  isPublic = false,
+  playCategory = 'Other',
 }: TacticalBoardProps): UseTacticalBoardReturn {
   const animationRef = useRef<number | null>(null)
   const originalFramesRef = useRef<Frame[] | null>(null)
@@ -312,6 +279,7 @@ export function useTacticalBoard({
   const [tool, setTool] = useState<'pointer' | 'select'>('pointer')
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set())
 
+  // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
@@ -323,11 +291,51 @@ export function useTacticalBoard({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // Load formations: DB if logged in, localStorage fallback
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
+        try {
+          const saved = window.localStorage.getItem(storageKeys.formations)
+          setFormations(saved ? JSON.parse(saved) : [])
+        } catch {
+          setFormations([])
+        }
+        return
+      }
+      supabase
+        .from('formations')
+        .select('id,name,category,players,updated_at')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false })
+        .limit(24)
+        .then(({ data }) => {
+          if (!data || data.length === 0) {
+            try {
+              const saved = window.localStorage.getItem(storageKeys.formations)
+              setFormations(saved ? JSON.parse(saved) : [])
+            } catch {
+              setFormations([])
+            }
+            return
+          }
+          const dbFormations: Formation[] = data.map((f) => ({
+            id: f.id,
+            name: f.name,
+            category: f.category as FormationCategory,
+            players: f.players as PlayerPosition[],
+            createdAt: f.updated_at,
+          }))
+          setFormations(dbFormations)
+          window.localStorage.setItem(storageKeys.formations, JSON.stringify(dbFormations))
+        })
+    })
+  }, [])
+
+  // Initialise frames from pending move/formation or mode
   useEffect(() => {
     try {
-      const saved = window.localStorage.getItem(storageKeys.formations)
-      setFormations(saved ? JSON.parse(saved) : [])
-
       const pendingMove =
         mode === 'local' ? window.localStorage.getItem(storageKeys.pendingMove) : null
       if (pendingMove) {
@@ -367,10 +375,11 @@ export function useTacticalBoard({
         })
       }
     } catch {
-      setFormations([])
+      /* ignore parse errors */
     }
   }, [mode])
 
+  // Load saved plays and playbooks
   useEffect(() => {
     try {
       const stored = window.localStorage.getItem(storageKeys.moves)
@@ -485,18 +494,29 @@ export function useTacticalBoard({
   const saveFormation = useCallback(() => {
     const trimmedName = formationName.trim()
     if (!trimmedName) return
+
+    const id = crypto.randomUUID()
     const nextFormation: Formation = {
-      id: crypto.randomUUID(),
+      id,
       name: trimmedName,
       category: formationCategory,
       players: activeFrame.players.map((player) => ({ ...player })),
       createdAt: new Date().toISOString(),
     }
-    const nextFormations = [nextFormation, ...formations].slice(0, 12)
+
+    const nextFormations = [nextFormation, ...formations].slice(0, 24)
     setFormations(nextFormations)
     window.localStorage.setItem(storageKeys.formations, JSON.stringify(nextFormations))
     setFormationName('')
     setShowFormationModal(false)
+
+    // Persist to DB (fire and forget — localStorage is already saved)
+    saveFormationAction({
+      id,
+      name: trimmedName,
+      category: formationCategory,
+      players: activeFrame.players.map((p) => ({ ...p })),
+    }).catch(() => { /* localStorage fallback already done */ })
   }, [activeFrame.players, formations, formationCategory, formationName])
 
   const loadFormation = useCallback(
@@ -562,9 +582,8 @@ export function useTacticalBoard({
               ? playId
               : undefined,
           title,
-          description: playDescription,
-          category: playCategory,
-          is_public: isPublic,
+          description: playDescription ?? null,
+          category: playCategory ?? 'Other',
           animation_data: { frames: normalizedFrames },
         })
         const supabase = createClient()
@@ -583,7 +602,7 @@ export function useTacticalBoard({
         )
       }
     },
-    [isPublic, playCategory, playDescription, playId, persistLocally],
+    [playCategory, playDescription, playId, persistLocally],
   )
 
   const handleLoadPlay = useCallback(

@@ -1,15 +1,17 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { BookOpen, Lock, Globe, Plus } from 'lucide-react'
+import { BookOpen, Lock, Globe, Users, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 
 const visibilityIcon = {
   private: Lock,
+  team: Users,
   public: Globe,
 }
 
 const visibilityLabel = {
   private: 'Private',
+  team: 'Team',
   public: 'Public',
 }
 

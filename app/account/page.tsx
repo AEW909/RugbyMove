@@ -28,7 +28,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
       .single(),
     supabase
       .from('plays')
-      .select('id,title,category,is_public,updated_at')
+      .select('id,title,category,updated_at')
       .eq('user_id', user.id)
       .order('updated_at', { ascending: false })
       .limit(12),
@@ -116,7 +116,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
                       <p className="mt-1 text-sm text-white/60">{play.category}</p>
                     </div>
                     <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs font-semibold text-blue-300 border border-blue-500/20">
-                      {play.is_public ? 'Public' : 'Private'}
+                      {play.category}
                     </span>
                   </div>
                 </Link>
