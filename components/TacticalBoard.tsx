@@ -95,12 +95,12 @@ export default function TacticalBoard(props: TacticalBoardProps) {
         type="button"
         onClick={() => board.setPanelOpen(true)}
         className={cn(
-          'fixed right-0 top-1/2 z-30 -translate-y-1/2 flex items-center rounded-l-xl border border-r-0 border-slate-200 bg-white py-6 pl-1.5 pr-1 shadow-md transition hover:bg-slate-50',
+          'fixed right-0 top-1/2 z-30 -translate-y-1/2 flex items-center rounded-l-xl bg-gradient-to-b from-blue-500 to-purple-600 py-6 pl-2 pr-1.5 shadow-lg transition hover:from-blue-400 hover:to-purple-500',
           board.panelOpen && 'pointer-events-none opacity-0',
         )}
         aria-label="Open panel"
       >
-        <ChevronLeft className="h-4 w-4 text-slate-500" />
+        <ChevronLeft className="h-4 w-4 text-white" />
       </button>
 
       {/* ── Board ── */}

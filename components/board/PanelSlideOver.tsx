@@ -5,7 +5,6 @@ import { BookOpen, ChevronDown, ChevronUp, Download, Layers, Save, X } from 'luc
 import { cn } from '@/lib/utils'
 import { FORMATION_CATEGORIES } from '@/lib/board/storage'
 import type { Formation, SavedMove } from '@/lib/board/storage'
-import type { Frame } from '@/types/play'
 
 type SavedPlay = SavedMove
 
@@ -34,7 +33,6 @@ type Props = {
   saveStatus: string
   isGuest?: boolean
 }
-
 
 export default function PanelSlideOver({
   isOpen,
@@ -74,20 +72,20 @@ export default function PanelSlideOver({
   }
 
   const GuestOverlay = () => (
-    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 rounded-lg bg-white/90 p-6 text-center backdrop-blur-[2px]">
-      <p className="text-sm font-semibold text-slate-700">
+    <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 rounded-lg bg-black/80 p-6 text-center backdrop-blur-sm">
+      <p className="text-sm font-semibold text-white/80">
         Log in or create an account to save your work.
       </p>
       <div className="flex gap-3">
         <a
           href="/login"
-          className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800"
+          className="rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90"
         >
           Log in
         </a>
         <a
           href="/signup"
-          className="rounded-lg border-2 border-slate-950 px-4 py-2 text-sm font-semibold text-slate-950 transition hover:bg-slate-950 hover:text-white"
+          className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
         >
           Create account
         </a>
@@ -100,7 +98,7 @@ export default function PanelSlideOver({
       {/* Backdrop */}
       <div
         className={cn(
-          'fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px] transition-opacity duration-300',
+          'fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] transition-opacity duration-300',
           isOpen ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
         onClick={onClose}
@@ -110,13 +108,13 @@ export default function PanelSlideOver({
       {/* Panel */}
       <aside
         className={cn(
-          'fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col bg-white shadow-2xl transition-transform duration-300 ease-in-out',
+          'fixed inset-y-0 right-0 z-50 flex w-full max-w-sm flex-col border-l border-white/10 bg-zinc-900 shadow-2xl transition-transform duration-300 ease-in-out',
           isOpen ? 'translate-x-0' : 'translate-x-full',
         )}
         aria-label="Play panel"
       >
         {/* Tab bar */}
-        <div className="flex shrink-0 items-stretch border-b border-slate-200">
+        <div className="flex shrink-0 items-stretch border-b border-white/10">
           {(
             [
               { id: 'formations', label: 'Formations', Icon: Layers },
@@ -131,8 +129,8 @@ export default function PanelSlideOver({
               className={cn(
                 'flex flex-1 flex-col items-center gap-1 py-3 text-xs font-semibold transition',
                 activeTab === id
-                  ? 'border-b-2 border-emerald-700 text-emerald-700'
-                  : 'text-slate-500 hover:text-slate-700',
+                  ? 'border-b-2 border-blue-400 text-blue-400'
+                  : 'text-white/40 hover:text-white/70',
               )}
             >
               <Icon className="h-4 w-4" />
@@ -142,7 +140,7 @@ export default function PanelSlideOver({
           <button
             type="button"
             onClick={onClose}
-            className="px-3 text-slate-400 transition hover:text-slate-600"
+            className="px-3 text-white/30 transition hover:text-white/70"
             aria-label="Close panel"
           >
             <X className="h-4 w-4" />
@@ -155,20 +153,20 @@ export default function PanelSlideOver({
           {activeTab === 'formations' && (
             <div className="flex flex-col gap-3 p-4">
               <div className="relative flex items-center justify-between gap-2">
-                <p className="text-sm text-slate-500">Load a saved starting position.</p>
+                <p className="text-sm text-white/50">Load a saved starting position.</p>
                 {isGuest ? (
                   <div className="group relative">
                     <button
                       type="button"
                       disabled
-                      className="shrink-0 rounded-md bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-400"
+                      className="shrink-0 rounded-xl bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/30"
                     >
                       + Save current
                     </button>
-                    <div className="absolute right-0 top-full z-10 mt-1 hidden w-52 rounded-lg border border-slate-200 bg-white p-3 shadow-lg group-hover:block">
-                      <p className="text-xs text-slate-600">
-                        <a href="/login" className="font-semibold text-emerald-700">Log in</a> or{' '}
-                        <a href="/signup" className="font-semibold text-emerald-700">create an account</a> to save formations.
+                    <div className="absolute right-0 top-full z-10 mt-1 hidden w-52 rounded-xl border border-white/10 bg-zinc-800 p-3 shadow-lg group-hover:block">
+                      <p className="text-xs text-white/60">
+                        <a href="/login" className="font-semibold text-blue-400">Log in</a> or{' '}
+                        <a href="/signup" className="font-semibold text-blue-400">create an account</a> to save formations.
                       </p>
                     </div>
                   </div>
@@ -176,7 +174,7 @@ export default function PanelSlideOver({
                   <button
                     type="button"
                     onClick={onOpenSaveFormation}
-                    className="shrink-0 rounded-md bg-slate-950 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-slate-800"
+                    className="shrink-0 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-3 py-1.5 text-xs font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90"
                   >
                     + Save current
                   </button>
@@ -184,7 +182,7 @@ export default function PanelSlideOver({
               </div>
 
               {formations.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+                <div className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-white/40">
                   No formations yet. Arrange your players then click &ldquo;Save current&rdquo;.
                 </div>
               ) : (
@@ -193,26 +191,26 @@ export default function PanelSlideOver({
                   if (items.length === 0) return null
                   const expanded = expandedCategories.has(cat)
                   return (
-                    <div key={cat} className="overflow-hidden rounded-lg border border-slate-200">
+                    <div key={cat} className="overflow-hidden rounded-xl border border-white/10">
                       <button
                         type="button"
                         onClick={() => toggleCategory(cat)}
-                        className="flex w-full items-center justify-between bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                        className="flex w-full items-center justify-between bg-white/5 px-4 py-2.5 text-sm font-semibold text-white/80 transition hover:bg-white/10"
                       >
                         <span>
                           {cat}
-                          <span className="ml-1.5 text-xs font-normal text-slate-400">
+                          <span className="ml-1.5 text-xs font-normal text-white/40">
                             ({items.length})
                           </span>
                         </span>
                         {expanded ? (
-                          <ChevronUp className="h-4 w-4 text-slate-400" />
+                          <ChevronUp className="h-4 w-4 text-white/40" />
                         ) : (
-                          <ChevronDown className="h-4 w-4 text-slate-400" />
+                          <ChevronDown className="h-4 w-4 text-white/40" />
                         )}
                       </button>
                       {expanded && (
-                        <div className="divide-y divide-slate-100">
+                        <div className="divide-y divide-white/5">
                           {items.map((f) => (
                             <button
                               key={f.id}
@@ -221,10 +219,10 @@ export default function PanelSlideOver({
                                 onLoadFormation(f)
                                 onClose()
                               }}
-                              className="flex w-full items-center justify-between px-4 py-3 text-left text-sm transition hover:bg-emerald-50"
+                              className="flex w-full items-center justify-between px-4 py-3 text-left text-sm transition hover:bg-white/5"
                             >
-                              <span className="font-medium text-slate-800">{f.name}</span>
-                              <span className="text-xs font-semibold text-emerald-700">
+                              <span className="font-medium text-white/80">{f.name}</span>
+                              <span className="text-xs font-semibold text-blue-400">
                                 Load →
                               </span>
                             </button>
@@ -241,11 +239,11 @@ export default function PanelSlideOver({
           {/* ── Plays tab ── */}
           {activeTab === 'plays' && (
             <div className="flex flex-col gap-3 p-4">
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-white/50">
                 Load a previously saved play onto the board.
               </p>
               {savedPlays.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+                <div className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-white/40">
                   No saved plays yet. Use the Save tab to store your current move.
                 </div>
               ) : (
@@ -258,16 +256,16 @@ export default function PanelSlideOver({
                         onLoadPlay(play)
                         onClose()
                       }}
-                      className="flex items-start justify-between gap-2 rounded-lg border border-slate-200 bg-white p-3 text-left transition hover:border-emerald-700"
+                      className="flex items-start justify-between gap-2 rounded-xl border border-white/10 bg-white/5 p-3 text-left transition hover:bg-white/10"
                     >
                       <div className="min-w-0">
-                        <p className="truncate font-semibold text-slate-800">{play.title}</p>
-                        <p className="mt-0.5 text-xs text-slate-500">
+                        <p className="truncate font-semibold text-white/90">{play.title}</p>
+                        <p className="mt-0.5 text-xs text-white/40">
                           {play.frames.length} frame{play.frames.length !== 1 ? 's' : ''} ·{' '}
                           {new Date(play.updatedAt).toLocaleDateString('en-GB')}
                         </p>
                       </div>
-                      <span className="shrink-0 text-xs font-semibold text-emerald-700">
+                      <span className="shrink-0 text-xs font-semibold text-blue-400">
                         Load →
                       </span>
                     </button>
@@ -281,22 +279,22 @@ export default function PanelSlideOver({
           {activeTab === 'save' && (
             <div className="relative flex flex-col gap-4 p-4">
               {isGuest && <GuestOverlay />}
-              <label className="block text-sm font-semibold text-slate-700">
+              <label className="block text-sm font-semibold text-white/80">
                 Title
                 <input
                   value={saveTitle}
                   onChange={(e) => setSaveTitle(e.target.value)}
                   placeholder="Untitled move"
-                  className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900 outline-none transition focus:border-emerald-700"
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-normal text-white placeholder:text-white/30 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
                 />
               </label>
 
-              <div className="rounded-lg border border-slate-200 p-4">
-                <p className="mb-3 text-sm font-semibold text-slate-700">Save to playbook</p>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                <p className="mb-3 text-sm font-semibold text-white/80">Save to playbook</p>
                 <select
                   value={selectedPlaybook}
                   onChange={(e) => setSelectedPlaybook(e.target.value)}
-                  className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-emerald-700"
+                  className="w-full rounded-xl border border-white/10 bg-zinc-800 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-400 [&>option]:bg-zinc-900"
                 >
                   <option value="">Select a playbook…</option>
                   {playbooks.map((pb) => (
@@ -306,10 +304,10 @@ export default function PanelSlideOver({
                   ))}
                 </select>
                 {playbooks.length === 0 && (
-                  <p className="mt-2 text-xs text-slate-500">
+                  <p className="mt-2 text-xs text-white/40">
                     <a
                       href="/playbooks/new"
-                      className="font-semibold text-emerald-700 hover:text-emerald-900"
+                      className="font-semibold text-blue-400 hover:text-blue-300"
                     >
                       Create a playbook
                     </a>{' '}
@@ -320,7 +318,7 @@ export default function PanelSlideOver({
                   type="button"
                   disabled={!selectedPlaybook || !saveTitle.trim()}
                   onClick={() => onSaveToPlaybook(selectedPlaybook, saveTitle.trim())}
-                  className="mt-3 w-full rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-40"
+                  className="mt-3 w-full rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90 disabled:opacity-40"
                 >
                   Save to playbook
                 </button>
@@ -330,25 +328,25 @@ export default function PanelSlideOver({
                 type="button"
                 disabled={!saveTitle.trim()}
                 onClick={() => onSaveLocally(saveTitle.trim())}
-                className="w-full rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50 disabled:opacity-40"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 disabled:opacity-40"
               >
                 Save locally only
               </button>
 
               {saveStatus && (
-                <p className="rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+                <p className="rounded-xl border border-green-500/20 bg-green-500/10 px-3 py-2 text-sm font-medium text-green-300">
                   {saveStatus}
                 </p>
               )}
 
-              <div className="border-t border-slate-200 pt-4">
-                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              <div className="border-t border-white/10 pt-4">
+                <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-white/30">
                   Export
                 </p>
                 <button
                   type="button"
                   onClick={onExport}
-                  className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
                 >
                   <Download className="h-4 w-4" />
                   Download SVG

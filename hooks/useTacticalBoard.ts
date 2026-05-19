@@ -291,11 +291,15 @@ export function useTacticalBoard({
       setSavedPlays([])
     }
     const supabase = createClient()
-    supabase
-      .from('playbooks')
-      .select('id,name')
-      .order('name')
-      .then(({ data }) => setPlaybooks(data ?? []))
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) return
+      supabase
+        .from('playbooks')
+        .select('id,name')
+        .eq('owner_id', user.id)
+        .order('name')
+        .then(({ data }) => setPlaybooks(data ?? []))
+    })
   }, [])
 
   const activeFrame = frames[activeFrameIndex] ?? frames[0] ?? defaultFrame
