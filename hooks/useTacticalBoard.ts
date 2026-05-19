@@ -47,42 +47,43 @@ export const defaultFrame: Frame = {
   lines: [],
 }
 
-// Built-in preset: compact scrum — 3-unit spacing (≈ token diameter at typical board size).
-// 9s sit at the tunnel mouth: touching the outer flanker (y) and the top prop (x).
+// Built-in preset: diagonal scrum.
+// Attack second row extends above the front rows (upper-left), defend second row extends below (lower-right).
+// Ball at top of tunnel; attack-9 right next to ball; defend-9 separated upper-right.
 export const SCRUM_FORMATION: Formation = {
   id: 'builtin-scrum',
   name: 'Scrum',
   category: 'Scrum',
   createdAt: '',
   players: [
-    // Ball — fed at top of tunnel, between attack-1 and defend-3
-    { id: 'ball',      x: 47, y: 44 },
-    // Attack front row (x=45)
+    // Ball — fed at top of tunnel
+    { id: 'ball',      x: 44, y: 41 },
+    // Attack front row (loosehead-hooker-tighthead, top to bottom)
     { id: 'attack-1',  x: 45, y: 44 },
     { id: 'attack-2',  x: 45, y: 47 },
     { id: 'attack-3',  x: 45, y: 50 },
-    // Attack second row (x=42): flankers outside locks
+    // Attack second row — extends ABOVE front row (attack-6 at y=41 creates upper-left diagonal)
     { id: 'attack-6',  x: 42, y: 41 },
     { id: 'attack-4',  x: 42, y: 44 },
     { id: 'attack-5',  x: 42, y: 47 },
     { id: 'attack-7',  x: 42, y: 50 },
-    // Attack #8 — between locks at base (x=39)
+    // Attack #8
     { id: 'attack-8',  x: 39, y: 46 },
-    // Attack 9 — at tunnel mouth: touches flanker (x) and top prop (y)
-    { id: 'attack-9',  x: 44, y: 41 },
-    // Defend front row (x=48, 3 units from attack)
+    // Attack 9 — right next to ball at tunnel mouth
+    { id: 'attack-9',  x: 46, y: 41 },
+    // Defend front row — same y as attack front (they bind)
     { id: 'defend-3',  x: 48, y: 44 },
     { id: 'defend-2',  x: 48, y: 47 },
     { id: 'defend-1',  x: 48, y: 50 },
-    // Defend second row (x=51)
-    { id: 'defend-7',  x: 51, y: 41 },
-    { id: 'defend-5',  x: 51, y: 44 },
-    { id: 'defend-4',  x: 51, y: 47 },
-    { id: 'defend-6',  x: 51, y: 50 },
-    // Defend #8 (x=54)
-    { id: 'defend-8',  x: 54, y: 46 },
-    // Defend 9 — at tunnel mouth, mirrored
-    { id: 'defend-9',  x: 49, y: 41 },
+    // Defend second row — extends BELOW front row (defend-6 at y=56 creates lower-right diagonal)
+    { id: 'defend-7',  x: 51, y: 47 },
+    { id: 'defend-5',  x: 51, y: 50 },
+    { id: 'defend-4',  x: 51, y: 53 },
+    { id: 'defend-6',  x: 51, y: 56 },
+    // Defend #8 — anchors the lower-right diagonal
+    { id: 'defend-8',  x: 54, y: 52 },
+    // Defend 9 — separated, upper-right
+    { id: 'defend-9',  x: 60, y: 34 },
   ],
 }
 
