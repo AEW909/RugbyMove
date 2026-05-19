@@ -80,6 +80,37 @@ export const SCRUM_FORMATION: Formation = {
   ],
 }
 
+// Built-in preset: lineout near the top touchline at the attacking 22m.
+// Attack throws from y≈0 (top touchline); both lines run into the pitch along y-axis.
+export const LINEOUT_FORMATION: Formation = {
+  id: 'builtin-lineout',
+  name: 'Lineout',
+  category: 'Lineout',
+  createdAt: '',
+  players: [
+    { id: 'ball',      x: 27, y: 2 },
+    // Attack hooker at touchline (thrower)
+    { id: 'attack-2',  x: 27, y: 5 },
+    // Attack line (props, locks, flankers, #8) going into the pitch
+    { id: 'attack-1',  x: 30, y: 8  },
+    { id: 'attack-3',  x: 30, y: 13 },
+    { id: 'attack-4',  x: 30, y: 18 },
+    { id: 'attack-5',  x: 30, y: 23 },
+    { id: 'attack-6',  x: 30, y: 28 },
+    { id: 'attack-7',  x: 30, y: 33 },
+    { id: 'attack-8',  x: 32, y: 37 },
+    // Defend line (mirrored, 4 units further along x)
+    { id: 'defend-1',  x: 34, y: 8  },
+    { id: 'defend-2',  x: 34, y: 13 },
+    { id: 'defend-3',  x: 34, y: 18 },
+    { id: 'defend-4',  x: 34, y: 23 },
+    { id: 'defend-5',  x: 34, y: 28 },
+    { id: 'defend-6',  x: 34, y: 33 },
+    { id: 'defend-7',  x: 34, y: 37 },
+    { id: 'defend-8',  x: 36, y: 37 },
+  ],
+}
+
 function normalizeFrame(frame: Partial<Frame> | undefined): Frame {
   return {
     players: Array.isArray(frame?.players) ? frame.players : createDefaultPlayers(),
@@ -224,6 +255,10 @@ export type UseTacticalBoardReturn = {
   savedPlays: SavedMove[]
   playbooks: { id: string; name: string }[]
   setPlaybooks: Dispatch<SetStateAction<{ id: string; name: string }[]>>
+  tool: 'pointer' | 'select'
+  setTool: (t: 'pointer' | 'select') => void
+  selectedPlayerIds: Set<string>
+  setSelectedPlayerIds: Dispatch<SetStateAction<Set<string>>>
   setActiveFrameIndex: Dispatch<SetStateAction<number>>
   movePlayer: (id: string, rawX: number, rawY: number) => void
   captureFrame: () => void
@@ -262,6 +297,19 @@ export function useTacticalBoard({
   const [panelTab, setPanelTab] = useState<PanelTab>('formations')
   const [savedPlays, setSavedPlays] = useState<SavedMove[]>([])
   const [playbooks, setPlaybooks] = useState<{ id: string; name: string }[]>([])
+  const [tool, setTool] = useState<'pointer' | 'select'>('pointer')
+  const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (e.key === 'g' || e.key === 'G') setTool('select')
+      if (e.key === 'p' || e.key === 'P') { setTool('pointer'); setSelectedPlayerIds(new Set()) }
+      if (e.key === 'Escape') { setTool('pointer'); setSelectedPlayerIds(new Set()) }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   useEffect(() => {
     try {
@@ -347,23 +395,36 @@ export function useTacticalBoard({
   const movePlayer = useCallback(
     (id: string, rawX: number, rawY: number) => {
       if (isPlaying) return
-      const x = snapGrid ? Math.round(clamp(rawX) / 5) * 5 : clamp(rawX)
-      const y = snapGrid ? Math.round(clamp(rawY) / 5) * 5 : clamp(rawY)
+      const newX = snapGrid ? Math.round(clamp(rawX) / 5) * 5 : clamp(rawX)
+      const newY = snapGrid ? Math.round(clamp(rawY) / 5) * 5 : clamp(rawY)
       setFrames((currentFrames) =>
         normalizeFrames(
           currentFrames.map((frame, index) => {
             if (index !== activeFrameIndex) return frame
+            const dragged = frame.players.find((p) => p.id === id)
+            if (tool === 'select' && selectedPlayerIds.has(id) && selectedPlayerIds.size > 1 && dragged) {
+              const dx = newX - dragged.x
+              const dy = newY - dragged.y
+              return {
+                ...frame,
+                players: frame.players.map((p) =>
+                  selectedPlayerIds.has(p.id)
+                    ? { ...p, x: clamp(p.x + dx), y: clamp(p.y + dy) }
+                    : p,
+                ),
+              }
+            }
             return {
               ...frame,
-              players: frame.players.map((player) =>
-                player.id === id ? { ...player, x, y } : player,
+              players: frame.players.map((p) =>
+                p.id === id ? { ...p, x: newX, y: newY } : p,
               ),
             }
           }),
         ),
       )
     },
-    [activeFrameIndex, isPlaying, snapGrid],
+    [activeFrameIndex, isPlaying, snapGrid, tool, selectedPlayerIds],
   )
 
   const captureFrame = useCallback(() => {
@@ -580,6 +641,10 @@ export function useTacticalBoard({
     savedPlays,
     playbooks,
     setPlaybooks,
+    tool,
+    setTool,
+    selectedPlayerIds,
+    setSelectedPlayerIds,
     setActiveFrameIndex,
     movePlayer,
     captureFrame,

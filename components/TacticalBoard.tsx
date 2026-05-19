@@ -1,16 +1,20 @@
 'use client'
 
-import { useRef } from 'react'
-import { ChevronLeft, Grid3x3, Home, Pause, Play, Plus, RotateCcw, Trash2, Users, X } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { BoxSelect, ChevronLeft, Grid3x3, Home, MousePointer2, Pause, Play, Plus, RotateCcw, Trash2, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { FormationCategory } from '@/lib/board/storage'
-import { useTacticalBoard, tokens, SCRUM_FORMATION } from '@/hooks/useTacticalBoard'
+import { useTacticalBoard, tokens, SCRUM_FORMATION, LINEOUT_FORMATION } from '@/hooks/useTacticalBoard'
 import type { TacticalBoardProps } from '@/hooks/useTacticalBoard'
 import PanelSlideOver from '@/components/board/PanelSlideOver'
 
 export default function TacticalBoard(props: TacticalBoardProps) {
   const board = useTacticalBoard(props)
   const boardRef = useRef<HTMLDivElement>(null)
+  const selectionStartRef = useRef<{ x: number; y: number } | null>(null)
+  const [selectionBox, setSelectionBox] = useState<{
+    x1: number; y1: number; x2: number; y2: number
+  } | null>(null)
 
   const { isGuest = false, playTitle = 'Untitled move' } = props
 
@@ -34,6 +38,46 @@ export default function TacticalBoard(props: TacticalBoardProps) {
       if (event.buttons !== 1) return
       updatePlayerPosition(id, event.clientX, event.clientY)
     }
+
+  const getBoardPct = (clientX: number, clientY: number) => {
+    const el = boardRef.current
+    if (!el) return { x: 0, y: 0 }
+    const r = el.getBoundingClientRect()
+    return { x: ((clientX - r.left) / r.width) * 100, y: ((clientY - r.top) / r.height) * 100 }
+  }
+
+  const handleBoardPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (board.tool !== 'select') return
+    if ((e.target as HTMLElement).closest('[data-player]')) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    const { x, y } = getBoardPct(e.clientX, e.clientY)
+    selectionStartRef.current = { x, y }
+    setSelectionBox({ x1: x, y1: y, x2: x, y2: y })
+    board.setSelectedPlayerIds(new Set())
+  }
+
+  const handleBoardPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (board.tool !== 'select' || !selectionStartRef.current || e.buttons !== 1) return
+    const { x, y } = getBoardPct(e.clientX, e.clientY)
+    setSelectionBox({ x1: selectionStartRef.current.x, y1: selectionStartRef.current.y, x2: x, y2: y })
+  }
+
+  const handleBoardPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (board.tool !== 'select' || !selectionStartRef.current) return
+    const { x, y } = getBoardPct(e.clientX, e.clientY)
+    const minX = Math.min(selectionStartRef.current.x, x)
+    const minY = Math.min(selectionStartRef.current.y, y)
+    const maxX = Math.max(selectionStartRef.current.x, x)
+    const maxY = Math.max(selectionStartRef.current.y, y)
+    const selected = new Set(
+      board.activeFrame.players
+        .filter((p) => p.x >= minX && p.x <= maxX && p.y >= minY && p.y <= maxY)
+        .map((p) => p.id),
+    )
+    board.setSelectedPlayerIds(selected)
+    selectionStartRef.current = null
+    setSelectionBox(null)
+  }
 
   return (
     <section className="overflow-visible rounded-lg border border-emerald-900/10 bg-white shadow-toolbar">
@@ -96,6 +140,45 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           <Users className="h-4 w-4" />
           Scrum
         </button>
+        <button
+          type="button"
+          onClick={() => board.loadFormation(LINEOUT_FORMATION)}
+          className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+        >
+          <Users className="h-4 w-4" />
+          Lineout
+        </button>
+
+        <div className="h-5 w-px bg-slate-200" />
+
+        <button
+          type="button"
+          title="Pointer (P)"
+          onClick={() => { board.setTool('pointer'); board.setSelectedPlayerIds(new Set()) }}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-semibold transition',
+            board.tool === 'pointer'
+              ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
+              : 'border-slate-300 text-slate-800 hover:bg-slate-50',
+          )}
+        >
+          <MousePointer2 className="h-4 w-4" />
+          <span className="hidden sm:inline">Pointer</span>
+        </button>
+        <button
+          type="button"
+          title="Group Select (G)"
+          onClick={() => board.setTool('select')}
+          className={cn(
+            'inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-semibold transition',
+            board.tool === 'select'
+              ? 'border-blue-600 bg-blue-50 text-blue-700'
+              : 'border-slate-300 text-slate-800 hover:bg-slate-50',
+          )}
+        >
+          <BoxSelect className="h-4 w-4" />
+          <span className="hidden sm:inline">Select</span>
+        </button>
       </div>
 
       {/* Fixed side tab — opens the panel */}
@@ -151,8 +234,14 @@ export default function TacticalBoard(props: TacticalBoardProps) {
 
         <div
           ref={boardRef}
-          className="relative aspect-[4/3] min-h-[360px] overflow-hidden rounded-md border border-slate-200 bg-emerald-700 shadow-inner"
+          className={cn(
+            'relative aspect-[4/3] min-h-[360px] overflow-hidden rounded-md border border-slate-200 bg-emerald-700 shadow-inner',
+            board.tool === 'select' && 'cursor-crosshair',
+          )}
           aria-label="Rugby tactical board"
+          onPointerDown={handleBoardPointerDown}
+          onPointerMove={handleBoardPointerMove}
+          onPointerUp={handleBoardPointerUp}
         >
           {/* Pitch — full height */}
           <div className="absolute inset-0 overflow-hidden">
@@ -197,6 +286,19 @@ export default function TacticalBoard(props: TacticalBoardProps) {
             ))}
           </svg>
 
+          {/* Group-select drag rectangle */}
+          {selectionBox && (
+            <div
+              className="pointer-events-none absolute border-2 border-dashed border-yellow-400 bg-yellow-400/10"
+              style={{
+                left: `${Math.min(selectionBox.x1, selectionBox.x2)}%`,
+                top: `${Math.min(selectionBox.y1, selectionBox.y2)}%`,
+                width: `${Math.abs(selectionBox.x2 - selectionBox.x1)}%`,
+                height: `${Math.abs(selectionBox.y2 - selectionBox.y1)}%`,
+              }}
+            />
+          )}
+
           {/* Player tokens */}
           {tokens.map((token) => {
             const player = board.playerById.get(token.id)
@@ -206,6 +308,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
               <button
                 type="button"
                 key={token.id}
+                data-player={token.id}
                 onPointerDown={handlePointerDown(token.id)}
                 onPointerMove={handlePointerMove(token.id)}
                 className={cn(
@@ -215,6 +318,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
                   token.side === 'ball' &&
                     'h-6 w-10 rounded-[50%] border-emerald-900 bg-slate-50 text-transparent',
                   token.side !== 'ball' && 'h-7 w-7 rounded-full',
+                  board.selectedPlayerIds.has(token.id) && 'ring-2 ring-yellow-400 ring-offset-1',
                 )}
                 style={{
                   left: `${player.x}%`,
