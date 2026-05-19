@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { signOut } from '@/app/actions/auth'
+import { signOut, updateProfile } from '@/app/actions/auth'
 import { createClient } from '@/lib/supabase/server'
 
 type AccountPageProps = {
@@ -64,31 +64,58 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
             </p>
           )}
 
-          <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2">
+          <form action={updateProfile} className="mt-5 grid gap-4 sm:grid-cols-2">
             <div>
-              <dt className="font-semibold text-white/80">Username</dt>
-              <dd className="mt-1 text-white/60">{profile?.username ?? '—'}</dd>
+              <label htmlFor="username" className="block text-sm font-semibold text-white/80">
+                Username
+              </label>
+              <input
+                id="username"
+                name="username"
+                type="text"
+                required
+                maxLength={30}
+                defaultValue={profile?.username ?? ''}
+                placeholder="e.g. coach_jones"
+                className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
             </div>
             <div>
-              <dt className="font-semibold text-white/80">Display name</dt>
-              <dd className="mt-1 text-white/60">{profile?.display_name ?? '—'}</dd>
+              <label htmlFor="display_name" className="block text-sm font-semibold text-white/80">
+                Display name
+              </label>
+              <input
+                id="display_name"
+                name="display_name"
+                type="text"
+                required
+                maxLength={60}
+                defaultValue={profile?.display_name ?? ''}
+                placeholder="e.g. Andy Wilkinson"
+                className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              />
             </div>
-          </dl>
-
-          <div className="mt-5 flex flex-wrap gap-3">
-            <Link
-              href="/account/password"
-              className="rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90"
-            >
-              Change password
-            </Link>
-            <Link
-              href="/playbooks"
-              className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-            >
-              My playbooks
-            </Link>
-          </div>
+            <div className="sm:col-span-2 flex flex-wrap gap-3">
+              <button
+                type="submit"
+                className="rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90"
+              >
+                Save profile
+              </button>
+              <Link
+                href="/account/password"
+                className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+              >
+                Change password
+              </Link>
+              <Link
+                href="/playbooks"
+                className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+              >
+                My playbooks
+              </Link>
+            </div>
+          </form>
         </section>
 
         {/* Saved moves */}
