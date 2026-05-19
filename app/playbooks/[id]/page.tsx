@@ -68,29 +68,31 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
   const availablePlays = (allUserPlays ?? []).filter((p) => !playbookPlayIds.has(p.id))
 
   return (
-    <main className="min-h-screen bg-[#f7faf8] px-4 py-8 text-slate-950 sm:px-8">
-      <div className="mx-auto max-w-4xl">
-        <Link href="/playbooks" className="text-sm font-medium text-slate-500 hover:text-slate-800">
+    <main className="relative min-h-screen overflow-hidden bg-black px-4 py-8 text-white sm:px-8">
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
+
+      <div className="relative z-10 mx-auto max-w-4xl">
+        <Link href="/playbooks" className="text-sm font-medium text-white/40 transition-colors hover:text-white">
           ← Playbooks
         </Link>
 
         <div className="mt-4 flex items-start gap-3">
-          <BookOpen className="mt-1 h-7 w-7 shrink-0 text-emerald-700" />
+          <BookOpen className="mt-1 h-7 w-7 shrink-0 text-blue-400" />
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">{playbook.name}</h1>
+            <h1 className="text-3xl font-black tracking-tight text-white">{playbook.name}</h1>
             {playbook.description && (
-              <p className="mt-1 text-sm text-slate-600">{playbook.description}</p>
+              <p className="mt-1 text-sm text-white/60">{playbook.description}</p>
             )}
           </div>
         </div>
 
         {searchParams.message && (
-          <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
+          <p className="mt-4 rounded-xl border border-green-500/20 bg-green-500/10 px-3 py-2 text-sm font-medium text-green-300">
             {searchParams.message}
           </p>
         )}
         {searchParams.error && (
-          <p className="mt-4 rounded-md bg-red-50 px-3 py-2 text-sm font-medium text-red-700">
+          <p className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-300">
             {searchParams.error}
           </p>
         )}
@@ -98,8 +100,8 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
         <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_320px]">
           {/* Left column: plays */}
           <div className="space-y-6">
-            <section className="rounded-lg border border-emerald-900/10 bg-white p-5">
-              <h2 className="text-lg font-semibold">Moves</h2>
+            <section className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+              <h2 className="text-lg font-bold text-white">Moves</h2>
 
               {playbookPlaysRows && playbookPlaysRows.length > 0 ? (
                 <ul className="mt-4 space-y-2">
@@ -113,16 +115,16 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                     return (
                       <li
                         key={row.play_id}
-                        className="flex items-center justify-between gap-3 rounded-md border border-slate-100 p-3"
+                        className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 p-3"
                       >
                         <div className="min-w-0">
                           <Link
                             href={`/playbook/${play.id}`}
-                            className="truncate font-medium hover:text-emerald-700"
+                            className="truncate font-medium text-white transition-colors hover:text-blue-400"
                           >
                             {play.title}
                           </Link>
-                          <p className="text-xs text-slate-400">{play.category}</p>
+                          <p className="text-xs text-white/40">{play.category}</p>
                         </div>
                         {canManage && (
                           <form action={removePlayFromPlaybook}>
@@ -131,7 +133,7 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                             <button
                               type="submit"
                               aria-label="Remove move"
-                              className="rounded p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                              className="rounded-lg p-1.5 text-white/30 transition hover:bg-red-500/10 hover:text-red-400"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -142,7 +144,7 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                   })}
                 </ul>
               ) : (
-                <p className="mt-4 text-sm text-slate-400">No moves added yet.</p>
+                <p className="mt-4 text-sm text-white/40">No moves added yet.</p>
               )}
 
               {canManage && availablePlays.length > 0 && (
@@ -151,7 +153,7 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                   <select
                     name="play_id"
                     required
-                    className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                    className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 [&>option]:bg-zinc-900"
                   >
                     <option value="">Select a move…</option>
                     {availablePlays.map((p) => (
@@ -162,7 +164,7 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                   </select>
                   <button
                     type="submit"
-                    className="rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    className="rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90"
                   >
                     Add
                   </button>
@@ -170,25 +172,25 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
               )}
 
               {canManage && availablePlays.length === 0 && playbookPlaysRows?.length === 0 && (
-                <p className="mt-3 text-sm text-slate-400">
+                <p className="mt-3 text-sm text-white/40">
                   Save moves from the board first, then add them here.
                 </p>
               )}
 
               {canManage && availablePlays.length === 0 && (playbookPlaysRows?.length ?? 0) > 0 && (
-                <p className="mt-3 text-sm text-slate-400">All your saved moves are in this playbook.</p>
+                <p className="mt-3 text-sm text-white/40">All your saved moves are in this playbook.</p>
               )}
             </section>
 
             {/* Edit playbook settings (owner only) */}
             {isOwner && (
-              <section className="rounded-lg border border-emerald-900/10 bg-white p-5">
-                <h2 className="text-lg font-semibold">Settings</h2>
+              <section className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+                <h2 className="text-lg font-bold text-white">Settings</h2>
                 <form action={updatePlaybook} className="mt-4 space-y-4">
                   <input type="hidden" name="id" value={params.id} />
 
                   <div>
-                    <label htmlFor="name" className="block text-sm font-semibold text-slate-700">
+                    <label htmlFor="name" className="block text-sm font-semibold text-white/80">
                       Name
                     </label>
                     <input
@@ -198,14 +200,14 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                       required
                       maxLength={120}
                       defaultValue={playbook.name}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                      className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
                     />
                   </div>
 
                   <div>
-                    <label htmlFor="description" className="block text-sm font-semibold text-slate-700">
+                    <label htmlFor="description" className="block text-sm font-semibold text-white/80">
                       Description{' '}
-                      <span className="font-normal text-slate-400">(optional)</span>
+                      <span className="font-normal text-white/30">(optional)</span>
                     </label>
                     <textarea
                       id="description"
@@ -213,33 +215,33 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                       rows={2}
                       maxLength={2000}
                       defaultValue={playbook.description ?? ''}
-                      className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                      className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
                     />
                   </div>
 
                   <fieldset>
-                    <legend className="block text-sm font-semibold text-slate-700">
+                    <legend className="block text-sm font-semibold text-white/80">
                       Visibility
                     </legend>
                     <div className="mt-2 grid gap-2 sm:grid-cols-3">
                       {visibilityOptions.map(({ value, label, desc, Icon }) => (
                         <label
                           key={value}
-                          className="flex cursor-pointer items-start gap-2 rounded-md border border-slate-200 px-3 py-2 text-sm transition has-[:checked]:border-emerald-600 has-[:checked]:bg-emerald-50"
+                          className="flex cursor-pointer items-start gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm backdrop-blur-sm transition has-[:checked]:border-blue-500 has-[:checked]:bg-blue-500/10"
                         >
                           <input
                             type="radio"
                             name="visibility"
                             value={value}
                             defaultChecked={playbook.visibility === value}
-                            className="mt-0.5 accent-emerald-600"
+                            className="mt-0.5 accent-blue-500"
                           />
                           <span>
-                            <span className="flex items-center gap-1 font-semibold">
+                            <span className="flex items-center gap-1 font-semibold text-white">
                               <Icon className="h-3 w-3" />
                               {label}
                             </span>
-                            <span className="block text-slate-500">{desc}</span>
+                            <span className="block text-white/40">{desc}</span>
                           </span>
                         </label>
                       ))}
@@ -249,11 +251,10 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                   <div className="flex items-center gap-3">
                     <button
                       type="submit"
-                      className="rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                      className="rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90"
                     >
                       Save
                     </button>
-
                     <DeletePlaybookButton
                       playbookId={params.id}
                       playbookName={playbook.name}
@@ -266,14 +267,13 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
 
           {/* Right column: members */}
           <aside className="space-y-4">
-            <section className="rounded-lg border border-emerald-900/10 bg-white p-5">
-              <h2 className="text-lg font-semibold">Members</h2>
+            <section className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+              <h2 className="text-lg font-bold text-white">Members</h2>
 
               <ul className="mt-4 space-y-2">
-                {/* Owner row */}
                 <li className="flex items-center justify-between gap-2 text-sm">
-                  <span className="font-medium">{isOwner ? 'You' : '(owner)'}</span>
-                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-800">
+                  <span className="font-medium text-white">{isOwner ? 'You' : '(owner)'}</span>
+                  <span className="rounded-full border border-blue-500/20 bg-blue-500/20 px-2 py-0.5 text-xs font-semibold text-blue-300">
                     owner
                   </span>
                 </li>
@@ -282,11 +282,11 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                   const profile = m.profiles as unknown as { username: string | null } | null
                   return (
                     <li key={m.id} className="flex items-center justify-between gap-2 text-sm">
-                      <span className="truncate font-medium">
+                      <span className="truncate font-medium text-white/80">
                         {profile?.username ?? m.user_id.slice(0, 8)}
                       </span>
                       <div className="flex shrink-0 items-center gap-1">
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600">
+                        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-semibold text-white/60">
                           {m.role}
                         </span>
                         {canManage && (
@@ -296,7 +296,7 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                             <button
                               type="submit"
                               aria-label="Remove member"
-                              className="rounded p-1 text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                              className="rounded-lg p-1 text-white/30 transition hover:bg-red-500/10 hover:text-red-400"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
                             </button>
@@ -308,18 +308,15 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                 })}
 
                 {(!members || members.length === 0) && (
-                  <li className="text-sm text-slate-400">No members yet.</li>
+                  <li className="text-sm text-white/40">No members yet.</li>
                 )}
               </ul>
 
               {canManage && (
-                <form action={addMember} className="mt-5 space-y-3 border-t border-slate-100 pt-4">
+                <form action={addMember} className="mt-5 space-y-3 border-t border-white/10 pt-4">
                   <input type="hidden" name="playbook_id" value={params.id} />
                   <div>
-                    <label
-                      htmlFor="username"
-                      className="block text-sm font-semibold text-slate-700"
-                    >
+                    <label htmlFor="username" className="block text-sm font-semibold text-white/80">
                       Add by username
                     </label>
                     <input
@@ -328,17 +325,17 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                       type="text"
                       required
                       placeholder="e.g. coach_jones"
-                      className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                      className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
                     />
                   </div>
                   <div>
-                    <label htmlFor="role" className="block text-sm font-semibold text-slate-700">
+                    <label htmlFor="role" className="block text-sm font-semibold text-white/80">
                       Role
                     </label>
                     <select
                       id="role"
                       name="role"
-                      className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none transition focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                      className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 [&>option]:bg-zinc-900"
                     >
                       <option value="player">Player (view only)</option>
                       <option value="coach">Coach (can edit)</option>
@@ -346,7 +343,7 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                   </div>
                   <button
                     type="submit"
-                    className="w-full rounded-md bg-slate-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-slate-800"
+                    className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90"
                   >
                     Add member
                   </button>
