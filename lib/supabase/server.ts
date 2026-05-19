@@ -1,5 +1,14 @@
 import { cookies } from 'next/headers'
 import { createServerClient } from '@supabase/ssr'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+
+export function createAdminClient() {
+  return createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SECRET_KEY!,
+    { db: { schema: 'rugby' } },
+  )
+}
 
 export async function createClient() {
   const cookieStore = cookies()

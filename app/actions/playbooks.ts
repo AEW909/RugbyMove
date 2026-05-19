@@ -3,7 +3,7 @@
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 async function requireUser() {
   const supabase = await createClient()
@@ -12,7 +12,10 @@ async function requireUser() {
     error,
   } = await supabase.auth.getUser()
   if (error || !user) redirect('/login')
-  return { supabase, user: user! }
+  // Use admin client for mutations so RLS auth-JWT timing doesn't block writes.
+  // The secret key is server-only; the user is verified above before any write.
+  const admin = createAdminClient()
+  return { supabase, admin, user: user! }
 }
 
 const visibilitySchema = z.enum(['private', 'team', 'public'])
@@ -30,8 +33,8 @@ export async function createPlaybook(formData: FormData): Promise<void> {
       ) ?? null
     const visibility = visibilitySchema.parse(formData.get('visibility') ?? 'private')
 
-    const { supabase, user } = await requireUser()
-    const { data, error } = await supabase
+    const { admin, user } = await requireUser()
+    const { data, error } = await admin
       .from('playbooks')
       .insert({ name, description, visibility, owner_id: user.id })
       .select('id')
@@ -66,11 +69,12 @@ export async function updatePlaybook(formData: FormData): Promise<void> {
       ) ?? null
     const visibility = visibilitySchema.parse(formData.get('visibility') ?? 'private')
 
-    const { supabase } = await requireUser()
-    const { error } = await supabase
+    const { admin, user } = await requireUser()
+    const { error } = await admin
       .from('playbooks')
       .update({ name, description, visibility })
       .eq('id', playbookId)
+      .eq('owner_id', user.id)
 
     if (error) errorMessage = error.message
     else revalidatePath(`/playbooks/${playbookId}`)
@@ -88,8 +92,8 @@ export async function updatePlaybook(formData: FormData): Promise<void> {
 
 export async function deletePlaybook(formData: FormData): Promise<void> {
   const id = z.string().uuid().parse(formData.get('id'))
-  const { supabase } = await requireUser()
-  const { error } = await supabase.from('playbooks').delete().eq('id', id)
+  const { admin, user } = await requireUser()
+  const { error } = await admin.from('playbooks').delete().eq('id', id).eq('owner_id', user.id)
   if (error) redirect(`/playbooks/${id}?error=${encodeURIComponent(error.message)}`)
   revalidatePath('/playbooks')
   redirect('/playbooks')
@@ -103,8 +107,8 @@ export async function addPlayToPlaybook(formData: FormData): Promise<void> {
     playbookId = z.string().uuid().parse(formData.get('playbook_id'))
     const playId = z.string().uuid().parse(formData.get('play_id'))
 
-    const { supabase } = await requireUser()
-    const { error } = await supabase
+    const { admin } = await requireUser()
+    const { error } = await admin
       .from('playbook_plays')
       .insert({ playbook_id: playbookId, play_id: playId })
 
@@ -124,8 +128,8 @@ export async function removePlayFromPlaybook(formData: FormData): Promise<void> 
   const playbookId = z.string().uuid().parse(formData.get('playbook_id'))
   const playId = z.string().uuid().parse(formData.get('play_id'))
 
-  const { supabase } = await requireUser()
-  const { error } = await supabase
+  const { admin } = await requireUser()
+  const { error } = await admin
     .from('playbook_plays')
     .delete()
     .eq('playbook_id', playbookId)
@@ -145,7 +149,7 @@ export async function addMember(formData: FormData): Promise<void> {
     const username = z.string().trim().min(1).max(80).parse(formData.get('username'))
     const role = roleSchema.parse(formData.get('role') ?? 'player')
 
-    const { supabase } = await requireUser()
+    const { admin, supabase } = await requireUser()
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -156,7 +160,7 @@ export async function addMember(formData: FormData): Promise<void> {
     if (profileError || !profile) {
       errorMessage = `No user found with username "${username}".`
     } else {
-      const { error } = await supabase
+      const { error } = await admin
         .from('playbook_members')
         .insert({ playbook_id: playbookId, user_id: profile.id, role })
 
@@ -177,8 +181,8 @@ export async function removeMember(formData: FormData): Promise<void> {
   const playbookId = z.string().uuid().parse(formData.get('playbook_id'))
   const userId = z.string().uuid().parse(formData.get('user_id'))
 
-  const { supabase } = await requireUser()
-  const { error } = await supabase
+  const { admin } = await requireUser()
+  const { error } = await admin
     .from('playbook_members')
     .delete()
     .eq('playbook_id', playbookId)
