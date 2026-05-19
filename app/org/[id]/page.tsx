@@ -206,7 +206,7 @@ export default async function OrgPage({ params, searchParams }: PageProps) {
                                 >
                                   <option value="">Assign coach…</option>
                                   {coachMembers.map((m) => {
-                                    const profile = m.profiles as { username: string | null; display_name: string | null } | null
+                                    const profile = m.profiles as unknown as { username: string | null; display_name: string | null } | null
                                     return (
                                       <option key={m.user_id} value={m.user_id}>
                                         {profile?.display_name ?? profile?.username ?? m.user_id.slice(0, 8)}
@@ -239,7 +239,7 @@ export default async function OrgPage({ params, searchParams }: PageProps) {
 
               <ul className="space-y-2">
                 {(members ?? []).map((m) => {
-                  const profile = m.profiles as { username: string | null; display_name: string | null } | null
+                  const profile = m.profiles as unknown as { username: string | null; display_name: string | null } | null
                   const isMe = m.user_id === user.id
                   return (
                     <li key={m.user_id} className="flex items-center justify-between gap-2 text-sm">
