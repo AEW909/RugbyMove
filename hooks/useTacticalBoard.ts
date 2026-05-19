@@ -47,42 +47,44 @@ export const defaultFrame: Frame = {
   lines: [],
 }
 
-// Built-in preset: compact scrum — players touching.
-// Shape: front row 1-2-3 | second row 6-4-5-7 | #8 at base between locks.
-// x-rows are 6 units apart (≈ token diameter); y-spacing is 7 units (≈ token diameter).
+// Built-in preset: compact scrum — all players touching (4-unit spacing ≈ token diameter).
+// Shape (y, top→bottom):  9 | 6·4·5·7 | 1·2·3 | 6·4·5·7 | 9  (mirrored for defend)
+//                                           ↑ ball fed here (top of front row)
+// x-rows 4 units apart so every row touches the next.
 export const SCRUM_FORMATION: Formation = {
   id: 'builtin-scrum',
   name: 'Scrum',
   category: 'Scrum',
   createdAt: '',
   players: [
+    // Ball — fed at top of tunnel, between attack-1 and defend-3
     { id: 'ball',      x: 47, y: 44 },
-    // Attack front row (x=44, touching defend front row at x=50)
-    { id: 'attack-1',  x: 44, y: 37 },
-    { id: 'attack-2',  x: 44, y: 44 },
-    { id: 'attack-3',  x: 44, y: 51 },
-    // Attack second row: flankers outside locks, all touching (x=38)
-    { id: 'attack-6',  x: 38, y: 33 },
-    { id: 'attack-4',  x: 38, y: 40 },
-    { id: 'attack-5',  x: 38, y: 47 },
-    { id: 'attack-7',  x: 38, y: 54 },
-    // Attack #8 — at base, between locks (x=32)
-    { id: 'attack-8',  x: 32, y: 44 },
-    // Attack scrum half (x=26)
-    { id: 'attack-9',  x: 26, y: 44 },
-    // Defend front row (x=50, mirrored — 3 binds on attack-1, 1 on attack-3)
-    { id: 'defend-3',  x: 50, y: 37 },
-    { id: 'defend-2',  x: 50, y: 44 },
-    { id: 'defend-1',  x: 50, y: 51 },
-    // Defend second row (x=56)
-    { id: 'defend-7',  x: 56, y: 33 },
-    { id: 'defend-5',  x: 56, y: 40 },
-    { id: 'defend-4',  x: 56, y: 47 },
-    { id: 'defend-6',  x: 56, y: 54 },
-    // Defend #8 (x=62)
-    { id: 'defend-8',  x: 62, y: 44 },
-    // Defend scrum half (x=68)
-    { id: 'defend-9',  x: 68, y: 44 },
+    // Attack front row (x=45)
+    { id: 'attack-1',  x: 45, y: 44 },
+    { id: 'attack-2',  x: 45, y: 48 },
+    { id: 'attack-3',  x: 45, y: 52 },
+    // Attack second row (x=41): flankers outside locks
+    { id: 'attack-6',  x: 41, y: 40 },
+    { id: 'attack-4',  x: 41, y: 44 },
+    { id: 'attack-5',  x: 41, y: 48 },
+    { id: 'attack-7',  x: 41, y: 52 },
+    // Attack #8 — between locks at base (x=37)
+    { id: 'attack-8',  x: 37, y: 46 },
+    // Attack scrum half — touching flanker, near the ball at top
+    { id: 'attack-9',  x: 41, y: 36 },
+    // Defend front row (x=49, touching attack: 49−45=4)
+    { id: 'defend-3',  x: 49, y: 44 },
+    { id: 'defend-2',  x: 49, y: 48 },
+    { id: 'defend-1',  x: 49, y: 52 },
+    // Defend second row (x=53)
+    { id: 'defend-7',  x: 53, y: 40 },
+    { id: 'defend-5',  x: 53, y: 44 },
+    { id: 'defend-4',  x: 53, y: 48 },
+    { id: 'defend-6',  x: 53, y: 52 },
+    // Defend #8 (x=57)
+    { id: 'defend-8',  x: 57, y: 46 },
+    // Defend scrum half — touching flanker, near the ball at top
+    { id: 'defend-9',  x: 53, y: 36 },
   ],
 }
 
