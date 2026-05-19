@@ -47,6 +47,39 @@ export const defaultFrame: Frame = {
   lines: [],
 }
 
+// Built-in preset: 8 forwards per side in a scrum, backs unchanged.
+export const SCRUM_FORMATION: Formation = {
+  id: 'builtin-scrum',
+  name: 'Scrum',
+  category: 'Scrum',
+  createdAt: '',
+  players: [
+    { id: 'ball',      x: 50, y: 37 },
+    // Attack front row
+    { id: 'attack-1',  x: 46, y: 33 },
+    { id: 'attack-2',  x: 46, y: 37 },
+    { id: 'attack-3',  x: 46, y: 41 },
+    // Attack second row
+    { id: 'attack-4',  x: 43, y: 35 },
+    { id: 'attack-5',  x: 43, y: 39 },
+    // Attack back row
+    { id: 'attack-6',  x: 40, y: 30 },
+    { id: 'attack-7',  x: 40, y: 44 },
+    { id: 'attack-8',  x: 41, y: 37 },
+    // Defend front row (mirrored)
+    { id: 'defend-1',  x: 54, y: 41 },
+    { id: 'defend-2',  x: 54, y: 37 },
+    { id: 'defend-3',  x: 54, y: 33 },
+    // Defend second row
+    { id: 'defend-4',  x: 57, y: 39 },
+    { id: 'defend-5',  x: 57, y: 35 },
+    // Defend back row
+    { id: 'defend-6',  x: 60, y: 44 },
+    { id: 'defend-7',  x: 60, y: 30 },
+    { id: 'defend-8',  x: 59, y: 37 },
+  ],
+}
+
 function normalizeFrame(frame: Partial<Frame> | undefined): Frame {
   return {
     players: Array.isArray(frame?.players) ? frame.players : createDefaultPlayers(),

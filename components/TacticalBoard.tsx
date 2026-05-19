@@ -1,10 +1,10 @@
 'use client'
 
 import { useRef } from 'react'
-import { ChevronLeft, Grid3x3, Home, Pause, Play, Plus, RotateCcw, Trash2, X } from 'lucide-react'
+import { ChevronLeft, Grid3x3, Home, Pause, Play, Plus, RotateCcw, Trash2, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { FormationCategory } from '@/lib/board/storage'
-import { useTacticalBoard, tokens } from '@/hooks/useTacticalBoard'
+import { useTacticalBoard, tokens, SCRUM_FORMATION } from '@/hooks/useTacticalBoard'
 import type { TacticalBoardProps } from '@/hooks/useTacticalBoard'
 import PanelSlideOver from '@/components/board/PanelSlideOver'
 
@@ -86,6 +86,15 @@ export default function TacticalBoard(props: TacticalBoardProps) {
         >
           <Grid3x3 className="h-4 w-4" />
           Snap
+        </button>
+        <div className="h-5 w-px bg-slate-200" />
+        <button
+          type="button"
+          onClick={() => board.loadFormation(SCRUM_FORMATION)}
+          className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+        >
+          <Users className="h-4 w-4" />
+          Scrum
         </button>
       </div>
 
