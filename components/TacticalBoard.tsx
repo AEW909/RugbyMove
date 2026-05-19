@@ -80,24 +80,24 @@ export default function TacticalBoard(props: TacticalBoardProps) {
   }
 
   return (
-    <section className="overflow-visible rounded-lg border border-emerald-900/10 bg-white shadow-toolbar">
+    <section className="overflow-visible rounded-xl border border-white/10 bg-black shadow-toolbar">
       {/* ── Toolbar ── */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3">
         <a
           href="/"
-          className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-950"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
         >
           <Home className="h-4 w-4" />
           Home
         </a>
 
-        <div className="h-5 w-px bg-slate-200" />
+        <div className="h-5 w-px bg-white/10" />
 
         <button
           type="button"
           onClick={board.isPlaying ? board.stopPlayback : board.playFrames}
           disabled={board.frames.length < 2}
-          className="inline-flex items-center gap-2 rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white transition hover:bg-emerald-800 disabled:opacity-50"
+          className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90 disabled:opacity-40"
         >
           {board.isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
           {board.isPlaying ? 'Pause' : 'Play'}
@@ -105,7 +105,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
         <button
           type="button"
           onClick={board.captureFrame}
-          className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+          className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
         >
           <Plus className="h-4 w-4" />
           Frame
@@ -113,7 +113,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
         <button
           type="button"
           onClick={board.resetBoard}
-          className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+          className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
         >
           <RotateCcw className="h-4 w-4" />
           Reset
@@ -122,20 +122,20 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           type="button"
           onClick={() => board.setSnapGrid((prev) => !prev)}
           className={cn(
-            'inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold transition',
+            'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition',
             board.snapGrid
-              ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
-              : 'border-slate-300 text-slate-800 hover:bg-slate-50',
+              ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
+              : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
           )}
         >
           <Grid3x3 className="h-4 w-4" />
           Snap
         </button>
-        <div className="h-5 w-px bg-slate-200" />
+        <div className="h-5 w-px bg-white/10" />
         <button
           type="button"
           onClick={() => board.loadFormation(SCRUM_FORMATION)}
-          className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+          className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
         >
           <Users className="h-4 w-4" />
           Scrum
@@ -143,41 +143,39 @@ export default function TacticalBoard(props: TacticalBoardProps) {
         <button
           type="button"
           onClick={() => board.loadFormation(LINEOUT_FORMATION)}
-          className="inline-flex items-center gap-2 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 transition hover:bg-slate-50"
+          className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
         >
           <Users className="h-4 w-4" />
           Lineout
         </button>
 
-        <div className="h-5 w-px bg-slate-200" />
+        <div className="h-5 w-px bg-white/10" />
 
         <button
           type="button"
           title="Pointer (P)"
           onClick={() => { board.setTool('pointer'); board.setSelectedPlayerIds(new Set()) }}
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-semibold transition',
+            'inline-flex items-center justify-center rounded-xl border p-2 transition',
             board.tool === 'pointer'
-              ? 'border-emerald-600 bg-emerald-50 text-emerald-700'
-              : 'border-slate-300 text-slate-800 hover:bg-slate-50',
+              ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
+              : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
           )}
         >
           <MousePointer2 className="h-4 w-4" />
-          <span className="hidden sm:inline">Pointer</span>
         </button>
         <button
           type="button"
           title="Group Select (G)"
           onClick={() => board.setTool('select')}
           className={cn(
-            'inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-sm font-semibold transition',
+            'inline-flex items-center justify-center rounded-xl border p-2 transition',
             board.tool === 'select'
-              ? 'border-blue-600 bg-blue-50 text-blue-700'
-              : 'border-slate-300 text-slate-800 hover:bg-slate-50',
+              ? 'border-purple-500/50 bg-purple-500/20 text-purple-300'
+              : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
           )}
         >
           <BoxSelect className="h-4 w-4" />
-          <span className="hidden sm:inline">Select</span>
         </button>
       </div>
 
