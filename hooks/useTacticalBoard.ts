@@ -47,7 +47,9 @@ export const defaultFrame: Frame = {
   lines: [],
 }
 
-// Built-in preset: 8 forwards + scrum half per side in a scrum, backs unchanged.
+// Built-in preset: compact scrum — players touching.
+// Shape: front row 1-2-3 | second row 6-4-5-7 | #8 at base between locks.
+// x-rows are 6 units apart (≈ token diameter); y-spacing is 7 units (≈ token diameter).
 export const SCRUM_FORMATION: Formation = {
   id: 'builtin-scrum',
   name: 'Scrum',
@@ -55,66 +57,67 @@ export const SCRUM_FORMATION: Formation = {
   createdAt: '',
   players: [
     { id: 'ball',      x: 47, y: 44 },
-    // Attack front row (diagonal binding)
-    { id: 'attack-1',  x: 43, y: 41 },
-    { id: 'attack-2',  x: 41, y: 46 },
-    { id: 'attack-3',  x: 41, y: 51 },
-    // Attack locks
-    { id: 'attack-4',  x: 39, y: 42 },
-    { id: 'attack-5',  x: 39, y: 47 },
-    // Attack back row
-    { id: 'attack-6',  x: 35, y: 38 },
-    { id: 'attack-7',  x: 35, y: 54 },
-    { id: 'attack-8',  x: 37, y: 47 },
-    // Attack scrum half
-    { id: 'attack-9',  x: 50, y: 32 },
-    // Defend front row (mirrored — 3 binds on attack 1, etc.)
-    { id: 'defend-3',  x: 53, y: 41 },
-    { id: 'defend-2',  x: 55, y: 46 },
-    { id: 'defend-1',  x: 53, y: 51 },
-    // Defend locks
-    { id: 'defend-5',  x: 57, y: 42 },
-    { id: 'defend-4',  x: 57, y: 47 },
-    // Defend back row
-    { id: 'defend-7',  x: 61, y: 38 },
-    { id: 'defend-6',  x: 61, y: 54 },
-    { id: 'defend-8',  x: 59, y: 47 },
-    // Defend scrum half
-    { id: 'defend-9',  x: 51, y: 32 },
+    // Attack front row (x=44, touching defend front row at x=50)
+    { id: 'attack-1',  x: 44, y: 37 },
+    { id: 'attack-2',  x: 44, y: 44 },
+    { id: 'attack-3',  x: 44, y: 51 },
+    // Attack second row: flankers outside locks, all touching (x=38)
+    { id: 'attack-6',  x: 38, y: 33 },
+    { id: 'attack-4',  x: 38, y: 40 },
+    { id: 'attack-5',  x: 38, y: 47 },
+    { id: 'attack-7',  x: 38, y: 54 },
+    // Attack #8 — at base, between locks (x=32)
+    { id: 'attack-8',  x: 32, y: 44 },
+    // Attack scrum half (x=26)
+    { id: 'attack-9',  x: 26, y: 44 },
+    // Defend front row (x=50, mirrored — 3 binds on attack-1, 1 on attack-3)
+    { id: 'defend-3',  x: 50, y: 37 },
+    { id: 'defend-2',  x: 50, y: 44 },
+    { id: 'defend-1',  x: 50, y: 51 },
+    // Defend second row (x=56)
+    { id: 'defend-7',  x: 56, y: 33 },
+    { id: 'defend-5',  x: 56, y: 40 },
+    { id: 'defend-4',  x: 56, y: 47 },
+    { id: 'defend-6',  x: 56, y: 54 },
+    // Defend #8 (x=62)
+    { id: 'defend-8',  x: 62, y: 44 },
+    // Defend scrum half (x=68)
+    { id: 'defend-9',  x: 68, y: 44 },
   ],
 }
 
-// Built-in preset: lineout near the top touchline at the attacking 22m.
-// Attack throws from y≈0 (top touchline); both lines run into the pitch along y-axis.
+// Built-in preset: compact lineout near the top touchline.
+// Players are touching (4-unit y-spacing ≈ token diameter at typical board size).
+// Attack scrum half sits tight to the left of the attack line.
 export const LINEOUT_FORMATION: Formation = {
   id: 'builtin-lineout',
   name: 'Lineout',
   category: 'Lineout',
   createdAt: '',
   players: [
-    { id: 'ball',      x: 31, y: 7 },
-    // Attack hooker at touchline (thrower) — outside the lineout
-    { id: 'attack-2',  x: 28, y: 4 },
-    // Defend hooker — separate, far side of lineout
-    { id: 'defend-2',  x: 44, y: 4 },
-    // Attack scrum half — left of lineout, ready to receive
-    { id: 'attack-9',  x: 9,  y: 26 },
-    // Attack lineout line: 1, 4, 3, 5, 6, 7, 8
-    { id: 'attack-1',  x: 30, y: 21 },
-    { id: 'attack-4',  x: 30, y: 26 },
-    { id: 'attack-3',  x: 30, y: 31 },
-    { id: 'attack-5',  x: 30, y: 36 },
-    { id: 'attack-6',  x: 30, y: 41 },
-    { id: 'attack-7',  x: 30, y: 46 },
-    { id: 'attack-8',  x: 30, y: 51 },
+    { id: 'ball',      x: 30, y: 4 },
+    // Attack hooker — at touchline (thrower)
+    { id: 'attack-2',  x: 28, y: 3 },
+    // Defend hooker — opposite side of lineout
+    { id: 'defend-2',  x: 42, y: 3 },
+    // Attack scrum half — just left of lineout, mid-height
+    { id: 'attack-9',  x: 24, y: 20 },
+    // Attack lineout line: 1, 4, 3, 5, 6, 7, 8 — touching, y-spacing 4
+    { id: 'attack-1',  x: 30, y: 8 },
+    { id: 'attack-4',  x: 30, y: 12 },
+    { id: 'attack-3',  x: 30, y: 16 },
+    { id: 'attack-5',  x: 30, y: 20 },
+    { id: 'attack-6',  x: 30, y: 24 },
+    { id: 'attack-7',  x: 30, y: 28 },
+    { id: 'attack-8',  x: 30, y: 32 },
     // Defend lineout line: 1, 4, 3, 5, 6, 7, 8
-    { id: 'defend-1',  x: 36, y: 21 },
-    { id: 'defend-4',  x: 36, y: 26 },
-    { id: 'defend-3',  x: 36, y: 31 },
-    { id: 'defend-5',  x: 36, y: 36 },
-    { id: 'defend-6',  x: 36, y: 41 },
-    { id: 'defend-7',  x: 36, y: 46 },
-    { id: 'defend-8',  x: 36, y: 51 },
+    { id: 'defend-1',  x: 36, y: 8 },
+    { id: 'defend-4',  x: 36, y: 12 },
+    { id: 'defend-3',  x: 36, y: 16 },
+    { id: 'defend-5',  x: 36, y: 20 },
+    { id: 'defend-6',  x: 36, y: 24 },
+    { id: 'defend-7',  x: 36, y: 28 },
+    { id: 'defend-8',  x: 36, y: 32 },
   ],
 }
 
@@ -290,6 +293,7 @@ export function useTacticalBoard({
   isPublic = false,
 }: TacticalBoardProps): UseTacticalBoardReturn {
   const animationRef = useRef<number | null>(null)
+  const originalFramesRef = useRef<Frame[] | null>(null)
   const [frames, setFrames] = useState<Frame[]>(() => normalizeFrames(initialFrames))
   const [activeFrameIndex, setActiveFrameIndex] = useState(0)
   const [displayPlayers, setDisplayPlayers] = useState<PlayerPosition[] | null>(null)
@@ -328,7 +332,9 @@ export function useTacticalBoard({
       if (pendingMove) {
         const move = JSON.parse(pendingMove) as SavedMove
         window.localStorage.removeItem(storageKeys.pendingMove)
-        setFrames(normalizeFrames(move.frames))
+        const loadedFrames = normalizeFrames(move.frames)
+        originalFramesRef.current = loadedFrames
+        setFrames(loadedFrames)
         setActiveFrameIndex(0)
         return
       }
@@ -471,7 +477,7 @@ export function useTacticalBoard({
 
   const resetBoard = useCallback(() => {
     stopPlayback()
-    setFrames([defaultFrame])
+    setFrames(originalFramesRef.current ?? [defaultFrame])
     setActiveFrameIndex(0)
   }, [stopPlayback])
 
