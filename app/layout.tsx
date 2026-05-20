@@ -11,9 +11,14 @@ export const metadata: Metadata = {
     template: '%s | RugbyMove',
   },
   description: 'Create, animate, and share Rugby Union tactical plays.',
+  icons: {
+    icon: '/logo-icon.png',
+    apple: '/logo-icon.png',
+  },
   openGraph: {
     type: 'website',
     siteName: 'RugbyMove',
+    images: [{ url: '/logo-wordmark.png' }],
   },
 }
 

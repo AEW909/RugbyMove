@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { BookOpen, ClipboardList, FolderOpen, Plus } from 'lucide-react'
@@ -36,9 +37,7 @@ export default function HomeDashboard() {
         <header className="flex flex-col gap-4 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 font-black text-white shadow-lg shadow-blue-500/30">
-                RM
-              </div>
+              <Image src="/logo-icon.png" alt="RugbyMove" width={40} height={40} className="h-10 w-10 rounded-xl" />
               <h1 className="text-3xl font-black tracking-tight text-white sm:text-5xl">RugbyMove</h1>
             </div>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/60 sm:text-base">

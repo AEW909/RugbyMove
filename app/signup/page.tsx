@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { signUp } from '@/app/actions/auth'
 
@@ -14,9 +15,7 @@ export default function SignUpPage({ searchParams }: SignUpPageProps) {
 
       <div className="relative z-10 flex min-h-screen items-center justify-center px-4 py-10">
         <section className="relative z-10 w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-xl">
-          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/30">
-            <span className="text-xl font-black text-white">RM</span>
-          </div>
+          <Image src="/logo-icon.png" alt="RugbyMove" width={56} height={56} className="mx-auto mb-4 h-14 w-14 rounded-2xl" />
 
           <h1 className="text-2xl font-black tracking-tight text-white">Create your account</h1>
           <p className="mt-2 text-sm leading-6 text-white/60">

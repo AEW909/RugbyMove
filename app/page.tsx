@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import HomeDashboard from '@/components/home/HomeDashboard'
@@ -19,17 +20,15 @@ export default async function HomePage() {
       <div className="relative z-10 w-full max-w-sm">
         {/* Brand */}
         <div className="mb-10 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/30">
-            <span className="text-2xl font-black text-white">RM</span>
-          </div>
-          <h1 className="text-4xl font-black tracking-tight text-white">RugbyMove</h1>
-          <p className="mt-3 text-lg font-black tracking-tight text-white">
-            Build tactics.{' '}
-            <span className="bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
-              Coach smarter.
-            </span>
-          </p>
-          <p className="mt-2 text-sm text-white/60">
+          <Image
+            src="/logo-wordmark.png"
+            alt="RugbyMove"
+            width={360}
+            height={120}
+            className="mx-auto w-72 sm:w-80"
+            priority
+          />
+          <p className="mt-4 text-sm text-white/60">
             Build tactics. Share playbooks. Coach smarter.
           </p>
         </div>
