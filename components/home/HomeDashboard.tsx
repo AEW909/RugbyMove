@@ -37,8 +37,7 @@ export default function HomeDashboard() {
         <header className="flex flex-col gap-4 border-b border-white/10 pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <div className="flex items-center gap-3">
-              <Image src="/logo-icon.png" alt="RugbyMove" width={40} height={40} className="h-10 w-10 rounded-xl" />
-              <h1 className="text-3xl font-black tracking-tight text-white sm:text-5xl">RugbyMove</h1>
+              <Image src="/logo-wordmark.png" alt="RugbyMove" width={320} height={80} className="h-12 w-auto sm:h-16" priority />
             </div>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-white/60 sm:text-base">
               Build moves from scratch, reuse starting formations, and keep variations for match-week planning.

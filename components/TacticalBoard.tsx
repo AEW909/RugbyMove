@@ -1,7 +1,8 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { BoxSelect, ChevronLeft, Grid3x3, Home, MousePointer2, Pause, Play, Plus, RotateCcw, Trash2, Users, X } from 'lucide-react'
+import Image from 'next/image'
+import { BoxSelect, ChevronLeft, Grid3x3, MousePointer2, Pause, Play, Plus, RotateCcw, Trash2, Users, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { FormationCategory } from '@/lib/board/storage'
 import { useTacticalBoard, tokens, SCRUM_FORMATION, LINEOUT_FORMATION } from '@/hooks/useTacticalBoard'
@@ -83,12 +84,8 @@ export default function TacticalBoard(props: TacticalBoardProps) {
     <section className="overflow-visible rounded-xl border border-white/10 bg-black shadow-toolbar">
       {/* ── Toolbar ── */}
       <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3">
-        <a
-          href="/"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-        >
-          <Home className="h-4 w-4" />
-          Home
+        <a href="/" aria-label="Home">
+          <Image src="/logo-icon.png" alt="RugbyMove" width={36} height={36} className="h-9 w-9 rounded-xl transition hover:opacity-80" />
         </a>
 
         <div className="h-5 w-px bg-white/10" />
