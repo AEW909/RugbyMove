@@ -5,6 +5,7 @@ import { createClient, createAdminClient } from '@/lib/supabase/server'
 import {
   assignCoachToPlaybook,
   createOrgPlaybook,
+  deleteOrgPlaybook,
   generatePlaybookJoinCode,
   removeOrgMember,
   updateOrgMemberRole,
@@ -219,6 +220,18 @@ export default async function OrgPage({ params, searchParams }: PageProps) {
                                   className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-xs font-semibold text-white/60 transition hover:bg-white/10"
                                 >
                                   Add
+                                </button>
+                              </form>
+                            )}
+                            {isHeadCoach && (
+                              <form action={deleteOrgPlaybook} onSubmit={(e) => { if (!confirm(`Delete "${pb.name}"? This cannot be undone.`)) e.preventDefault() }}>
+                                <input type="hidden" name="org_id" value={params.id} />
+                                <input type="hidden" name="playbook_id" value={pb.id} />
+                                <button
+                                  type="submit"
+                                  className="w-full rounded-lg border border-red-500/20 bg-red-500/5 px-2 py-1 text-xs font-semibold text-red-400/70 transition hover:bg-red-500/10 hover:text-red-400"
+                                >
+                                  Delete
                                 </button>
                               </form>
                             )}

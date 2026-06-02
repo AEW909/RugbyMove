@@ -1,7 +1,8 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 import HomeDashboard from '@/components/home/HomeDashboard'
+import type { OrgRole } from '@/types/play'
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -10,7 +11,21 @@ export default async function HomePage() {
   } = await supabase.auth.getUser()
 
   if (user) {
-    return <HomeDashboard />
+    const admin = createAdminClient()
+    const { data: memberships } = await admin
+      .from('org_members')
+      .select('role, organisations(id, name)')
+      .eq('user_id', user.id)
+      .order('joined_at')
+
+    const orgs = (memberships ?? [])
+      .map((m) => {
+        const org = m.organisations as { id: string; name: string } | null
+        return org ? { id: org.id, name: org.name, role: m.role as OrgRole } : null
+      })
+      .filter(Boolean) as { id: string; name: string; role: OrgRole }[]
+
+    return <HomeDashboard orgs={orgs} />
   }
 
   return (

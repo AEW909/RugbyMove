@@ -140,7 +140,6 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h3 className="font-semibold text-white">{play.title}</h3>
-                      <p className="mt-1 text-sm text-white/60">{play.category}</p>
                     </div>
                     <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs font-semibold text-blue-300 border border-blue-500/20">
                       {play.category}

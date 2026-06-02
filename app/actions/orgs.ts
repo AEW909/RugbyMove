@@ -47,6 +47,7 @@ export async function joinViaCode(formData: FormData): Promise<void> {
   const code = z.string().trim().min(4).max(12).parse(formData.get('code'))
   const upperCode = code.toUpperCase()
 
+  let orgId: string | null = null
   let playbookId: string | null = null
   let errorMessage: string | null = null
 
@@ -63,6 +64,7 @@ export async function joinViaCode(formData: FormData): Promise<void> {
       errorMessage = 'Invalid join code. Please check and try again.'
     } else {
       playbookId = playbook.id
+      orgId = playbook.org_id ?? null
 
       // Add to playbook_members (viewer role, ignore if already a member)
       const { error: memberError } = await admin
@@ -89,6 +91,10 @@ export async function joinViaCode(formData: FormData): Promise<void> {
 
   if (errorMessage) {
     redirect(`/join?error=${encodeURIComponent(errorMessage)}`)
+  }
+  // Redirect to org page if this is an org playbook, otherwise to the playbook itself
+  if (orgId) {
+    redirect(`/org/${orgId}?message=Successfully+joined`)
   }
   redirect(`/playbooks/${playbookId}`)
 }
@@ -185,7 +191,7 @@ export async function assignCoachToPlaybook(formData: FormData): Promise<void> {
       .from('playbook_members')
       .upsert(
         { playbook_id: playbookId, user_id: userId, role: 'editor' },
-        { onConflict: 'id' },
+        { onConflict: 'playbook_id,user_id' },
       )
 
     if (error) errorMessage = error.message
@@ -242,6 +248,69 @@ export async function removeOrgMember(formData: FormData): Promise<void> {
       .delete()
       .eq('org_id', orgId)
       .eq('user_id', userId)
+
+    if (error) errorMessage = error.message
+    else revalidatePath(`/org/${orgId}`)
+  } catch (e) {
+    errorMessage = e instanceof Error ? e.message : 'Something went wrong.'
+  }
+
+  if (errorMessage) {
+    redirect(`/org/${orgId}?error=${encodeURIComponent(errorMessage)}`)
+  }
+  redirect(`/org/${orgId}`)
+}
+
+export async function createOrg(formData: FormData): Promise<void> {
+  const name = z.string().trim().min(1).max(120).parse(formData.get('name'))
+  const description =
+    z.string().trim().max(2000).optional().nullable().parse(formData.get('description') || null) ?? null
+
+  let errorMessage: string | null = null
+  let orgId: string | null = null
+
+  try {
+    const { admin, user } = await requireUser()
+
+    const { data: org, error: orgError } = await admin
+      .from('organisations')
+      .insert({ name, description, owner_id: user.id })
+      .select('id')
+      .single()
+
+    if (orgError) {
+      errorMessage = orgError.message
+    } else {
+      orgId = org.id
+      const { error: memberError } = await admin
+        .from('org_members')
+        .insert({ org_id: org.id, user_id: user.id, role: 'head_coach' })
+      if (memberError) errorMessage = memberError.message
+    }
+  } catch (e) {
+    errorMessage = e instanceof Error ? e.message : 'Something went wrong.'
+  }
+
+  if (errorMessage) {
+    redirect(`/orgs/new?error=${encodeURIComponent(errorMessage)}`)
+  }
+  redirect(`/org/${orgId}`)
+}
+
+export async function deleteOrgPlaybook(formData: FormData): Promise<void> {
+  const orgId = z.string().uuid().parse(formData.get('org_id'))
+  const playbookId = z.string().uuid().parse(formData.get('playbook_id'))
+
+  let errorMessage: string | null = null
+
+  try {
+    const { admin } = await requireOrgRole(orgId, 'head_coach')
+
+    const { error } = await admin
+      .from('playbooks')
+      .delete()
+      .eq('id', playbookId)
+      .eq('org_id', orgId)
 
     if (error) errorMessage = error.message
     else revalidatePath(`/org/${orgId}`)
