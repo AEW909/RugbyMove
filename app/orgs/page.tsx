@@ -25,7 +25,7 @@ export default async function OrgsPage() {
 
   const orgs = (memberships ?? []).map((m) => ({
     role: m.role as OrgRole,
-    org: m.organisations as { id: string; name: string; description: string | null } | null,
+    org: m.organisations as unknown as { id: string; name: string; description: string | null } | null,
   })).filter((m) => m.org !== null)
 
   return (
