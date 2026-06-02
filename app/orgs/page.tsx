@@ -19,14 +19,32 @@ export default async function OrgsPage() {
   const admin = createAdminClient()
   const { data: memberships } = await admin
     .from('org_members')
-    .select('role, organisations(id, name, description)')
+    .select('org_id, role, organisations(id, name, description)')
     .eq('user_id', user.id)
     .order('joined_at')
 
-  const orgs = (memberships ?? []).map((m) => ({
+  const orgList = (memberships ?? []).map((m) => ({
     role: m.role as OrgRole,
     org: m.organisations as unknown as { id: string; name: string; description: string | null } | null,
-  })).filter((m) => m.org !== null)
+  })).filter((m): m is { role: OrgRole; org: { id: string; name: string; description: string | null } } => m.org !== null)
+
+  const orgIds = orgList.map((m) => m.org.id)
+
+  const [{ data: allMembers }, { data: allPlaybooks }] = orgIds.length > 0
+    ? await Promise.all([
+        admin.from('org_members').select('org_id').in('org_id', orgIds),
+        admin.from('playbooks').select('org_id').in('org_id', orgIds),
+      ])
+    : [{ data: [] }, { data: [] }]
+
+  const memberCountByOrg = new Map<string, number>()
+  const playbookCountByOrg = new Map<string, number>()
+  for (const m of allMembers ?? []) memberCountByOrg.set(m.org_id, (memberCountByOrg.get(m.org_id) ?? 0) + 1)
+  for (const p of allPlaybooks ?? []) {
+    if (p.org_id) playbookCountByOrg.set(p.org_id, (playbookCountByOrg.get(p.org_id) ?? 0) + 1)
+  }
+
+  const orgs = orgList
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-black px-4 py-8 text-white sm:px-8">
@@ -67,11 +85,16 @@ export default async function OrgsPage() {
                     href={`/org/${org!.id}`}
                     className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm transition hover:border-white/20 hover:bg-white/[0.08]"
                   >
-                    <div className="min-w-0">
+                    <div className="min-w-0 flex-1">
                       <p className="font-semibold text-white">{org!.name}</p>
                       {org!.description && (
                         <p className="mt-0.5 truncate text-sm text-white/40">{org!.description}</p>
                       )}
+                      <p className="mt-1 text-xs text-white/30">
+                        {memberCountByOrg.get(org!.id) ?? 0} member{(memberCountByOrg.get(org!.id) ?? 0) !== 1 ? 's' : ''}
+                        {' · '}
+                        {playbookCountByOrg.get(org!.id) ?? 0} playbook{(playbookCountByOrg.get(org!.id) ?? 0) !== 1 ? 's' : ''}
+                      </p>
                     </div>
                     <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-xs font-semibold text-white/50">
                       {roleLabel[role]}

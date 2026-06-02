@@ -4,10 +4,13 @@ import { signOut, updateProfile } from '@/app/actions/auth'
 import { createClient } from '@/lib/supabase/server'
 import AppHeader from '@/components/AppHeader'
 
+const PLAY_CATEGORIES = ['Scrum', 'Lineout', 'Open Play', 'Penalty', 'Kick Off', 'Other'] as const
+
 type AccountPageProps = {
   searchParams: {
     message?: string
     error?: string
+    category?: string
   }
 }
 
@@ -21,18 +24,25 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     redirect('/login')
   }
 
+  const activeCategory = PLAY_CATEGORIES.includes(searchParams.category as typeof PLAY_CATEGORIES[number])
+    ? searchParams.category!
+    : null
+
+  let playsQuery = supabase
+    .from('plays')
+    .select('id,title,category,updated_at')
+    .eq('user_id', user.id)
+    .order('updated_at', { ascending: false })
+
+  if (activeCategory) playsQuery = playsQuery.eq('category', activeCategory)
+
   const [{ data: profile }, { data: plays }] = await Promise.all([
     supabase
       .from('profiles')
       .select('username,display_name')
       .eq('id', user.id)
       .single(),
-    supabase
-      .from('plays')
-      .select('id,title,category,updated_at')
-      .eq('user_id', user.id)
-      .order('updated_at', { ascending: false })
-      .limit(12),
+    playsQuery,
   ])
 
   return (
@@ -130,6 +140,31 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
             >
               New move
             </Link>
+          </div>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <Link
+              href="/account"
+              className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                !activeCategory
+                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                  : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10'
+              }`}
+            >
+              All
+            </Link>
+            {PLAY_CATEGORIES.map((cat) => (
+              <Link
+                key={cat}
+                href={`/account?category=${encodeURIComponent(cat)}`}
+                className={`rounded-full px-3 py-1 text-xs font-semibold transition ${
+                  activeCategory === cat
+                    ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                    : 'bg-white/5 text-white/50 border border-white/10 hover:bg-white/10'
+                }`}
+              >
+                {cat}
+              </Link>
+            ))}
           </div>
           <div className="mt-4 grid gap-3">
             {plays?.length ? (
