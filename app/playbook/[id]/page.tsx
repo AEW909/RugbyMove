@@ -1,18 +1,14 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound, redirect } from 'next/navigation'
-import { CalendarDays, Lock, Share2 } from 'lucide-react'
+import { notFound } from 'next/navigation'
+import { CalendarDays } from 'lucide-react'
 import TacticalBoard from '@/components/TacticalBoard'
-import DeleteMoveButton from '@/components/plays/DeleteMoveButton'
 import { createClient } from '@/lib/supabase/server'
-import { setPlayVisibility } from '@/app/actions/plays'
-import type { AnimationData, Frame, Play } from '@/types/play'
-import { defaultFrame } from '@/lib/board/defaults'
-import type { PlayerPosition } from '@/types/play'
+import type { AnimationData, Play } from '@/types/play'
 
 type PageProps = {
   params: { id: string }
-  searchParams: { from?: string; formation_id?: string }
+  searchParams: { from?: string }
 }
 
 const demoAnimationData: AnimationData = {
@@ -53,15 +49,17 @@ const demoAnimationData: AnimationData = {
 }
 
 async function getPlay(id: string): Promise<Play | null> {
-  if (id === 'new') {
+  if (id === 'new' || id === 'local') {
     return {
       id,
       user_id: 'local',
-      title: 'New move',
-      description: 'Start from a blank board or load one of your saved formations.',
-      category: 'Open Play',
+      title: id === 'local' ? 'Saved move' : 'New move',
+      description:
+        id === 'local'
+          ? 'Continue editing a locally saved move.'
+          : 'Start from a blank board or load one of your saved formations.',
+      category: 'Other' as const,
       animation_data: { frames: [] },
-      is_public: false,
       updated_at: new Date().toISOString(),
       profiles: null,
     }
@@ -76,7 +74,6 @@ async function getPlay(id: string): Promise<Play | null> {
         'A simple two-frame pattern that shifts the defensive line before releasing the ball wide.',
       category: 'Open Play' as const,
       animation_data: demoAnimationData,
-      is_public: true,
       updated_at: new Date().toISOString(),
       profiles: {
         username: 'coach-demo',
@@ -152,12 +149,8 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Require auth for all pages except demo
-  if (!user && params.id !== 'demo') {
-    redirect('/login')
-  }
-
-  const mode = play.id === 'new' ? 'fresh' : 'saved'
+  const isGuest = !user
+  const mode = play.id === 'new' ? 'fresh' : play.id === 'local' ? 'local' : 'saved'
   const isOwner = user && play.user_id === user.id
   const viewOnly = mode === 'saved' && !isOwner
 
@@ -171,29 +164,6 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
       .eq('id', fromId)
       .single()
     fromPlaybook = data ?? null
-  }
-
-  // Resolve formation from URL param (for starting a new move from a formation)
-  let initialFrames: Frame[] | undefined
-  const formationId = searchParams?.formation_id
-  if (formationId && mode === 'fresh') {
-    const { data: formationData } = await supabase
-      .from('formations')
-      .select('id,name,category,players')
-      .eq('id', formationId)
-      .single()
-    if (formationData) {
-      const formationPlayers = formationData.players as PlayerPosition[]
-      initialFrames = [
-        {
-          ...defaultFrame,
-          players: defaultFrame.players.map((player) => {
-            const saved = formationPlayers.find((item) => item.id === player.id)
-            return saved ? { ...saved } : player
-          }),
-        },
-      ]
-    }
   }
 
   const backHref = fromPlaybook ? `/playbooks/${fromPlaybook.id}` : '/'
@@ -210,33 +180,12 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
             <Link href={backHref} className="text-sm font-medium text-white/40 transition-colors hover:text-white">
               {backLabel}
             </Link>
-            <div className="flex items-center gap-3 text-sm text-white/40">
-              <span className="inline-flex items-center gap-2">
-                <CalendarDays className="h-4 w-4" />
-                {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(
-                  new Date(play.updated_at),
-                )}
-              </span>
-              {isOwner && mode === 'saved' ? (
-                <form action={setPlayVisibility}>
-                  <input type="hidden" name="id" value={play.id} />
-                  <input type="hidden" name="is_public" value={String(!play.is_public)} />
-                  <button
-                    type="submit"
-                    title={play.is_public ? 'Click to make private' : 'Click to make public'}
-                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 transition hover:bg-white/10 hover:text-white"
-                  >
-                    {play.is_public ? <Share2 className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
-                    {play.is_public ? 'Public' : 'Private'}
-                  </button>
-                </form>
-              ) : (
-                <span className="inline-flex items-center gap-2">
-                  {play.is_public ? <Share2 className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                  {play.is_public ? 'Public' : 'Private'}
-                </span>
+            <span className="inline-flex items-center gap-2 text-sm text-white/40">
+              <CalendarDays className="h-4 w-4" />
+              {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(
+                new Date(play.updated_at),
               )}
-            </div>
+            </span>
           </div>
           <div>
             <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold uppercase text-white/60">
@@ -252,18 +201,25 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
         </header>
 
         <TacticalBoard
-          initialFrames={initialFrames ?? play.animation_data.frames}
+          initialFrames={play.animation_data.frames}
           playId={play.id}
           mode={mode}
           playTitle={play.title}
           playDescription={play.description}
           playCategory={play.category}
+          isGuest={isGuest}
           viewOnly={viewOnly}
         />
 
-        {isOwner && mode === 'saved' && (
-          <div className="flex justify-end">
-            <DeleteMoveButton playId={play.id} />
+        {isGuest && (
+          <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 px-5 py-4 text-center backdrop-blur-sm">
+            <p className="text-sm text-white/70">
+              Build and save your own moves.{' '}
+              <Link href="/signup" className="font-semibold text-blue-400 transition-colors hover:text-blue-300">
+                Create a free account
+              </Link>{' '}
+              to get started.
+            </p>
           </div>
         )}
       </div>
