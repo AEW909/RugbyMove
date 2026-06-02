@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { BookOpen, ChevronDown, ChevronUp, Download, Layers, Save, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { BookOpen, ChevronDown, ChevronUp, Download, Layers, Loader2, Save, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FORMATION_CATEGORIES } from '@/lib/board/storage'
 import type { Formation, SavedMove } from '@/lib/board/storage'
@@ -54,9 +54,17 @@ export default function PanelSlideOver({
 }: Props) {
   const [saveTitle, setSaveTitle] = useState(initialTitle)
   const [selectedPlaybook, setSelectedPlaybook] = useState('')
+  const [isSaving, setIsSaving] = useState(false)
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(FORMATION_CATEGORIES),
   )
+  const prevSaveStatus = useRef(saveStatus)
+  useEffect(() => {
+    if (saveStatus !== prevSaveStatus.current) {
+      setIsSaving(false)
+      prevSaveStatus.current = saveStatus
+    }
+  }, [saveStatus])
 
   useEffect(() => {
     setSaveTitle(initialTitle)
@@ -316,11 +324,12 @@ export default function PanelSlideOver({
                 )}
                 <button
                   type="button"
-                  disabled={!selectedPlaybook || !saveTitle.trim()}
-                  onClick={() => onSaveToPlaybook(selectedPlaybook, saveTitle.trim())}
-                  className="mt-3 w-full rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90 disabled:opacity-40"
+                  disabled={!selectedPlaybook || !saveTitle.trim() || isSaving}
+                  onClick={() => { setIsSaving(true); onSaveToPlaybook(selectedPlaybook, saveTitle.trim()) }}
+                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90 disabled:opacity-40"
                 >
-                  Save to playbook
+                  {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {isSaving ? 'Saving…' : 'Save to playbook'}
                 </button>
               </div>
 
@@ -334,7 +343,11 @@ export default function PanelSlideOver({
               </button>
 
               {saveStatus && (
-                <p className="rounded-xl border border-green-500/20 bg-green-500/10 px-3 py-2 text-sm font-medium text-green-300">
+                <p className={`rounded-xl border px-3 py-2 text-sm font-medium ${
+                  saveStatus.toLowerCase().includes('failed') || saveStatus.toLowerCase().includes('error')
+                    ? 'border-red-500/20 bg-red-500/10 text-red-300'
+                    : 'border-green-500/20 bg-green-500/10 text-green-300'
+                }`}>
                   {saveStatus}
                 </p>
               )}

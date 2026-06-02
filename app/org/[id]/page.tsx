@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { BookOpen, Globe, Lock, Plus, Trash2, UserMinus, Users } from 'lucide-react'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import AppHeader from '@/components/AppHeader'
 import {
   assignCoachToPlaybook,
   createOrgPlaybook,
@@ -93,11 +94,8 @@ export default async function OrgPage({ params, searchParams }: PageProps) {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
 
       <div className="relative z-10 mx-auto max-w-5xl">
-        <Link href="/" className="text-sm font-medium text-white/40 transition-colors hover:text-white">
-          ← Home
-        </Link>
-
-        <div className="mt-4 flex items-start justify-between gap-4">
+        <AppHeader />
+        <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-black tracking-tight text-white">{org.name}</h1>
             {org.description && (

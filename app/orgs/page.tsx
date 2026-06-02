@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { Plus, Users } from 'lucide-react'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import AppHeader from '@/components/AppHeader'
 import type { OrgRole } from '@/types/play'
 
 const roleLabel: Record<OrgRole, string> = {
@@ -32,11 +33,8 @@ export default async function OrgsPage() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
 
       <div className="relative z-10 mx-auto max-w-3xl">
-        <Link href="/" className="text-sm font-medium text-white/40 transition-colors hover:text-white">
-          ← Home
-        </Link>
-
-        <div className="mt-4 flex items-center justify-between gap-4">
+        <AppHeader />
+        <div className="flex items-center justify-between gap-4">
           <h1 className="text-3xl font-black tracking-tight text-white">Organisations</h1>
           <Link
             href="/orgs/new"

@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { BookOpen, Globe, Lock, Users, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import AppHeader from '@/components/AppHeader'
 import {
   addMember,
   addPlayToPlaybook,
@@ -72,20 +73,17 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
 
       <div className="relative z-10 mx-auto max-w-4xl">
-        {playbook.org_id ? (
+        <AppHeader />
+        {playbook.org_id && (
           <Link
             href={`/org/${playbook.org_id}`}
-            className="text-sm font-medium text-white/40 transition-colors hover:text-white"
+            className="mb-4 inline-block text-sm font-medium text-white/40 transition-colors hover:text-white"
           >
             ← {(playbook.organisations as { id: string; name: string } | null)?.name ?? 'Organisation'}
           </Link>
-        ) : (
-          <Link href="/playbooks" className="text-sm font-medium text-white/40 transition-colors hover:text-white">
-            ← Playbooks
-          </Link>
         )}
 
-        <div className="mt-4 flex items-start gap-3">
+        <div className="flex items-start gap-3">
           <BookOpen className="mt-1 h-7 w-7 shrink-0 text-blue-400" />
           <div>
             <h1 className="text-3xl font-black tracking-tight text-white">{playbook.name}</h1>
