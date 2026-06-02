@@ -208,6 +208,7 @@ export type TacticalBoardProps = {
   playCategory?: PlayCategory
   onFramesChange?: (frames: Frame[]) => void
   isGuest?: boolean
+  viewOnly?: boolean
 }
 
 export type UseTacticalBoardReturn = {

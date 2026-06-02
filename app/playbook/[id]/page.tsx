@@ -149,6 +149,9 @@ export default async function PlaybookPage({ params }: PageProps) {
   } = await supabase.auth.getUser()
 
   const isGuest = !user
+  const mode = play.id === 'new' ? 'fresh' : play.id === 'local' ? 'local' : 'saved'
+  const isOwner = user && play.user_id === user.id
+  const viewOnly = mode === 'saved' && !isOwner && play.id !== 'demo'
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-black px-4 py-6 text-white sm:px-8">
@@ -188,11 +191,12 @@ export default async function PlaybookPage({ params }: PageProps) {
         <TacticalBoard
           initialFrames={play.animation_data.frames}
           playId={play.id}
-          mode={play.id === 'new' ? 'fresh' : play.id === 'local' ? 'local' : 'saved'}
+          mode={mode}
           playTitle={play.title}
           playDescription={play.description}
           playCategory={play.category}
           isGuest={isGuest}
+          viewOnly={viewOnly}
         />
       </div>
     </main>

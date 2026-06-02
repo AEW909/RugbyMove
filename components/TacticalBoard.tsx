@@ -17,7 +17,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
     x1: number; y1: number; x2: number; y2: number
   } | null>(null)
 
-  const { isGuest = false, playTitle = 'Untitled move' } = props
+  const { isGuest = false, playTitle = 'Untitled move', viewOnly = false } = props
 
   const updatePlayerPosition = (id: string, clientX: number, clientY: number) => {
     const el = boardRef.current
@@ -99,95 +99,106 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           {board.isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
           {board.isPlaying ? 'Pause' : 'Play'}
         </button>
-        <button
-          type="button"
-          onClick={board.captureFrame}
-          className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-        >
-          <Plus className="h-4 w-4" />
-          Frame
-        </button>
-        <button
-          type="button"
-          onClick={board.resetBoard}
-          className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-        >
-          <RotateCcw className="h-4 w-4" />
-          Reset
-        </button>
-        <button
-          type="button"
-          onClick={() => board.setSnapGrid((prev) => !prev)}
-          className={cn(
-            'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition',
-            board.snapGrid
-              ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
-              : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
-          )}
-        >
-          <Grid3x3 className="h-4 w-4" />
-          Snap
-        </button>
-        <div className="h-5 w-px bg-white/10" />
-        <button
-          type="button"
-          onClick={() => board.loadFormation(SCRUM_FORMATION)}
-          className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-        >
-          <Users className="h-4 w-4" />
-          Scrum
-        </button>
-        <button
-          type="button"
-          onClick={() => board.loadFormation(LINEOUT_FORMATION)}
-          className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-        >
-          <Users className="h-4 w-4" />
-          Lineout
-        </button>
 
-        <div className="h-5 w-px bg-white/10" />
+        {viewOnly ? (
+          <span className="text-sm font-semibold text-white/50">
+            Frame {board.activeFrameIndex + 1} / {board.frames.length}
+          </span>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={board.captureFrame}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+            >
+              <Plus className="h-4 w-4" />
+              Frame
+            </button>
+            <button
+              type="button"
+              onClick={board.resetBoard}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reset
+            </button>
+            <button
+              type="button"
+              onClick={() => board.setSnapGrid((prev) => !prev)}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition',
+                board.snapGrid
+                  ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
+                  : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
+              )}
+            >
+              <Grid3x3 className="h-4 w-4" />
+              Snap
+            </button>
+            <div className="h-5 w-px bg-white/10" />
+            <button
+              type="button"
+              onClick={() => board.loadFormation(SCRUM_FORMATION)}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+            >
+              <Users className="h-4 w-4" />
+              Scrum
+            </button>
+            <button
+              type="button"
+              onClick={() => board.loadFormation(LINEOUT_FORMATION)}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+            >
+              <Users className="h-4 w-4" />
+              Lineout
+            </button>
 
-        <button
-          type="button"
-          title="Pointer (P)"
-          onClick={() => { board.setTool('pointer'); board.setSelectedPlayerIds(new Set()) }}
-          className={cn(
-            'inline-flex items-center justify-center rounded-xl border p-2 transition',
-            board.tool === 'pointer'
-              ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
-              : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
-          )}
-        >
-          <MousePointer2 className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          title="Group Select (G)"
-          onClick={() => board.setTool('select')}
-          className={cn(
-            'inline-flex items-center justify-center rounded-xl border p-2 transition',
-            board.tool === 'select'
-              ? 'border-purple-500/50 bg-purple-500/20 text-purple-300'
-              : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
-          )}
-        >
-          <BoxSelect className="h-4 w-4" />
-        </button>
+            <div className="h-5 w-px bg-white/10" />
+
+            <button
+              type="button"
+              title="Pointer (P)"
+              onClick={() => { board.setTool('pointer'); board.setSelectedPlayerIds(new Set()) }}
+              className={cn(
+                'inline-flex items-center justify-center rounded-xl border p-2 transition',
+                board.tool === 'pointer'
+                  ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
+                  : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
+              )}
+            >
+              <MousePointer2 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              title="Group Select (G)"
+              onClick={() => board.setTool('select')}
+              className={cn(
+                'inline-flex items-center justify-center rounded-xl border p-2 transition',
+                board.tool === 'select'
+                  ? 'border-purple-500/50 bg-purple-500/20 text-purple-300'
+                  : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
+              )}
+            >
+              <BoxSelect className="h-4 w-4" />
+            </button>
+          </>
+        )}
       </div>
 
-      {/* Fixed side tab — opens the panel */}
-      <button
-        type="button"
-        onClick={() => board.setPanelOpen(true)}
-        className={cn(
-          'fixed right-0 top-1/2 z-30 -translate-y-1/2 flex items-center rounded-l-xl bg-gradient-to-b from-blue-500 to-purple-600 py-6 pl-2 pr-1.5 shadow-lg transition hover:from-blue-400 hover:to-purple-500',
-          board.panelOpen && 'pointer-events-none opacity-0',
-        )}
-        aria-label="Open panel"
-      >
-        <ChevronLeft className="h-4 w-4 text-white" />
-      </button>
+      {/* Fixed side tab — opens the panel (editor only) */}
+      {!viewOnly && (
+        <button
+          type="button"
+          onClick={() => board.setPanelOpen(true)}
+          className={cn(
+            'fixed right-0 top-1/2 z-30 -translate-y-1/2 flex items-center rounded-l-xl bg-gradient-to-b from-blue-500 to-purple-600 py-6 pl-2 pr-1.5 shadow-lg transition hover:from-blue-400 hover:to-purple-500',
+            board.panelOpen && 'pointer-events-none opacity-0',
+          )}
+          aria-label="Open panel"
+        >
+          <ChevronLeft className="h-4 w-4 text-white" />
+        </button>
+      )}
 
       {/* ── Board ── */}
       <div className="p-4">
@@ -195,48 +206,69 @@ export default function TacticalBoard(props: TacticalBoardProps) {
         <div className="mb-3 flex items-center gap-2 overflow-x-auto pb-1">
           <span className="shrink-0 text-xs font-semibold uppercase text-slate-400">Frames</span>
           {board.frames.map((frame, index) => (
-            <div
-              key={`${frame.players.length}-${index}`}
-              className={cn(
-                'flex shrink-0 overflow-hidden rounded-md border transition',
-                board.activeFrameIndex === index
-                  ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
-                  : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
-              )}
-            >
+            viewOnly ? (
               <button
+                key={`${frame.players.length}-${index}`}
                 type="button"
                 onClick={() => {
                   board.stopPlayback()
                   board.setActiveFrameIndex(index)
                 }}
-                className="px-3 py-1.5 text-sm font-semibold"
+                className={cn(
+                  'shrink-0 rounded-md border px-3 py-1.5 text-sm font-semibold transition',
+                  board.activeFrameIndex === index
+                    ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                )}
                 aria-label={`Select frame ${index + 1}`}
               >
                 {index + 1}
               </button>
-              <button
-                type="button"
-                onClick={() => board.deleteFrame(index)}
-                className="flex w-8 items-center justify-center border-l border-inherit text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                aria-label={`Delete frame ${index + 1}`}
+            ) : (
+              <div
+                key={`${frame.players.length}-${index}`}
+                className={cn(
+                  'flex shrink-0 overflow-hidden rounded-md border transition',
+                  board.activeFrameIndex === index
+                    ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
+                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                )}
               >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    board.stopPlayback()
+                    board.setActiveFrameIndex(index)
+                  }}
+                  className="px-3 py-1.5 text-sm font-semibold"
+                  aria-label={`Select frame ${index + 1}`}
+                >
+                  {index + 1}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => board.deleteFrame(index)}
+                  className="flex w-8 items-center justify-center border-l border-inherit text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                  aria-label={`Delete frame ${index + 1}`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )
           ))}
         </div>
 
         <div
           ref={boardRef}
           className={cn(
-            'relative aspect-[4/3] min-h-[360px] overflow-hidden rounded-md border border-slate-200 bg-emerald-700 shadow-inner',
-            board.tool === 'select' && 'cursor-crosshair',
+            'relative aspect-[4/3] w-full overflow-hidden rounded-md border border-slate-200 bg-emerald-700 shadow-inner',
+            !viewOnly && 'min-h-[360px]',
+            !viewOnly && board.tool === 'select' && 'cursor-crosshair',
           )}
           aria-label="Rugby tactical board"
-          onPointerDown={handleBoardPointerDown}
-          onPointerMove={handleBoardPointerMove}
-          onPointerUp={handleBoardPointerUp}
+          onPointerDown={viewOnly ? undefined : handleBoardPointerDown}
+          onPointerMove={viewOnly ? undefined : handleBoardPointerMove}
+          onPointerUp={viewOnly ? undefined : handleBoardPointerUp}
         >
           {/* Pitch — full height */}
           <div className="absolute inset-0 overflow-hidden">
@@ -304,21 +336,23 @@ export default function TacticalBoard(props: TacticalBoardProps) {
                 type="button"
                 key={token.id}
                 data-player={token.id}
-                onPointerDown={handlePointerDown(token.id)}
-                onPointerMove={handlePointerMove(token.id)}
+                onPointerDown={viewOnly ? undefined : handlePointerDown(token.id)}
+                onPointerMove={viewOnly ? undefined : handlePointerMove(token.id)}
                 className={cn(
-                  'absolute flex touch-none select-none items-center justify-center border-2 text-[10px] font-bold shadow-lg transition-transform hover:scale-110 focus:outline-none focus:ring-2 focus:ring-yellow-300',
+                  'absolute flex select-none items-center justify-center border-2 text-[10px] font-bold shadow-lg focus:outline-none',
+                  !viewOnly && 'touch-none transition-transform hover:scale-110 focus:ring-2 focus:ring-yellow-300',
                   token.side === 'attack' && 'border-blue-100 bg-blue-600 text-white',
                   token.side === 'defend' && 'border-red-100 bg-red-600 text-white',
                   token.side === 'ball' &&
                     'h-6 w-10 rounded-[50%] border-emerald-900 bg-slate-50 text-transparent',
                   token.side !== 'ball' && 'h-7 w-7 rounded-full',
-                  board.selectedPlayerIds.has(token.id) && 'ring-2 ring-yellow-400 ring-offset-1',
+                  !viewOnly && board.selectedPlayerIds.has(token.id) && 'ring-2 ring-yellow-400 ring-offset-1',
                 )}
                 style={{
                   left: `${player.x}%`,
                   top: `${player.y}%`,
                   transform: 'translate(-50%, -50%)',
+                  pointerEvents: viewOnly ? 'none' : undefined,
                 }}
                 aria-label={
                   token.side === 'ball'
@@ -345,29 +379,31 @@ export default function TacticalBoard(props: TacticalBoardProps) {
         </div>
       </div>
 
-      <PanelSlideOver
-        isOpen={board.panelOpen}
-        onClose={() => board.setPanelOpen(false)}
-        activeTab={board.panelTab}
-        onTabChange={board.setPanelTab}
-        formations={board.formations}
-        savedPlays={board.savedPlays}
-        playbooks={board.playbooks}
-        onLoadFormation={board.loadFormation}
-        onOpenSaveFormation={() => {
-          board.setPanelOpen(false)
-          board.setShowFormationModal(true)
-        }}
-        onLoadPlay={board.handleLoadPlay}
-        onSaveToPlaybook={board.handleSaveToPlaybook}
-        onSaveLocally={board.handleSaveLocally}
-        onExport={board.exportMove}
-        initialTitle={playTitle}
-        saveStatus={board.saveStatus}
-        isGuest={isGuest}
-      />
+      {!viewOnly && (
+        <PanelSlideOver
+          isOpen={board.panelOpen}
+          onClose={() => board.setPanelOpen(false)}
+          activeTab={board.panelTab}
+          onTabChange={board.setPanelTab}
+          formations={board.formations}
+          savedPlays={board.savedPlays}
+          playbooks={board.playbooks}
+          onLoadFormation={board.loadFormation}
+          onOpenSaveFormation={() => {
+            board.setPanelOpen(false)
+            board.setShowFormationModal(true)
+          }}
+          onLoadPlay={board.handleLoadPlay}
+          onSaveToPlaybook={board.handleSaveToPlaybook}
+          onSaveLocally={board.handleSaveLocally}
+          onExport={board.exportMove}
+          initialTitle={playTitle}
+          saveStatus={board.saveStatus}
+          isGuest={isGuest}
+        />
+      )}
 
-      {board.showFormationModal && (
+      {!viewOnly && board.showFormationModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
           onClick={() => board.setShowFormationModal(false)}
