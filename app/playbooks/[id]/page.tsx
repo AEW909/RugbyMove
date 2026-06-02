@@ -118,7 +118,7 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                       >
                         <div className="min-w-0">
                           <Link
-                            href={`/playbook/${play.id}`}
+                            href={`/playbook/${play.id}?from=${params.id}`}
                             className="truncate font-medium text-white transition-colors hover:text-blue-400"
                           >
                             {play.title}
