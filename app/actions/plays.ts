@@ -98,6 +98,20 @@ export async function savePlay(input: SavePlayInput) {
   return data
 }
 
+export async function setPlayVisibility(formData: FormData): Promise<void> {
+  const id = z.string().uuid().parse(formData.get('id'))
+  const is_public = formData.get('is_public') === 'true'
+  const { supabase, user } = await requireUser()
+  const { error } = await supabase
+    .from('plays')
+    .update({ is_public })
+    .eq('id', id)
+    .eq('user_id', user.id)
+  if (error) throw new Error(error.message)
+  revalidatePath(`/playbook/${id}`)
+  revalidatePath('/')
+}
+
 export async function deletePlay(id: string) {
   const parsedId = z.string().uuid().parse(id)
   const { supabase } = await requireUser()

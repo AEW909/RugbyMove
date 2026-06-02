@@ -75,14 +75,24 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
           ← Playbooks
         </Link>
 
-        <div className="mt-4 flex items-start gap-3">
-          <BookOpen className="mt-1 h-7 w-7 shrink-0 text-blue-400" />
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-white">{playbook.name}</h1>
-            {playbook.description && (
-              <p className="mt-1 text-sm text-white/60">{playbook.description}</p>
-            )}
+        <div className="mt-4 flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <BookOpen className="mt-1 h-7 w-7 shrink-0 text-blue-400" />
+            <div>
+              <h1 className="text-3xl font-black tracking-tight text-white">{playbook.name}</h1>
+              {playbook.description && (
+                <p className="mt-1 text-sm text-white/60">{playbook.description}</p>
+              )}
+            </div>
           </div>
+          {isOwner && (
+            <Link
+              href={`/playbooks/${params.id}/organise`}
+              className="shrink-0 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+            >
+              Organise
+            </Link>
+          )}
         </div>
 
         {searchParams.message && (

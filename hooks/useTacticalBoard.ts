@@ -4,7 +4,7 @@ import { savePlay } from '@/app/actions/plays'
 import { createClient } from '@/lib/supabase/client'
 import { storageKeys } from '@/lib/board/storage'
 import type { Formation, FormationCategory, SavedMove } from '@/lib/board/storage'
-import type { Frame, PlayerPosition, PlayCategory } from '@/types/play'
+import type { Frame, Line, PlayerPosition, PlayCategory } from '@/types/play'
 import type { PanelTab } from '@/components/board/PanelSlideOver'
 
 export type Token = {
@@ -236,6 +236,7 @@ export type TacticalBoardProps = {
   isPublic?: boolean
   onFramesChange?: (frames: Frame[]) => void
   isGuest?: boolean
+  viewOnly?: boolean
 }
 
 export type UseTacticalBoardReturn = {
@@ -262,8 +263,14 @@ export type UseTacticalBoardReturn = {
   savedPlays: SavedMove[]
   playbooks: { id: string; name: string }[]
   setPlaybooks: Dispatch<SetStateAction<{ id: string; name: string }[]>>
-  tool: 'pointer' | 'select'
-  setTool: (t: 'pointer' | 'select') => void
+  tool: 'pointer' | 'select' | 'draw'
+  setTool: (t: 'pointer' | 'select' | 'draw') => void
+  lineColor: string
+  lineDashed: boolean
+  setLineColor: (color: string) => void
+  setLineDashed: (dashed: boolean) => void
+  addLine: (line: Line) => void
+  deleteLine: (lineId: string) => void
   selectedPlayerIds: Set<string>
   setSelectedPlayerIds: Dispatch<SetStateAction<Set<string>>>
   setActiveFrameIndex: Dispatch<SetStateAction<number>>
@@ -304,13 +311,16 @@ export function useTacticalBoard({
   const [panelTab, setPanelTab] = useState<PanelTab>('formations')
   const [savedPlays, setSavedPlays] = useState<SavedMove[]>([])
   const [playbooks, setPlaybooks] = useState<{ id: string; name: string }[]>([])
-  const [tool, setTool] = useState<'pointer' | 'select'>('pointer')
+  const [tool, setTool] = useState<'pointer' | 'select' | 'draw'>('pointer')
+  const [lineColor, setLineColor] = useState('#f8fafc')
+  const [lineDashed, setLineDashed] = useState(false)
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.key === 'g' || e.key === 'G') setTool('select')
+      if (e.key === 'd' || e.key === 'D') setTool('draw')
       if (e.key === 'p' || e.key === 'P') { setTool('pointer'); setSelectedPlayerIds(new Set()) }
       if (e.key === 'Escape') { setTool('pointer'); setSelectedPlayerIds(new Set()) }
     }
@@ -579,6 +589,32 @@ export function useTacticalBoard({
     [isPublic, playCategory, playDescription, playId, persistLocally],
   )
 
+  const addLine = useCallback(
+    (line: Line) => {
+      setFrames((currentFrames) =>
+        currentFrames.map((frame, index) =>
+          index !== activeFrameIndex
+            ? frame
+            : { ...frame, lines: [...frame.lines, line] },
+        ),
+      )
+    },
+    [activeFrameIndex],
+  )
+
+  const deleteLine = useCallback(
+    (lineId: string) => {
+      setFrames((currentFrames) =>
+        currentFrames.map((frame, index) =>
+          index !== activeFrameIndex
+            ? frame
+            : { ...frame, lines: frame.lines.filter((l) => l.id !== lineId) },
+        ),
+      )
+    },
+    [activeFrameIndex],
+  )
+
   const handleLoadPlay = useCallback(
     (play: SavedMove) => {
       stopPlayback()
@@ -650,6 +686,12 @@ export function useTacticalBoard({
     setPlaybooks,
     tool,
     setTool,
+    lineColor,
+    lineDashed,
+    setLineColor,
+    setLineDashed,
+    addLine,
+    deleteLine,
     selectedPlayerIds,
     setSelectedPlayerIds,
     setActiveFrameIndex,

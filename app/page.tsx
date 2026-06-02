@@ -9,7 +9,25 @@ export default async function HomePage() {
   } = await supabase.auth.getUser()
 
   if (user) {
-    return <HomeDashboard />
+    const [{ data: rawPlays }, { data: rawPlaybooks }] = await Promise.all([
+      supabase
+        .from('plays')
+        .select('id, title, category, updated_at')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false })
+        .limit(30),
+      supabase
+        .from('playbooks')
+        .select('id, name')
+        .eq('owner_id', user.id)
+        .order('name')
+        .limit(20),
+    ])
+    const cloudPlays = (rawPlays ?? []) as Array<{
+      id: string; title: string; category: string; updated_at: string
+    }>
+    const cloudPlaybooks = (rawPlaybooks ?? []) as Array<{ id: string; name: string }>
+    return <HomeDashboard cloudPlays={cloudPlays} cloudPlaybooks={cloudPlaybooks} />
   }
 
   return (

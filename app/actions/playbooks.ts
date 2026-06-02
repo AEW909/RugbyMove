@@ -177,6 +177,51 @@ export async function addMember(formData: FormData): Promise<void> {
   redirect(`/playbooks/${playbookId}`)
 }
 
+export async function syncPlaybookPlay(
+  playbookId: string,
+  playId: string,
+  add: boolean,
+): Promise<void> {
+  const pid = z.string().uuid().parse(playbookId)
+  const ppid = z.string().uuid().parse(playId)
+  const { admin } = await requireUser()
+
+  if (add) {
+    await admin
+      .from('playbook_plays')
+      .upsert({ playbook_id: pid, play_id: ppid }, { onConflict: 'playbook_id,play_id' })
+  } else {
+    await admin.from('playbook_plays').delete().eq('playbook_id', pid).eq('play_id', ppid)
+  }
+
+  revalidatePath(`/playbooks/${pid}`)
+  revalidatePath(`/playbooks/${pid}/organise`)
+}
+
+export async function reorderPlaybookPlays(
+  playbookId: string,
+  orderedIds: string[],
+): Promise<void> {
+  const pid = z.string().uuid().parse(playbookId)
+  const ids = z.array(z.string().uuid()).parse(orderedIds)
+  const { admin, user } = await requireUser()
+
+  const { data: playbook } = await admin
+    .from('playbooks')
+    .select('owner_id')
+    .eq('id', pid)
+    .single()
+  if (!playbook || playbook.owner_id !== user.id) throw new Error('Not authorized')
+
+  await admin.from('playbook_plays').upsert(
+    ids.map((playId, index) => ({ playbook_id: pid, play_id: playId, sort_order: index })),
+    { onConflict: 'playbook_id,play_id' },
+  )
+
+  revalidatePath(`/playbooks/${pid}`)
+  revalidatePath(`/playbooks/${pid}/organise`)
+}
+
 export async function removeMember(formData: FormData): Promise<void> {
   const playbookId = z.string().uuid().parse(formData.get('playbook_id'))
   const userId = z.string().uuid().parse(formData.get('user_id'))

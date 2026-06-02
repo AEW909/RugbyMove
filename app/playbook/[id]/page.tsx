@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { CalendarDays, Lock, Share2 } from 'lucide-react'
 import TacticalBoard from '@/components/TacticalBoard'
 import { createClient } from '@/lib/supabase/server'
+import { setPlayVisibility } from '@/app/actions/plays'
 import type { AnimationData, Play } from '@/types/play'
 
 type PageProps = {
@@ -189,10 +190,25 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
                   new Date(play.updated_at),
                 )}
               </span>
-              <span className="inline-flex items-center gap-2">
-                {play.is_public ? <Share2 className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
-                {play.is_public ? 'Public' : 'Private'}
-              </span>
+              {isOwner && mode === 'saved' ? (
+                <form action={setPlayVisibility}>
+                  <input type="hidden" name="id" value={play.id} />
+                  <input type="hidden" name="is_public" value={String(!play.is_public)} />
+                  <button
+                    type="submit"
+                    title={play.is_public ? 'Click to make private' : 'Click to make public'}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 transition hover:bg-white/10 hover:text-white"
+                  >
+                    {play.is_public ? <Share2 className="h-3.5 w-3.5" /> : <Lock className="h-3.5 w-3.5" />}
+                    {play.is_public ? 'Public' : 'Private'}
+                  </button>
+                </form>
+              ) : (
+                <span className="inline-flex items-center gap-2">
+                  {play.is_public ? <Share2 className="h-4 w-4" /> : <Lock className="h-4 w-4" />}
+                  {play.is_public ? 'Public' : 'Private'}
+                </span>
+              )}
             </div>
           </div>
           <div>
