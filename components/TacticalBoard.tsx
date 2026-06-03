@@ -8,6 +8,7 @@ import type { FormationCategory } from '@/lib/board/storage'
 import { useTacticalBoard, tokens, SCRUM_FORMATION, LINEOUT_FORMATION } from '@/hooks/useTacticalBoard'
 import type { TacticalBoardProps } from '@/hooks/useTacticalBoard'
 import PanelSlideOver from '@/components/board/PanelSlideOver'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 export default function TacticalBoard(props: TacticalBoardProps) {
   const board = useTacticalBoard(props)
@@ -18,6 +19,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
   } | null>(null)
 
   const { isGuest = false, playTitle = 'Untitled move' } = props
+  const isMobile = useIsMobile()
 
   const updatePlayerPosition = (id: string, clientX: number, clientY: number) => {
     const el = boardRef.current
@@ -30,12 +32,14 @@ export default function TacticalBoard(props: TacticalBoardProps) {
 
   const handlePointerDown =
     (id: string) => (event: React.PointerEvent<HTMLButtonElement>) => {
+      if (isMobile) return
       event.currentTarget.setPointerCapture(event.pointerId)
       updatePlayerPosition(id, event.clientX, event.clientY)
     }
 
   const handlePointerMove =
     (id: string) => (event: React.PointerEvent<HTMLButtonElement>) => {
+      if (isMobile) return
       if (event.buttons !== 1) return
       updatePlayerPosition(id, event.clientX, event.clientY)
     }
@@ -48,7 +52,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
   }
 
   const handleBoardPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (board.tool !== 'select') return
+    if (isMobile || board.tool !== 'select') return
     if ((e.target as HTMLElement).closest('[data-player]')) return
     e.currentTarget.setPointerCapture(e.pointerId)
     const { x, y } = getBoardPct(e.clientX, e.clientY)
@@ -58,13 +62,13 @@ export default function TacticalBoard(props: TacticalBoardProps) {
   }
 
   const handleBoardPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (board.tool !== 'select' || !selectionStartRef.current || e.buttons !== 1) return
+    if (isMobile || board.tool !== 'select' || !selectionStartRef.current || e.buttons !== 1) return
     const { x, y } = getBoardPct(e.clientX, e.clientY)
     setSelectionBox({ x1: selectionStartRef.current.x, y1: selectionStartRef.current.y, x2: x, y2: y })
   }
 
   const handleBoardPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (board.tool !== 'select' || !selectionStartRef.current) return
+    if (isMobile || board.tool !== 'select' || !selectionStartRef.current) return
     const { x, y } = getBoardPct(e.clientX, e.clientY)
     const minX = Math.min(selectionStartRef.current.x, x)
     const minY = Math.min(selectionStartRef.current.y, y)
@@ -99,95 +103,106 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           {board.isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
           {board.isPlaying ? 'Pause' : 'Play'}
         </button>
-        <button
-          type="button"
-          onClick={board.captureFrame}
-          className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-        >
-          <Plus className="h-4 w-4" />
-          Frame
-        </button>
-        <button
-          type="button"
-          onClick={board.resetBoard}
-          className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-        >
-          <RotateCcw className="h-4 w-4" />
-          Reset
-        </button>
-        <button
-          type="button"
-          onClick={() => board.setSnapGrid((prev) => !prev)}
-          className={cn(
-            'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition',
-            board.snapGrid
-              ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
-              : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
-          )}
-        >
-          <Grid3x3 className="h-4 w-4" />
-          Snap
-        </button>
-        <div className="h-5 w-px bg-white/10" />
-        <button
-          type="button"
-          onClick={() => board.loadFormation(SCRUM_FORMATION)}
-          className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-        >
-          <Users className="h-4 w-4" />
-          Scrum
-        </button>
-        <button
-          type="button"
-          onClick={() => board.loadFormation(LINEOUT_FORMATION)}
-          className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-        >
-          <Users className="h-4 w-4" />
-          Lineout
-        </button>
 
-        <div className="h-5 w-px bg-white/10" />
+        {isMobile ? (
+          <span className="ml-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-white/40">
+            View only
+          </span>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={board.captureFrame}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+            >
+              <Plus className="h-4 w-4" />
+              Frame
+            </button>
+            <button
+              type="button"
+              onClick={board.resetBoard}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reset
+            </button>
+            <button
+              type="button"
+              onClick={() => board.setSnapGrid((prev) => !prev)}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition',
+                board.snapGrid
+                  ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
+                  : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
+              )}
+            >
+              <Grid3x3 className="h-4 w-4" />
+              Snap
+            </button>
+            <div className="h-5 w-px bg-white/10" />
+            <button
+              type="button"
+              onClick={() => board.loadFormation(SCRUM_FORMATION)}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+            >
+              <Users className="h-4 w-4" />
+              Scrum
+            </button>
+            <button
+              type="button"
+              onClick={() => board.loadFormation(LINEOUT_FORMATION)}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+            >
+              <Users className="h-4 w-4" />
+              Lineout
+            </button>
 
-        <button
-          type="button"
-          title="Pointer (P)"
-          onClick={() => { board.setTool('pointer'); board.setSelectedPlayerIds(new Set()) }}
-          className={cn(
-            'inline-flex items-center justify-center rounded-xl border p-2 transition',
-            board.tool === 'pointer'
-              ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
-              : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
-          )}
-        >
-          <MousePointer2 className="h-4 w-4" />
-        </button>
-        <button
-          type="button"
-          title="Group Select (G)"
-          onClick={() => board.setTool('select')}
-          className={cn(
-            'inline-flex items-center justify-center rounded-xl border p-2 transition',
-            board.tool === 'select'
-              ? 'border-purple-500/50 bg-purple-500/20 text-purple-300'
-              : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
-          )}
-        >
-          <BoxSelect className="h-4 w-4" />
-        </button>
+            <div className="h-5 w-px bg-white/10" />
+
+            <button
+              type="button"
+              title="Pointer (P)"
+              onClick={() => { board.setTool('pointer'); board.setSelectedPlayerIds(new Set()) }}
+              className={cn(
+                'inline-flex items-center justify-center rounded-xl border p-2 transition',
+                board.tool === 'pointer'
+                  ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
+                  : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
+              )}
+            >
+              <MousePointer2 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              title="Group Select (G)"
+              onClick={() => board.setTool('select')}
+              className={cn(
+                'inline-flex items-center justify-center rounded-xl border p-2 transition',
+                board.tool === 'select'
+                  ? 'border-purple-500/50 bg-purple-500/20 text-purple-300'
+                  : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
+              )}
+            >
+              <BoxSelect className="h-4 w-4" />
+            </button>
+          </>
+        )}
       </div>
 
-      {/* Fixed side tab — opens the panel */}
-      <button
-        type="button"
-        onClick={() => board.setPanelOpen(true)}
-        className={cn(
-          'fixed right-0 top-1/2 z-30 -translate-y-1/2 flex items-center rounded-l-xl bg-gradient-to-b from-blue-500 to-purple-600 py-6 pl-2 pr-1.5 shadow-lg transition hover:from-blue-400 hover:to-purple-500',
-          board.panelOpen && 'pointer-events-none opacity-0',
-        )}
-        aria-label="Open panel"
-      >
-        <ChevronLeft className="h-4 w-4 text-white" />
-      </button>
+      {/* Fixed side tab — opens the panel (desktop/tablet only) */}
+      {!isMobile && (
+        <button
+          type="button"
+          onClick={() => board.setPanelOpen(true)}
+          className={cn(
+            'fixed right-0 top-1/2 z-30 -translate-y-1/2 flex items-center rounded-l-xl bg-gradient-to-b from-blue-500 to-purple-600 py-6 pl-2 pr-1.5 shadow-lg transition hover:from-blue-400 hover:to-purple-500',
+            board.panelOpen && 'pointer-events-none opacity-0',
+          )}
+          aria-label="Open panel"
+        >
+          <ChevronLeft className="h-4 w-4 text-white" />
+        </button>
+      )}
 
       {/* ── Board ── */}
       <div className="p-4">
@@ -210,19 +225,21 @@ export default function TacticalBoard(props: TacticalBoardProps) {
                   board.stopPlayback()
                   board.setActiveFrameIndex(index)
                 }}
-                className="px-3 py-1.5 text-sm font-semibold"
+                className={cn('font-semibold', isMobile ? 'px-4 py-2.5 text-base' : 'px-3 py-1.5 text-sm')}
                 aria-label={`Select frame ${index + 1}`}
               >
                 {index + 1}
               </button>
-              <button
-                type="button"
-                onClick={() => board.deleteFrame(index)}
-                className="flex w-8 items-center justify-center border-l border-inherit text-slate-400 transition hover:bg-red-50 hover:text-red-600"
-                aria-label={`Delete frame ${index + 1}`}
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+              {!isMobile && (
+                <button
+                  type="button"
+                  onClick={() => board.deleteFrame(index)}
+                  className="flex w-8 items-center justify-center border-l border-inherit text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                  aria-label={`Delete frame ${index + 1}`}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              )}
             </div>
           ))}
         </div>
