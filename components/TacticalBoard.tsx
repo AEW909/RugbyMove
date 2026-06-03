@@ -415,6 +415,11 @@ export default function TacticalBoard(props: TacticalBoardProps) {
             <div className="absolute inset-y-0 left-1/2 w-px bg-white/70" />
             {/* Centre spot cross */}
             <div className="absolute inset-x-0 top-1/2 h-px bg-white/30" />
+            {/* Lineout lines — 5m from touchline = 7.14% of 70m; 15m = 21.43% */}
+            <div className="absolute inset-x-0 top-[7.14%] h-px bg-white/30 [background:repeating-linear-gradient(90deg,rgba(255,255,255,0.3)_0,rgba(255,255,255,0.3)_6px,transparent_6px,transparent_12px)]" />
+            <div className="absolute inset-x-0 bottom-[7.14%] h-px bg-white/30 [background:repeating-linear-gradient(90deg,rgba(255,255,255,0.3)_0,rgba(255,255,255,0.3)_6px,transparent_6px,transparent_12px)]" />
+            <div className="absolute inset-x-0 top-[21.43%] h-px [background:repeating-linear-gradient(90deg,rgba(255,255,255,0.2)_0,rgba(255,255,255,0.2)_6px,transparent_6px,transparent_12px)]" />
+            <div className="absolute inset-x-0 bottom-[21.43%] h-px [background:repeating-linear-gradient(90deg,rgba(255,255,255,0.2)_0,rgba(255,255,255,0.2)_6px,transparent_6px,transparent_12px)]" />
           </div>
 
           {/* Lines SVG — pointer-events enabled in draw mode */}

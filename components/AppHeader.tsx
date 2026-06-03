@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 
@@ -23,11 +24,9 @@ export default async function AppHeader({ backHref, backLabel }: Props) {
   return (
     <header className="flex items-center justify-between border-b border-white/10 pb-4">
       <div className="flex items-center gap-3">
-        <Link
-          href="/"
-          className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 text-xs font-black text-white shadow-md shadow-blue-500/20 transition hover:opacity-90"
-        >
-          RM
+        <Link href="/" className="flex items-center gap-2 transition hover:opacity-80">
+          <Image src="/logo-icon.png" alt="RugbyMove" width={32} height={32} className="rounded-lg" />
+          <Image src="/logo-text.png" alt="" width={96} height={24} className="hidden sm:block" />
         </Link>
         {backHref && backLabel && (
           <>

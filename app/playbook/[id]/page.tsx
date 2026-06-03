@@ -49,16 +49,14 @@ const demoAnimationData: AnimationData = {
 }
 
 async function getPlay(id: string): Promise<Play | null> {
-  if (id === 'new' || id === 'local') {
+  if (id === 'new') {
     return {
       id,
-      user_id: 'local',
-      title: id === 'local' ? 'Saved move' : 'New move',
-      description:
-        id === 'local'
-          ? 'Continue editing a locally saved move.'
-          : 'Start from a blank board or load one of your saved formations.',
+      user_id: 'new',
+      title: 'New move',
+      description: 'Start from a blank board or load one of your saved formations.',
       category: 'Other' as const,
+      is_public: false,
       animation_data: { frames: [] },
       updated_at: new Date().toISOString(),
       profiles: null,
@@ -73,6 +71,7 @@ async function getPlay(id: string): Promise<Play | null> {
       description:
         'A simple two-frame pattern that shifts the defensive line before releasing the ball wide.',
       category: 'Open Play' as const,
+      is_public: true,
       animation_data: demoAnimationData,
       updated_at: new Date().toISOString(),
       profiles: {
@@ -150,7 +149,7 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
   } = await supabase.auth.getUser()
 
   const isGuest = !user
-  const mode = play.id === 'new' ? 'fresh' : play.id === 'local' ? 'local' : 'saved'
+  const mode = play.id === 'new' ? 'fresh' : 'saved'
   const isOwner = user && play.user_id === user.id
   const viewOnly = mode === 'saved' && !isOwner
 
@@ -207,7 +206,6 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
           playTitle={play.title}
           playDescription={play.description}
           playCategory={play.category}
-          isGuest={isGuest}
           viewOnly={viewOnly}
         />
 
