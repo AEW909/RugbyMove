@@ -391,8 +391,8 @@ export default function TacticalBoard(props: TacticalBoardProps) {
         <div
           ref={boardRef}
           className={cn(
-            'relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-white/10 bg-emerald-700 shadow-inner',
-            !viewOnly && 'min-h-[360px]',
+            'relative aspect-[12/7] w-full overflow-hidden rounded-xl border border-white/10 bg-emerald-700 shadow-inner',
+            !viewOnly && 'min-h-[260px]',
             !viewOnly && (board.tool === 'select' || board.tool === 'draw') && 'cursor-crosshair',
           )}
           aria-label="Rugby tactical board"
@@ -400,29 +400,22 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           onPointerMove={viewOnly ? undefined : handleBoardPointerMove}
           onPointerUp={viewOnly ? undefined : handleBoardPointerUp}
         >
-          {/* Pitch markings */}
-          <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute inset-0 grid grid-cols-10">
-              {Array.from({ length: 10 }, (_, i) => (
-                <div
-                  key={i}
-                  className={cn(
-                    'border-r border-white/35',
-                    i === 0 || i === 9 ? 'bg-emerald-900/15' : 'bg-transparent',
-                  )}
-                />
-              ))}
-            </div>
+          {/* Pitch markings — proportions based on 120m×70m full pitch (10m in-goals) */}
+          <div className="pointer-events-none absolute inset-0">
+            {/* In-goal areas: 10m deep = 8.33% of 120m */}
+            <div className="absolute inset-y-0 left-0 w-[8.33%] border-r-2 border-white/80 bg-blue-900/20" />
+            <div className="absolute inset-y-0 right-0 w-[8.33%] border-l-2 border-white/80 bg-red-900/20" />
+            {/* 22m lines: 32m from dead-ball = 26.67% */}
+            <div className="absolute inset-y-0 left-[26.67%] w-px bg-white/65" />
+            <div className="absolute inset-y-0 right-[26.67%] w-px bg-white/65" />
+            {/* 10m lines: 50m from dead-ball = 41.67% */}
+            <div className="absolute inset-y-0 left-[41.67%] w-px border-l border-dashed border-white/45" />
+            <div className="absolute inset-y-0 right-[41.67%] w-px border-r border-dashed border-white/45" />
+            {/* Halfway line: 60m = 50% */}
             <div className="absolute inset-y-0 left-1/2 w-px bg-white/70" />
-            <div className="absolute inset-x-0 top-1/2 h-px bg-white/40" />
-            <div className="absolute left-[5%] top-0 h-full w-px bg-white/80" />
-            <div className="absolute right-[5%] top-0 h-full w-px bg-white/80" />
-            <div className="absolute left-[22%] top-0 h-full w-px border-l border-dashed border-white/65" />
-            <div className="absolute right-[22%] top-0 h-full w-px border-l border-dashed border-white/65" />
+            {/* Centre spot cross */}
+            <div className="absolute inset-x-0 top-1/2 h-px bg-white/30" />
           </div>
-
-          <div className="absolute inset-y-0 left-0 w-[8%] border-r border-dashed border-blue-300/60 bg-blue-900/30" />
-          <div className="absolute inset-y-0 right-0 w-[8%] border-l border-dashed border-red-300/60 bg-red-900/30" />
 
           {/* Lines SVG — pointer-events enabled in draw mode */}
           <svg
