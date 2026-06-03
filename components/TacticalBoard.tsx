@@ -85,14 +85,17 @@ export default function TacticalBoard(props: TacticalBoardProps) {
   }
 
   return (
-    <section className="overflow-visible rounded-xl border border-white/10 bg-black shadow-toolbar">
+    <section className={cn('overflow-visible bg-black', isMobile ? '' : 'rounded-xl border border-white/10 shadow-toolbar')}>
       {/* ── Toolbar ── */}
       <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3">
-        <a href="/" aria-label="Home">
-          <Image src="/logo-icon.png" alt="RugbyMove" width={36} height={36} className="h-9 w-9 rounded-xl transition hover:opacity-80" />
-        </a>
-
-        <div className="h-5 w-px bg-white/10" />
+        {!isMobile && (
+          <>
+            <a href="/" aria-label="Home">
+              <Image src="/logo-icon.png" alt="RugbyMove" width={36} height={36} className="h-9 w-9 rounded-xl transition hover:opacity-80" />
+            </a>
+            <div className="h-5 w-px bg-white/10" />
+          </>
+        )}
 
         <button
           type="button"
@@ -104,11 +107,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           {board.isPlaying ? 'Pause' : 'Play'}
         </button>
 
-        {isMobile ? (
-          <span className="ml-1 rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-semibold text-white/40">
-            View only
-          </span>
-        ) : (
+        {!isMobile && (
           <>
             <button
               type="button"
@@ -205,10 +204,10 @@ export default function TacticalBoard(props: TacticalBoardProps) {
       )}
 
       {/* ── Board ── */}
-      <div className="p-4">
+      <div className={isMobile ? 'p-2' : 'p-4'}>
         {/* ── Frame strip ── */}
         <div className="mb-3 flex items-center gap-2 overflow-x-auto pb-1">
-          <span className="shrink-0 text-xs font-semibold uppercase text-slate-400">Frames</span>
+          {!isMobile && <span className="shrink-0 text-xs font-semibold uppercase text-slate-400">Frames</span>}
           {board.frames.map((frame, index) => (
             <div
               key={`${frame.players.length}-${index}`}
