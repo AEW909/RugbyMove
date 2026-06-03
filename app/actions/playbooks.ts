@@ -24,6 +24,7 @@ const roleSchema = z.enum(['editor', 'viewer'])
 export async function createPlaybook(formData: FormData): Promise<void> {
   let id: string | null = null
   let errorMessage: string | null = null
+  let orgId: string | null = null
 
   try {
     const name = z.string().trim().min(1).max(120).parse(formData.get('name'))
@@ -32,11 +33,13 @@ export async function createPlaybook(formData: FormData): Promise<void> {
         formData.get('description') || null,
       ) ?? null
     const visibility = visibilitySchema.parse(formData.get('visibility') ?? 'private')
+    const rawOrgId = formData.get('org_id')
+    orgId = rawOrgId ? z.string().uuid().parse(rawOrgId) : null
 
     const { admin, user } = await requireUser()
     const { data, error } = await admin
       .from('playbooks')
-      .insert({ name, description, visibility, owner_id: user.id })
+      .insert({ name, description, visibility, owner_id: user.id, ...(orgId ? { org_id: orgId } : {}) })
       .select('id')
       .single()
 
@@ -45,13 +48,15 @@ export async function createPlaybook(formData: FormData): Promise<void> {
     } else {
       id = data.id
       revalidatePath('/playbooks')
+      if (orgId) revalidatePath(`/org/${orgId}`)
     }
   } catch (e) {
     errorMessage = e instanceof Error ? e.message : 'Something went wrong.'
   }
 
   if (errorMessage) {
-    redirect(`/playbooks/new?error=${encodeURIComponent(errorMessage)}`)
+    const base = orgId ? `/playbooks/new?org_id=${orgId}` : '/playbooks/new'
+    redirect(`${base}&error=${encodeURIComponent(errorMessage)}`)
   }
   redirect(`/playbooks/${id}`)
 }

@@ -2,19 +2,27 @@
 
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
-import { BookOpen, FolderOpen, HardDrive, Plus } from 'lucide-react'
+import { BookOpen, FolderOpen, HardDrive, Plus, Users } from 'lucide-react'
 import { storageKeys } from '@/lib/board/storage'
 import type { Formation, SavedMove } from '@/lib/board/storage'
 
 type CloudPlay = { id: string; title: string; category: string; updated_at: string }
 type CloudPlaybook = { id: string; name: string }
+type CloudOrg = { id: string; name: string; role: string }
+
+const orgRoleLabel: Record<string, string> = {
+  head_coach: 'Head Coach',
+  coach: 'Coach',
+  player: 'Player',
+}
 
 type Props = {
   cloudPlays: CloudPlay[]
   cloudPlaybooks: CloudPlaybook[]
+  cloudOrgs: CloudOrg[]
 }
 
-export default function HomeDashboard({ cloudPlays, cloudPlaybooks }: Props) {
+export default function HomeDashboard({ cloudPlays, cloudPlaybooks, cloudOrgs }: Props) {
   const [localMoves, setLocalMoves] = useState<SavedMove[]>([])
   const [formations, setFormations] = useState<Formation[]>([])
 
@@ -90,12 +98,12 @@ export default function HomeDashboard({ cloudPlays, cloudPlaybooks }: Props) {
             <p className="mt-1 text-sm text-white/50">Organise moves into shareable collections.</p>
           </Link>
           <Link
-            href="/playbooks/new"
+            href="/orgs"
             className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm transition hover:bg-white/[0.08]"
           >
-            <BookOpen className="h-5 w-5 text-purple-400" />
-            <h2 className="mt-3 font-semibold text-white">New playbook</h2>
-            <p className="mt-1 text-sm text-white/50">Create a new playbook for your squad.</p>
+            <Users className="h-5 w-5 text-purple-400" />
+            <h2 className="mt-3 font-semibold text-white">Organisations</h2>
+            <p className="mt-1 text-sm text-white/50">Manage squads and share playbooks.</p>
           </Link>
         </section>
 
@@ -199,6 +207,45 @@ export default function HomeDashboard({ cloudPlays, cloudPlaybooks }: Props) {
                     >
                       <BookOpen className="h-4 w-4 shrink-0 text-blue-400" />
                       <span className="truncate text-sm font-medium text-white">{pb.name}</span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Organisations */}
+            <div>
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <h2 className="text-lg font-semibold text-white">Organisations</h2>
+                <Link
+                  href="/orgs/new"
+                  className="text-xs font-semibold text-blue-400 hover:text-blue-300"
+                >
+                  + New
+                </Link>
+              </div>
+              {cloudOrgs.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-white/10 p-4 text-sm text-white/40">
+                  No organisations yet.{' '}
+                  <Link href="/orgs/new" className="font-semibold text-blue-400 hover:text-blue-300">
+                    Create one
+                  </Link>
+                </div>
+              ) : (
+                <div className="grid gap-2">
+                  {cloudOrgs.map((org) => (
+                    <Link
+                      key={org.id}
+                      href={`/org/${org.id}`}
+                      className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur-sm transition hover:bg-white/[0.08]"
+                    >
+                      <Users className="h-4 w-4 shrink-0 text-purple-400" />
+                      <div className="min-w-0 flex-1">
+                        <span className="truncate text-sm font-medium text-white">{org.name}</span>
+                        <span className="ml-2 text-xs text-white/40">
+                          {orgRoleLabel[org.role] ?? org.role}
+                        </span>
+                      </div>
                     </Link>
                   ))}
                 </div>

@@ -9,7 +9,7 @@ export default async function HomePage() {
   } = await supabase.auth.getUser()
 
   if (user) {
-    const [{ data: rawPlays }, { data: rawPlaybooks }] = await Promise.all([
+    const [{ data: rawPlays }, { data: rawPlaybooks }, { data: rawOrgs }] = await Promise.all([
       supabase
         .from('plays')
         .select('id, title, category, updated_at')
@@ -22,12 +22,22 @@ export default async function HomePage() {
         .eq('owner_id', user.id)
         .order('name')
         .limit(20),
+      supabase
+        .from('org_members')
+        .select('role, organisations(id, name)')
+        .eq('user_id', user.id)
+        .order('joined_at')
+        .limit(10),
     ])
     const cloudPlays = (rawPlays ?? []) as Array<{
       id: string; title: string; category: string; updated_at: string
     }>
     const cloudPlaybooks = (rawPlaybooks ?? []) as Array<{ id: string; name: string }>
-    return <HomeDashboard cloudPlays={cloudPlays} cloudPlaybooks={cloudPlaybooks} />
+    const cloudOrgs = (rawOrgs ?? []).map((m) => {
+      const org = m.organisations as unknown as { id: string; name: string } | null
+      return org ? { id: org.id, name: org.name, role: m.role } : null
+    }).filter((o): o is { id: string; name: string; role: string } => o !== null)
+    return <HomeDashboard cloudPlays={cloudPlays} cloudPlaybooks={cloudPlaybooks} cloudOrgs={cloudOrgs} />
   }
 
   return (

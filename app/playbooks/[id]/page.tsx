@@ -31,13 +31,19 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
 
   const { data: playbook } = await supabase
     .from('playbooks')
-    .select('*')
+    .select('*, organisations(id, name)')
     .eq('id', params.id)
     .single()
 
   if (!playbook) notFound()
 
   const isOwner = playbook.owner_id === user.id
+  const orgLink = playbook.org_id
+    ? {
+        id: playbook.org_id,
+        name: (playbook.organisations as unknown as { id: string; name: string } | null)?.name ?? 'Organisation',
+      }
+    : null
 
   const { data: members } = await supabase
     .from('playbook_members')
@@ -71,8 +77,11 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
 
       <div className="relative z-10 mx-auto max-w-4xl">
-        <Link href="/playbooks" className="text-sm font-medium text-white/40 transition-colors hover:text-white">
-          ← Playbooks
+        <Link
+          href={orgLink ? `/org/${orgLink.id}` : '/playbooks'}
+          className="text-sm font-medium text-white/40 transition-colors hover:text-white"
+        >
+          ← {orgLink ? orgLink.name : 'Playbooks'}
         </Link>
 
         <div className="mt-4 flex items-start justify-between gap-4">
