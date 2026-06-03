@@ -6,6 +6,9 @@ import { cn } from '@/lib/utils'
 import { FORMATION_CATEGORIES } from '@/lib/board/storage'
 import type { Formation } from '@/lib/board/storage'
 import { createClient } from '@/lib/supabase/client'
+import type { PlayCategory } from '@/types/play'
+
+const PLAY_CATEGORIES: PlayCategory[] = ['Scrum', 'Lineout', 'Open Play', 'Penalty', 'Kick Off', 'Other']
 
 type Playbook = {
   id: string
@@ -29,7 +32,8 @@ type Props = {
   playbooks: Playbook[]
   onLoadFormation: (formation: Formation) => void
   onOpenSaveFormation: () => void
-  onSaveToPlaybook: (playbookId: string, title: string) => void
+  playCategory?: PlayCategory
+  onSaveToPlaybook: (playbookId: string, title: string, category: PlayCategory) => void
   onLoadPlay: (playId: string) => void
   onExport: () => void
   isExporting: boolean
@@ -46,6 +50,7 @@ export default function PanelSlideOver({
   playbooks,
   onLoadFormation,
   onOpenSaveFormation,
+  playCategory,
   onSaveToPlaybook,
   onLoadPlay,
   onExport,
@@ -54,6 +59,7 @@ export default function PanelSlideOver({
   saveStatus,
 }: Props) {
   const [saveTitle, setSaveTitle] = useState(initialTitle)
+  const [saveCategory, setSaveCategory] = useState<PlayCategory>(playCategory ?? 'Other')
   const [selectedPlaybook, setSelectedPlaybook] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
@@ -73,6 +79,10 @@ export default function PanelSlideOver({
   useEffect(() => {
     setSaveTitle(initialTitle)
   }, [initialTitle])
+
+  useEffect(() => {
+    if (playCategory) setSaveCategory(playCategory)
+  }, [playCategory])
 
   const toggleCategory = (cat: string) => {
     setExpandedCategories((prev) => {
@@ -300,6 +310,19 @@ export default function PanelSlideOver({
                 />
               </label>
 
+              <label className="block text-sm font-semibold text-white/80">
+                Category
+                <select
+                  value={saveCategory}
+                  onChange={(e) => setSaveCategory(e.target.value as PlayCategory)}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-800 px-3 py-2 text-sm font-normal text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 [&>option]:bg-zinc-900"
+                >
+                  {PLAY_CATEGORIES.map((cat) => (
+                    <option key={cat} value={cat}>{cat}</option>
+                  ))}
+                </select>
+              </label>
+
               <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                 <p className="mb-3 text-sm font-semibold text-white/80">Save to playbook</p>
                 <select
@@ -328,7 +351,7 @@ export default function PanelSlideOver({
                 <button
                   type="button"
                   disabled={!selectedPlaybook || !saveTitle.trim() || isSaving}
-                  onClick={() => { setIsSaving(true); onSaveToPlaybook(selectedPlaybook, saveTitle.trim()) }}
+                  onClick={() => { setIsSaving(true); onSaveToPlaybook(selectedPlaybook, saveTitle.trim(), saveCategory) }}
                   className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90 disabled:opacity-40"
                 >
                   {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}

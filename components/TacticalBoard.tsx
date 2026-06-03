@@ -569,6 +569,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
             board.setPanelOpen(false)
             board.setShowFormationModal(true)
           }}
+          playCategory={props.playCategory}
           onSaveToPlaybook={board.handleSaveToPlaybook}
           onLoadPlay={(id) => { window.location.href = `/playbook/${id}` }}
           onExport={board.exportMove}
