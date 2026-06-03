@@ -10,7 +10,10 @@ type PageProps = {
 
 export default async function NewOrgPage({ searchParams }: PageProps) {
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
   if (!user) redirect('/login')
 
   return (
@@ -18,10 +21,10 @@ export default async function NewOrgPage({ searchParams }: PageProps) {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
 
       <div className="relative z-10 mx-auto max-w-lg">
-        <AppHeader />
-        <h1 className="text-3xl font-black tracking-tight text-white">New organisation</h1>
-        <p className="mt-1 text-sm text-white/50">
-          Create an organisation to manage a team, assign coaches, and share playbooks.
+        <AppHeader backHref="/orgs" backLabel="Organisations" />
+        <h1 className="mt-4 text-2xl font-black tracking-tight text-white">New organisation</h1>
+        <p className="mt-1 text-sm text-white/60">
+          Create a squad or coaching team to share playbooks together.
         </p>
 
         {searchParams.error && (
@@ -30,10 +33,10 @@ export default async function NewOrgPage({ searchParams }: PageProps) {
           </p>
         )}
 
-        <form action={createOrg} className="mt-8 space-y-5 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
+        <form action={createOrg} className="mt-6 space-y-5">
           <div>
-            <label htmlFor="name" className="block text-sm font-semibold text-white/80">
-              Organisation name <span className="font-normal text-white/30">(required)</span>
+            <label htmlFor="name" className="block text-sm font-semibold text-white/60">
+              Name
             </label>
             <input
               id="name"
@@ -41,35 +44,36 @@ export default async function NewOrgPage({ searchParams }: PageProps) {
               type="text"
               required
               maxLength={120}
-              placeholder="e.g. Bristol RFC U18s"
-              className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              placeholder="e.g. Wasps RFC U18s"
+              className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none backdrop-blur-sm transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
           </div>
 
           <div>
-            <label htmlFor="description" className="block text-sm font-semibold text-white/80">
-              Description <span className="font-normal text-white/30">(optional)</span>
+            <label htmlFor="description" className="block text-sm font-semibold text-white/60">
+              Description{' '}
+              <span className="font-normal text-white/30">(optional)</span>
             </label>
             <textarea
               id="description"
               name="description"
               rows={3}
               maxLength={2000}
-              placeholder="A short description of the team or club…"
-              className="mt-1.5 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2.5 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+              placeholder="A short note about this squad or group…"
+              className="mt-1 w-full rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none backdrop-blur-sm transition focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             />
           </div>
 
-          <div className="flex items-center gap-3 pt-1">
+          <div className="flex gap-3 pt-2">
             <button
               type="submit"
-              className="rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90"
+              className="rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-5 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90"
             >
               Create organisation
             </button>
             <Link
               href="/orgs"
-              className="rounded-xl border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white/70 transition hover:bg-white/10"
+              className="rounded-xl border border-white/15 bg-white/5 px-5 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
             >
               Cancel
             </Link>

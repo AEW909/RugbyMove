@@ -5,7 +5,7 @@ import { createPlaybook } from '@/app/actions/playbooks'
 import AppHeader from '@/components/AppHeader'
 
 type PageProps = {
-  searchParams: { error?: string }
+  searchParams: { error?: string; org_id?: string }
 }
 
 export default async function NewPlaybookPage({ searchParams }: PageProps) {
@@ -16,13 +16,28 @@ export default async function NewPlaybookPage({ searchParams }: PageProps) {
 
   if (!user) redirect('/login')
 
+  const orgId = searchParams.org_id ?? null
+
+  let orgName: string | null = null
+  if (orgId) {
+    const { data: org } = await supabase
+      .from('organisations')
+      .select('name')
+      .eq('id', orgId)
+      .single()
+    orgName = org?.name ?? null
+  }
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-black px-4 py-8 text-white sm:px-8">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
 
       <div className="relative z-10 mx-auto max-w-lg">
-        <AppHeader />
-        <h1 className="text-2xl font-black tracking-tight text-white">New playbook</h1>
+        <AppHeader backHref={orgId ? `/org/${orgId}` : '/playbooks'} backLabel={orgName ?? 'Playbooks'} />
+        <h1 className="mt-4 text-2xl font-black tracking-tight text-white">New playbook</h1>
+        {orgName && (
+          <p className="mt-1 text-sm text-white/60">Creating for <span className="font-semibold text-white/80">{orgName}</span></p>
+        )}
 
         {searchParams.error && (
           <p className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-300">
@@ -31,6 +46,7 @@ export default async function NewPlaybookPage({ searchParams }: PageProps) {
         )}
 
         <form action={createPlaybook} className="mt-6 space-y-5">
+          {orgId && <input type="hidden" name="org_id" value={orgId} />}
           <div>
             <label htmlFor="name" className="block text-sm font-semibold text-white/60">
               Name
@@ -63,11 +79,10 @@ export default async function NewPlaybookPage({ searchParams }: PageProps) {
 
           <fieldset>
             <legend className="block text-sm font-semibold text-white/60">Visibility</legend>
-            <div className="mt-2 grid gap-2 sm:grid-cols-3">
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
               {(
                 [
-                  { value: 'private', label: 'Private', desc: 'Only you' },
-                  { value: 'team', label: 'Team', desc: 'Members you invite' },
+                  { value: 'private', label: 'Private', desc: 'Only you and invited members' },
                   { value: 'public', label: 'Public', desc: 'Anyone with the link' },
                 ] as const
               ).map(({ value, label, desc }) => (

@@ -46,9 +46,9 @@ export default async function PlaybooksPage({ searchParams }: PageProps) {
 
       <div className="relative z-10 mx-auto max-w-4xl">
         <AppHeader />
-        <header className="mb-6 flex items-end justify-between">
+        <header className="mb-6 flex items-end justify-between border-b border-white/10 pb-5">
           <div>
-            <h1 className="text-3xl font-black tracking-tight text-white">Playbooks</h1>
+            <h1 className="mt-2 text-3xl font-black tracking-tight text-white">Playbooks</h1>
             <p className="mt-1 text-sm text-white/60">
               Organise moves into shareable collections.
             </p>

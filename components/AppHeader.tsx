@@ -1,36 +1,55 @@
-import Image from 'next/image'
 import Link from 'next/link'
-import { BookOpen, Users, User } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
 
-export default function AppHeader() {
+type Props = {
+  backHref?: string
+  backLabel?: string
+}
+
+export default async function AppHeader({ backHref, backLabel }: Props) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  let displayName: string | null = null
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('username, display_name')
+      .eq('id', user.id)
+      .single()
+    displayName = profile?.display_name ?? profile?.username ?? user.email?.split('@')[0] ?? null
+  }
+
   return (
-    <header className="flex items-center justify-between gap-4 border-b border-white/10 pb-4 mb-6">
-      <Link href="/" aria-label="Home">
-        <Image src="/logo-icon.png" alt="RugbyMove" width={36} height={36} className="h-9 w-9 rounded-xl transition hover:opacity-80" />
+    <header className="flex items-center justify-between border-b border-white/10 pb-4">
+      <div className="flex items-center gap-3">
+        <Link
+          href="/"
+          className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 text-xs font-black text-white shadow-md shadow-blue-500/20 transition hover:opacity-90"
+        >
+          RM
+        </Link>
+        {backHref && backLabel && (
+          <>
+            <span className="text-white/20">/</span>
+            <Link
+              href={backHref}
+              className="text-sm font-medium text-white/50 transition-colors hover:text-white"
+            >
+              {backLabel}
+            </Link>
+          </>
+        )}
+      </div>
+      <Link
+        href="/account"
+        className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/60 transition hover:bg-white/10 hover:text-white"
+      >
+        {displayName && (
+          <span className="max-w-[120px] truncate text-white/80">{displayName}</span>
+        )}
+        <span>{displayName ? '·' : ''} Account</span>
       </Link>
-      <nav className="flex items-center gap-1">
-        <Link
-          href="/playbooks"
-          className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-white/50 transition hover:bg-white/5 hover:text-white"
-        >
-          <BookOpen className="h-4 w-4" />
-          Playbooks
-        </Link>
-        <Link
-          href="/orgs"
-          className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-white/50 transition hover:bg-white/5 hover:text-white"
-        >
-          <Users className="h-4 w-4" />
-          Orgs
-        </Link>
-        <Link
-          href="/account"
-          className="inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-semibold text-white/50 transition hover:bg-white/5 hover:text-white"
-        >
-          <User className="h-4 w-4" />
-          Account
-        </Link>
-      </nav>
     </header>
   )
 }

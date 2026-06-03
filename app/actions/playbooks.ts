@@ -24,6 +24,7 @@ const roleSchema = z.enum(['editor', 'viewer'])
 export async function createPlaybook(formData: FormData): Promise<void> {
   let id: string | null = null
   let errorMessage: string | null = null
+  let orgId: string | null = null
 
   try {
     const name = z.string().trim().min(1).max(120).parse(formData.get('name'))
@@ -32,11 +33,13 @@ export async function createPlaybook(formData: FormData): Promise<void> {
         formData.get('description') || null,
       ) ?? null
     const visibility = visibilitySchema.parse(formData.get('visibility') ?? 'private')
+    const rawOrgId = formData.get('org_id')
+    orgId = rawOrgId ? z.string().uuid().parse(rawOrgId) : null
 
     const { admin, user } = await requireUser()
     const { data, error } = await admin
       .from('playbooks')
-      .insert({ name, description, visibility, owner_id: user.id })
+      .insert({ name, description, visibility, owner_id: user.id, ...(orgId ? { org_id: orgId } : {}) })
       .select('id')
       .single()
 
@@ -45,13 +48,15 @@ export async function createPlaybook(formData: FormData): Promise<void> {
     } else {
       id = data.id
       revalidatePath('/playbooks')
+      if (orgId) revalidatePath(`/org/${orgId}`)
     }
   } catch (e) {
     errorMessage = e instanceof Error ? e.message : 'Something went wrong.'
   }
 
   if (errorMessage) {
-    redirect(`/playbooks/new?error=${encodeURIComponent(errorMessage)}`)
+    const base = orgId ? `/playbooks/new?org_id=${orgId}` : '/playbooks/new'
+    redirect(`${base}${orgId ? '&' : '?'}error=${encodeURIComponent(errorMessage)}`)
   }
   redirect(`/playbooks/${id}`)
 }
@@ -177,7 +182,52 @@ export async function addMember(formData: FormData): Promise<void> {
   redirect(`/playbooks/${playbookId}`)
 }
 
-export async function movePlayInPlaybook(formData: FormData): Promise<void> {
+export async function syncPlaybookPlay(
+  playbookId: string,
+  playId: string,
+  add: boolean,
+): Promise<void> {
+  const pid = z.string().uuid().parse(playbookId)
+  const ppid = z.string().uuid().parse(playId)
+  const { admin } = await requireUser()
+
+  if (add) {
+    await admin
+      .from('playbook_plays')
+      .upsert({ playbook_id: pid, play_id: ppid }, { onConflict: 'playbook_id,play_id' })
+  } else {
+    await admin.from('playbook_plays').delete().eq('playbook_id', pid).eq('play_id', ppid)
+  }
+
+  revalidatePath(`/playbooks/${pid}`)
+  revalidatePath(`/playbooks/${pid}/organise`)
+}
+
+export async function reorderPlaybookPlays(
+  playbookId: string,
+  orderedIds: string[],
+): Promise<void> {
+  const pid = z.string().uuid().parse(playbookId)
+  const ids = z.array(z.string().uuid()).parse(orderedIds)
+  const { admin, user } = await requireUser()
+
+  const { data: playbook } = await admin
+    .from('playbooks')
+    .select('owner_id')
+    .eq('id', pid)
+    .single()
+  if (!playbook || playbook.owner_id !== user.id) throw new Error('Not authorized')
+
+  await admin.from('playbook_plays').upsert(
+    ids.map((playId, index) => ({ playbook_id: pid, play_id: playId, sort_order: index })),
+    { onConflict: 'playbook_id,play_id' },
+  )
+
+  revalidatePath(`/playbooks/${pid}`)
+  revalidatePath(`/playbooks/${pid}/organise`)
+}
+
+export async function removeMember(formData: FormData): Promise<void> {
   const playbookId = z.string().uuid().parse(formData.get('playbook_id'))
   const playId = z.string().uuid().parse(formData.get('play_id'))
   const direction = z.enum(['up', 'down']).parse(formData.get('direction'))

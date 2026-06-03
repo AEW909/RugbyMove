@@ -25,9 +25,3 @@ export const FORMATION_CATEGORIES: FormationCategory[] = [
   'Open Play',
 ]
 
-export const storageKeys = {
-  moves: 'rugbymove.moves.v1',
-  formations: 'rugbymove.formations.v1',
-  pendingFormation: 'rugbymove.pendingFormation.v1',
-  pendingMove: 'rugbymove.pendingMove.v1',
-} as const

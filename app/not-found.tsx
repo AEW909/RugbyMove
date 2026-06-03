@@ -1,4 +1,3 @@
-import Image from 'next/image'
 import Link from 'next/link'
 
 export default function NotFound() {
@@ -7,10 +6,12 @@ export default function NotFound() {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
 
       <div className="relative z-10 text-center">
-        <Image src="/logo-icon.png" alt="RugbyMove" width={56} height={56} className="mx-auto mb-6 h-14 w-14 rounded-2xl opacity-60" />
-        <p className="text-6xl font-black text-white/10">404</p>
-        <h1 className="mt-2 text-2xl font-black tracking-tight text-white">Page not found</h1>
-        <p className="mt-2 text-sm text-white/50">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-purple-600 shadow-lg shadow-blue-500/30">
+          <span className="text-2xl font-black text-white">RM</span>
+        </div>
+        <h1 className="text-6xl font-black tracking-tight text-white">404</h1>
+        <p className="mt-3 text-xl font-semibold text-white/60">Page not found</p>
+        <p className="mt-2 text-sm text-white/40">
           That page doesn&apos;t exist or you don&apos;t have access to it.
         </p>
         <div className="mt-8 flex justify-center gap-3">

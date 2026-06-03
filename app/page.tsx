@@ -11,21 +11,48 @@ export default async function HomePage() {
   } = await supabase.auth.getUser()
 
   if (user) {
-    const admin = createAdminClient()
-    const { data: memberships } = await admin
-      .from('org_members')
-      .select('role, organisations(id, name)')
-      .eq('user_id', user.id)
-      .order('joined_at')
-
-    const orgs = (memberships ?? [])
-      .map((m) => {
-        const org = m.organisations as { id: string; name: string } | null
-        return org ? { id: org.id, name: org.name, role: m.role as OrgRole } : null
-      })
-      .filter(Boolean) as { id: string; name: string; role: OrgRole }[]
-
-    return <HomeDashboard orgs={orgs} />
+    const [{ data: rawPlays }, { data: rawPlaybooks }, { data: rawOrgs }, { data: rawFormations }] = await Promise.all([
+      supabase
+        .from('plays')
+        .select('id, title, category, updated_at')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false })
+        .limit(30),
+      supabase
+        .from('playbooks')
+        .select('id, name')
+        .eq('owner_id', user.id)
+        .order('name')
+        .limit(20),
+      supabase
+        .from('org_members')
+        .select('role, organisations(id, name)')
+        .eq('user_id', user.id)
+        .order('joined_at')
+        .limit(10),
+      supabase
+        .from('formations')
+        .select('id,name,category,players,created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(12),
+    ])
+    const cloudPlays = (rawPlays ?? []) as Array<{
+      id: string; title: string; category: string; updated_at: string
+    }>
+    const cloudPlaybooks = (rawPlaybooks ?? []) as Array<{ id: string; name: string }>
+    const cloudOrgs = (rawOrgs ?? []).map((m) => {
+      const org = m.organisations as unknown as { id: string; name: string } | null
+      return org ? { id: org.id, name: org.name, role: m.role } : null
+    }).filter((o): o is { id: string; name: string; role: string } => o !== null)
+    const cloudFormations = (rawFormations ?? []).map((f) => ({
+      id: f.id,
+      name: f.name,
+      category: f.category as string,
+      players: f.players as unknown as Array<{ id: string; x: number; y: number }>,
+      createdAt: f.created_at,
+    }))
+    return <HomeDashboard cloudPlays={cloudPlays} cloudPlaybooks={cloudPlaybooks} cloudOrgs={cloudOrgs} cloudFormations={cloudFormations} />
   }
 
   return (
@@ -64,25 +91,6 @@ export default async function HomePage() {
           </Link>
         </div>
 
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-white/10" />
-          </div>
-          <div className="relative flex justify-center">
-            <span className="bg-black px-3 text-xs text-white/40">or</span>
-          </div>
-        </div>
-
-        <Link
-          href="/playbook/new"
-          className="flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-        >
-          Continue as guest
-        </Link>
-
-        <p className="mt-4 text-center text-xs text-white/40">
-          Guest mode lets you build and play moves, but saving to a playbook requires an account.
-        </p>
       </div>
     </main>
   )
