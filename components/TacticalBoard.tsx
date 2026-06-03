@@ -22,6 +22,7 @@ import { useTacticalBoard, tokens, SCRUM_FORMATION, LINEOUT_FORMATION } from '@/
 import type { TacticalBoardProps } from '@/hooks/useTacticalBoard'
 import PanelSlideOver from '@/components/board/PanelSlideOver'
 import type { Line } from '@/types/play'
+import { useIsMobile } from '@/hooks/useIsMobile'
 
 const LINE_COLORS = [
   { value: '#f8fafc', label: 'White' },
@@ -46,7 +47,9 @@ export default function TacticalBoard(props: TacticalBoardProps) {
     from: { x: number; y: number }; to: { x: number; y: number }
   } | null>(null)
 
-  const { playTitle = 'Untitled move', viewOnly = false } = props
+  const isMobile = useIsMobile()
+  const { playTitle = 'Untitled move', viewOnly: viewOnlyProp = false } = props
+  const viewOnly = viewOnlyProp || isMobile
 
   const getBoardPct = (clientX: number, clientY: number) => {
     const el = boardRef.current
@@ -152,7 +155,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
   }
 
   return (
-    <section className="overflow-visible rounded-xl border border-white/10 bg-black shadow-toolbar">
+    <section className={cn('overflow-visible bg-black', !isMobile && 'rounded-xl border border-white/10 shadow-toolbar')}>
       {/* ── Toolbar ── */}
       <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-3 py-2.5 sm:px-4 sm:py-3">
         {!viewOnly && (
@@ -340,7 +343,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
       <div className="p-2 sm:p-4">
         {/* Frame strip */}
         <div className="mb-2 flex items-center gap-1.5 overflow-x-auto pb-1 sm:gap-2" style={{ touchAction: 'pan-x' }}>
-          <span className="shrink-0 text-xs font-semibold uppercase text-white/40">Frames</span>
+          {!isMobile && <span className="shrink-0 text-xs font-semibold uppercase text-white/40">Frames</span>}
           {board.frames.map((frame, index) => (
             viewOnly ? (
               <button
@@ -551,6 +554,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           }}
           onSaveToPlaybook={board.handleSaveToPlaybook}
           onExport={board.exportMove}
+          isExporting={board.isExporting}
           initialTitle={playTitle}
           saveStatus={board.saveStatus}
         />

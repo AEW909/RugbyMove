@@ -24,6 +24,7 @@ type Props = {
   onOpenSaveFormation: () => void
   onSaveToPlaybook: (playbookId: string, title: string) => void
   onExport: () => void
+  isExporting: boolean
   initialTitle: string
   saveStatus: string
 }
@@ -39,6 +40,7 @@ export default function PanelSlideOver({
   onOpenSaveFormation,
   onSaveToPlaybook,
   onExport,
+  isExporting,
   initialTitle,
   saveStatus,
 }: Props) {
@@ -259,10 +261,20 @@ export default function PanelSlideOver({
                 <button
                   type="button"
                   onClick={onExport}
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+                  disabled={isExporting}
+                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 disabled:cursor-wait disabled:opacity-50"
                 >
-                  <Download className="h-4 w-4" />
-                  Download SVG
+                  {isExporting ? (
+                    <>
+                      <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white/80" />
+                      Exporting…
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      Download GIF
+                    </>
+                  )}
                 </button>
               </div>
             </div>

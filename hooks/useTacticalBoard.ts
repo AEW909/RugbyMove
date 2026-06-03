@@ -6,6 +6,7 @@ import type { Formation, FormationCategory } from '@/lib/board/storage'
 import type { Frame, Line, PlayerPosition, PlayCategory } from '@/types/play'
 import type { PanelTab } from '@/components/board/PanelSlideOver'
 import { tokens, defaultFrame } from '@/lib/board/defaults'
+import { exportGif } from '@/lib/board/exportGif'
 export { tokens, defaultFrame } from '@/lib/board/defaults'
 export type { Token } from '@/lib/board/defaults'
 export { SCRUM_FORMATION, LINEOUT_FORMATION } from '@/lib/board/defaults'
@@ -43,52 +44,6 @@ function interpolatePlayers(from: PlayerPosition[], to: PlayerPosition[], amount
   })
 }
 
-function downloadTextFile(filename: string, content: string, type: string) {
-  const blob = new Blob([content], { type })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-function createAnimatedSvg(frames: Frame[]): string {
-  const W = 800, H = 600
-  const R = 14
-  const dur = frames.length * 0.9
-
-  const allIds = frames[0]?.players.map((p) => p.id) ?? []
-  const paths = allIds
-    .map((id) => {
-      const positions = frames.map((f) => f.players.find((p) => p.id === id) ?? { x: 0, y: 0 })
-      const xs = positions.map((p) => ((p.x / 100) * W).toFixed(1)).join(';')
-      const ys = positions.map((p) => ((p.y / 100) * H).toFixed(1)).join(';')
-      const isAttack = id.startsWith('attack')
-      const fill = isAttack ? '#2563eb' : '#dc2626'
-      return `<circle r="${R}" fill="${fill}">
-  <animate attributeName="cx" values="${xs}" dur="${dur}s" repeatCount="indefinite"/>
-  <animate attributeName="cy" values="${ys}" dur="${dur}s" repeatCount="indefinite"/>
-</circle>`
-    })
-    .join('\n')
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="800" viewBox="0 0 1320 800">
-  <rect width="1320" height="800" fill="#15803d"/>
-  <g stroke="#ffffff" stroke-opacity="0.55" stroke-width="2">
-    <rect x="20" y="20" width="1280" height="760" fill="none" stroke-opacity="0.9" stroke-width="5"/>
-    <line x1="660" y1="20" x2="660" y2="780"/>
-    <line x1="127" y1="20" x2="127" y2="780" stroke-opacity="0.85"/>
-    <line x1="1193" y1="20" x2="1193" y2="780" stroke-opacity="0.85"/>
-    <line x1="361" y1="20" x2="361" y2="780" stroke-dasharray="12 12"/>
-    <line x1="959" y1="20" x2="959" y2="780" stroke-dasharray="12 12"/>
-    <line x1="553" y1="20" x2="553" y2="780" stroke-dasharray="6 8" stroke-opacity="0.4"/>
-    <line x1="767" y1="20" x2="767" y2="780" stroke-dasharray="6 8" stroke-opacity="0.4"/>
-  </g>
-  ${paths}
-</svg>`
-}
 
 
 export type TacticalBoardProps = {
@@ -144,6 +99,7 @@ export type UseTacticalBoardReturn = {
   saveFormation: () => void
   loadFormation: (formation: Formation) => void
   exportMove: () => void
+  isExporting: boolean
   handleSaveToPlaybook: (playbookId: string, title: string) => Promise<void>
   playFrames: () => void
   stopPlayback: () => void
@@ -153,6 +109,7 @@ export function useTacticalBoard({
   initialFrames,
   playId,
   mode = 'saved',
+  playTitle = 'rugbymove-move',
   playDescription,
   playCategory = 'Other',
 }: TacticalBoardProps): UseTacticalBoardReturn {
@@ -176,6 +133,7 @@ export function useTacticalBoard({
   const [lineColor, setLineColor] = useState('#f8fafc')
   const [lineDashed, setLineDashed] = useState(false)
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set())
+  const [isExporting, setIsExporting] = useState(false)
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -408,9 +366,11 @@ export function useTacticalBoard({
   )
 
   const exportMove = useCallback(() => {
-    const svg = createAnimatedSvg(frames)
-    downloadTextFile('rugbymove-move.svg', svg, 'image/svg+xml')
-  }, [frames])
+    if (isExporting) return
+    setIsExporting(true)
+    exportGif(normalizeFrames(frames), playTitle)
+      .finally(() => setIsExporting(false))
+  }, [frames, isExporting, playTitle])
 
   const handleSaveToPlaybook = useCallback(
     async (playbookId: string, title: string) => {
@@ -548,6 +508,7 @@ export function useTacticalBoard({
     saveFormation,
     loadFormation,
     exportMove,
+    isExporting,
     handleSaveToPlaybook,
     playFrames,
     stopPlayback,
