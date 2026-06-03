@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
 import { BookOpen, Globe, Lock, Users, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import AppHeader from '@/components/AppHeader'
 import {
   addMember,
   addPlayToPlaybook,
@@ -10,10 +11,21 @@ import {
   updatePlaybook,
 } from '@/app/actions/playbooks'
 import DeletePlaybookButton from '@/components/playbooks/DeletePlaybookButton'
+import type { PlayCategory } from '@/types/play'
 
 type PageProps = {
   params: { id: string }
-  searchParams: { message?: string; error?: string }
+  searchParams: { message?: string; error?: string; category?: string }
+}
+
+const CATEGORIES: PlayCategory[] = ['Scrum', 'Lineout', 'Open Play', 'Penalty', 'Kick Off', 'Other']
+const CATEGORY_LABEL: Record<PlayCategory, string> = {
+  Scrum: 'Scrum',
+  Lineout: 'Lineout',
+  'Open Play': 'Open Play',
+  Penalty: 'Penalty',
+  'Kick Off': 'Kick Off',
+  Other: 'Other',
 }
 
 const visibilityOptions = [
@@ -30,15 +42,25 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
 
   if (!user) redirect('/login')
 
+  const activeCategory = CATEGORIES.includes(searchParams.category as PlayCategory)
+    ? (searchParams.category as PlayCategory)
+    : null
+
   const { data: playbook } = await supabase
     .from('playbooks')
-    .select('*')
+    .select('*, organisations(id, name)')
     .eq('id', params.id)
     .single()
 
   if (!playbook) notFound()
 
   const isOwner = playbook.owner_id === user.id
+  const orgLink = playbook.org_id
+    ? {
+        id: playbook.org_id,
+        name: (playbook.organisations as unknown as { id: string; name: string } | null)?.name ?? 'Organisation',
+      }
+    : null
 
   const { data: members } = await supabase
     .from('playbook_members')
@@ -72,21 +94,26 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
 
       <div className="relative z-10 mx-auto max-w-4xl">
-        <Link
-          href={playbook.org_id ? `/org/${playbook.org_id}` : '/playbooks'}
-          className="text-sm font-medium text-white/40 transition-colors hover:text-white"
-        >
-          ← {playbook.org_id ? 'Organisation' : 'Playbooks'}
-        </Link>
+        <AppHeader backHref={orgLink ? `/org/${orgLink.id}` : '/playbooks'} backLabel={orgLink ? orgLink.name : 'Playbooks'} />
 
-        <div className="mt-4 flex items-start gap-3">
-          <BookOpen className="mt-1 h-7 w-7 shrink-0 text-blue-400" />
-          <div>
-            <h1 className="text-3xl font-black tracking-tight text-white">{playbook.name}</h1>
-            {playbook.description && (
-              <p className="mt-1 text-sm text-white/60">{playbook.description}</p>
-            )}
+        <div className="mt-4 flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <BookOpen className="mt-1 h-7 w-7 shrink-0 text-blue-400" />
+            <div>
+              <h1 className="text-3xl font-black tracking-tight text-white">{playbook.name}</h1>
+              {playbook.description && (
+                <p className="mt-1 text-sm text-white/60">{playbook.description}</p>
+              )}
+            </div>
           </div>
+          {isOwner && (
+            <Link
+              href={`/playbooks/${params.id}/organise`}
+              className="shrink-0 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+            >
+              Organise
+            </Link>
+          )}
         </div>
 
         {searchParams.message && (
@@ -106,23 +133,53 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
             <section className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
               <h2 className="text-lg font-bold text-white">Moves</h2>
 
+              {/* Category filter */}
+              {playbookPlaysRows && playbookPlaysRows.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Link
+                    href={`/playbooks/${params.id}`}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                      !activeCategory
+                        ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
+                        : 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10'
+                    }`}
+                  >
+                    All
+                  </Link>
+                  {CATEGORIES.map((cat) => (
+                    <Link
+                      key={cat}
+                      href={`/playbooks/${params.id}?category=${cat}`}
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                        activeCategory === cat
+                          ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
+                          : 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10'
+                      }`}
+                    >
+                      {CATEGORY_LABEL[cat]}
+                    </Link>
+                  ))}
+                </div>
+              )}
+
               {playbookPlaysRows && playbookPlaysRows.length > 0 ? (
                 <ul className="mt-4 space-y-2">
-                  {playbookPlaysRows.map((row) => {
+                  {playbookPlaysRows.map((row, idx) => {
                     const play = row.plays as unknown as {
                       id: string
                       title: string
                       category: string
                     } | null
                     if (!play) return null
+                    if (activeCategory && play.category !== activeCategory) return null
                     return (
                       <li
                         key={row.play_id}
                         className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 p-3"
                       >
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <Link
-                            href={`/playbook/${play.id}`}
+                            href={`/playbook/${play.id}?from=${params.id}`}
                             className="truncate font-medium text-white transition-colors hover:text-blue-400"
                           >
                             {play.title}
@@ -130,24 +187,28 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                           <p className="text-xs text-white/40">{play.category}</p>
                         </div>
                         {canManage && (
-                          <form action={removePlayFromPlaybook}>
-                            <input type="hidden" name="playbook_id" value={params.id} />
-                            <input type="hidden" name="play_id" value={play.id} />
-                            <button
-                              type="submit"
-                              aria-label="Remove move"
-                              className="rounded-lg p-1.5 text-white/30 transition hover:bg-red-500/10 hover:text-red-400"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </form>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <form action={removePlayFromPlaybook}>
+                              <input type="hidden" name="playbook_id" value={params.id} />
+                              <input type="hidden" name="play_id" value={play.id} />
+                              <button
+                                type="submit"
+                                aria-label="Remove move"
+                                className="rounded-lg p-1.5 text-white/30 transition hover:bg-red-500/10 hover:text-red-400"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </form>
+                          </div>
                         )}
                       </li>
                     )
                   })}
                 </ul>
               ) : (
-                <p className="mt-4 text-sm text-white/40">No moves added yet.</p>
+                <p className="mt-4 text-sm text-white/40">
+                  {activeCategory ? `No ${CATEGORY_LABEL[activeCategory]} moves in this playbook.` : 'No moves added yet.'}
+                </p>
               )}
 
               {canManage && availablePlays.length > 0 && (

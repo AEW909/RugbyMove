@@ -14,8 +14,7 @@ This file is a handover note so a future agent can regain context after a local 
 ## Git
 
 - Repo: `https://github.com/AEW909/RugbyMove`
-- Branch: `master`
-- All development goes directly to `master`; this is a hobby project, no feature branches needed unless the user asks.
+- **Always develop on `master`.** Do not create or switch to a feature branch unless the user explicitly asks.
 - Do not force push.
 - Do not run destructive commands such as `git reset`, `git clean`, `git checkout --`, or `git restore` unless explicitly instructed.
 
@@ -110,16 +109,9 @@ Use env vars or Supabase dashboard/admin tooling to create or update the user. I
 
 Never hardcode secrets into source files or documentation.
 
-## Local Persistence Caveat
+## Local Persistence
 
-Some editor/home prototype features may still use browser `localStorage`, for example:
-
-- `rugbyslate.moves.v1`
-- `rugbyslate.formations.v1`
-- `rugbyslate.pendingFormation.v1`
-- `rugbyslate.pendingMove.v1`
-
-These are not durable through browser/app reset. The intended direction is to move saved moves, formations, playbooks, and access control fully into Supabase.
+localStorage has been removed entirely. All data (plays, formations, playbooks, organisations) lives in Supabase. Guest/unauthenticated access is not supported — users are redirected to `/login`.
 
 ## Recommended Next Steps
 

@@ -2,11 +2,24 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { signOut, updateProfile } from '@/app/actions/auth'
 import { createClient } from '@/lib/supabase/server'
+import type { PlayCategory } from '@/types/play'
+import AppHeader from '@/components/AppHeader'
+
+const CATEGORIES: PlayCategory[] = ['Scrum', 'Lineout', 'Open Play', 'Penalty', 'Kick Off', 'Other']
+const CATEGORY_LABEL: Record<PlayCategory, string> = {
+  Scrum: 'Scrum',
+  Lineout: 'Lineout',
+  'Open Play': 'Open Play',
+  Penalty: 'Penalty',
+  'Kick Off': 'Kick Off',
+  Other: 'Other',
+}
 
 type AccountPageProps = {
   searchParams: {
     message?: string
     error?: string
+    category?: string
   }
 }
 
@@ -20,18 +33,26 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     redirect('/login')
   }
 
+  const activeCategory = CATEGORIES.includes(searchParams.category as PlayCategory)
+    ? (searchParams.category as PlayCategory)
+    : null
+
+  const playsQuery = supabase
+    .from('plays')
+    .select('id,title,category,is_public,updated_at')
+    .eq('user_id', user.id)
+    .order('updated_at', { ascending: false })
+    .limit(60)
+
+  if (activeCategory) playsQuery.eq('category', activeCategory)
+
   const [{ data: profile }, { data: plays }] = await Promise.all([
     supabase
       .from('profiles')
       .select('username,display_name')
       .eq('id', user.id)
       .single(),
-    supabase
-      .from('plays')
-      .select('id,title,category,updated_at')
-      .eq('user_id', user.id)
-      .order('updated_at', { ascending: false })
-      .limit(12),
+    playsQuery,
   ])
 
   return (
@@ -39,6 +60,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
 
       <div className="relative z-10 mx-auto flex max-w-3xl flex-col gap-6">
+        <AppHeader backHref="/" backLabel="Home" />
         {/* Header */}
         <section className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
           <div className="flex items-start justify-between gap-4">
@@ -129,6 +151,34 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
               New move
             </Link>
           </div>
+
+          {/* Category filter */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/account"
+              className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                !activeCategory
+                  ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
+                  : 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10'
+              }`}
+            >
+              All
+            </Link>
+            {CATEGORIES.map((cat) => (
+              <Link
+                key={cat}
+                href={`/account?category=${cat}`}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                  activeCategory === cat
+                    ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
+                    : 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10'
+                }`}
+              >
+                {CATEGORY_LABEL[cat]}
+              </Link>
+            ))}
+          </div>
+
           <div className="mt-4 grid gap-3">
             {plays?.length ? (
               plays.map((play) => (
@@ -140,7 +190,6 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <h3 className="font-semibold text-white">{play.title}</h3>
-                      <p className="mt-1 text-sm text-white/60">{play.category}</p>
                     </div>
                     <span className="rounded-full bg-blue-500/20 px-2 py-0.5 text-xs font-semibold text-blue-300 border border-blue-500/20">
                       {play.category}
@@ -150,7 +199,9 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
               ))
             ) : (
               <div className="rounded-2xl border border-dashed border-white/10 p-6 text-sm text-white/40">
-                No saved moves in your account yet.
+                {activeCategory
+                  ? `No ${CATEGORY_LABEL[activeCategory]} moves saved yet.`
+                  : 'No saved moves in your account yet.'}
               </div>
             )}
           </div>

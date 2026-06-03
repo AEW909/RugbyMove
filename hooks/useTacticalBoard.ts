@@ -2,126 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { savePlay, saveFormation as saveFormationAction } from '@/app/actions/plays'
 import { createClient } from '@/lib/supabase/client'
-import { storageKeys } from '@/lib/board/storage'
-import type { Formation, FormationCategory, SavedMove } from '@/lib/board/storage'
-import type { Frame, PlayerPosition, PlayCategory } from '@/types/play'
+import type { Formation, FormationCategory } from '@/lib/board/storage'
+import type { Frame, Line, PlayerPosition, PlayCategory } from '@/types/play'
 import type { PanelTab } from '@/components/board/PanelSlideOver'
-
-export type Token = {
-  id: string
-  label: string
-  side: 'attack' | 'defend' | 'ball'
-}
-
-export const tokens: Token[] = [
-  ...Array.from({ length: 15 }, (_, index) => ({
-    id: `attack-${index + 1}`,
-    label: String(index + 1),
-    side: 'attack' as const,
-  })),
-  ...Array.from({ length: 15 }, (_, index) => ({
-    id: `defend-${index + 1}`,
-    label: String(index + 1),
-    side: 'defend' as const,
-  })),
-  { id: 'ball', label: '', side: 'ball' as const },
-]
-
-function createDefaultPlayers(): PlayerPosition[] {
-  return tokens.map((token, index) => {
-    if (token.side === 'ball') {
-      return { id: token.id, x: 50, y: 45 }
-    }
-    const teamIndex = token.side === 'attack' ? index : index - 15
-    const y = 4 + teamIndex * 6.5
-    return {
-      id: token.id,
-      x: token.side === 'attack' ? 4 : 96,
-      y,
-    }
-  })
-}
-
-export const defaultFrame: Frame = {
-  players: createDefaultPlayers(),
-  lines: [],
-}
-
-// Built-in preset: diagonal scrum — loosehead (top-left) to tighthead (bottom-right).
-// Front row pairs are 3 x-units apart (touching). Diagonal step: Δx=2, Δy=3 ≈ 24 px at 800×600.
-// Ball at tunnel mouth (loosehead, top). Both 9s sit tight to the tunnel.
-export const SCRUM_FORMATION: Formation = {
-  id: 'builtin-scrum',
-  name: 'Scrum',
-  category: 'Scrum',
-  createdAt: '',
-  players: [
-    { id: 'ball',      x: 44, y: 33 },
-    // Attack front row — loosehead → hooker → tighthead (diagonal, Δx=2 Δy=3)
-    { id: 'attack-1',  x: 43, y: 38 },
-    { id: 'attack-2',  x: 45, y: 41 },
-    { id: 'attack-3',  x: 47, y: 44 },
-    // Attack second row (3 x-units behind front row)
-    { id: 'attack-6',  x: 41, y: 36 },
-    { id: 'attack-4',  x: 40, y: 39 },
-    { id: 'attack-5',  x: 42, y: 42 },
-    { id: 'attack-7',  x: 44, y: 47 },
-    { id: 'attack-8',  x: 38, y: 41 },
-    // Attack 9 — at tunnel mouth, loosehead side
-    { id: 'attack-9',  x: 41, y: 33 },
-    // Defend front row — 3 x-units right of attack (touching)
-    { id: 'defend-3',  x: 46, y: 38 },
-    { id: 'defend-2',  x: 48, y: 41 },
-    { id: 'defend-1',  x: 50, y: 44 },
-    // Defend second row (3 x-units right of defend front row)
-    { id: 'defend-7',  x: 49, y: 35 },
-    { id: 'defend-5',  x: 49, y: 39 },
-    { id: 'defend-4',  x: 51, y: 43 },
-    { id: 'defend-6',  x: 53, y: 47 },
-    { id: 'defend-8',  x: 59, y: 43 },
-    // Defend 9 — separated, top-right of cluster
-    { id: 'defend-9',  x: 53, y: 31 },
-  ],
-}
-
-// Built-in preset: compact lineout near the top touchline.
-// Players are touching (4-unit y-spacing ≈ token diameter at typical board size).
-// Attack scrum half sits tight to the left of the attack line.
-export const LINEOUT_FORMATION: Formation = {
-  id: 'builtin-lineout',
-  name: 'Lineout',
-  category: 'Lineout',
-  createdAt: '',
-  players: [
-    { id: 'ball',      x: 30, y: 4 },
-    // Attack hooker — at touchline (thrower)
-    { id: 'attack-2',  x: 28, y: 3 },
-    // Defend hooker — opposite side of lineout
-    { id: 'defend-2',  x: 42, y: 3 },
-    // Attack scrum half — just left of lineout, mid-height
-    { id: 'attack-9',  x: 24, y: 20 },
-    // Attack lineout line: 1, 4, 3, 5, 6, 7, 8 — touching, y-spacing 4
-    { id: 'attack-1',  x: 30, y: 8 },
-    { id: 'attack-4',  x: 30, y: 12 },
-    { id: 'attack-3',  x: 30, y: 16 },
-    { id: 'attack-5',  x: 30, y: 20 },
-    { id: 'attack-6',  x: 30, y: 24 },
-    { id: 'attack-7',  x: 30, y: 28 },
-    { id: 'attack-8',  x: 30, y: 32 },
-    // Defend lineout line: 1, 4, 3, 5, 6, 7, 8
-    { id: 'defend-1',  x: 36, y: 8 },
-    { id: 'defend-4',  x: 36, y: 12 },
-    { id: 'defend-3',  x: 36, y: 16 },
-    { id: 'defend-5',  x: 36, y: 20 },
-    { id: 'defend-6',  x: 36, y: 24 },
-    { id: 'defend-7',  x: 36, y: 28 },
-    { id: 'defend-8',  x: 36, y: 32 },
-  ],
-}
+import { tokens, defaultFrame } from '@/lib/board/defaults'
+export { tokens, defaultFrame } from '@/lib/board/defaults'
+export type { Token } from '@/lib/board/defaults'
+export { SCRUM_FORMATION, LINEOUT_FORMATION } from '@/lib/board/defaults'
 
 function normalizeFrame(frame: Partial<Frame> | undefined): Frame {
   return {
-    players: Array.isArray(frame?.players) ? frame.players : createDefaultPlayers(),
+    players: Array.isArray(frame?.players) ? frame.players : defaultFrame.players,
     lines: Array.isArray(frame?.lines) ? frame.lines : [],
   }
 }
@@ -182,32 +73,33 @@ function createAnimatedSvg(frames: Frame[]): string {
     })
     .join('\n')
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}">
-<rect width="${W}" height="${H}" fill="#15803d"/>
-${paths}
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1320" height="800" viewBox="0 0 1320 800">
+  <rect width="1320" height="800" fill="#15803d"/>
+  <g stroke="#ffffff" stroke-opacity="0.55" stroke-width="2">
+    <rect x="20" y="20" width="1280" height="760" fill="none" stroke-opacity="0.9" stroke-width="5"/>
+    <line x1="660" y1="20" x2="660" y2="780"/>
+    <line x1="127" y1="20" x2="127" y2="780" stroke-opacity="0.85"/>
+    <line x1="1193" y1="20" x2="1193" y2="780" stroke-opacity="0.85"/>
+    <line x1="361" y1="20" x2="361" y2="780" stroke-dasharray="12 12"/>
+    <line x1="959" y1="20" x2="959" y2="780" stroke-dasharray="12 12"/>
+    <line x1="553" y1="20" x2="553" y2="780" stroke-dasharray="6 8" stroke-opacity="0.4"/>
+    <line x1="767" y1="20" x2="767" y2="780" stroke-dasharray="6 8" stroke-opacity="0.4"/>
+  </g>
+  ${paths}
 </svg>`
 }
 
-function saveMoveToStorage(move: SavedMove) {
-  try {
-    const stored = window.localStorage.getItem(storageKeys.moves)
-    const existing: SavedMove[] = stored ? JSON.parse(stored) : []
-    const next = [move, ...existing.filter((m) => m.id !== move.id)].slice(0, 24)
-    window.localStorage.setItem(storageKeys.moves, JSON.stringify(next))
-  } catch {
-    /* storage unavailable */
-  }
-}
 
 export type TacticalBoardProps = {
   initialFrames?: Frame[]
   playId?: string
-  mode?: 'fresh' | 'local' | 'saved'
+  mode?: 'fresh' | 'saved'
   playTitle?: string
   playDescription?: string | null
   playCategory?: PlayCategory
   onFramesChange?: (frames: Frame[]) => void
-  isGuest?: boolean
+  viewOnly?: boolean
 }
 
 export type UseTacticalBoardReturn = {
@@ -231,11 +123,17 @@ export type UseTacticalBoardReturn = {
   setPanelOpen: (open: boolean) => void
   panelTab: PanelTab
   setPanelTab: (tab: PanelTab) => void
-  savedPlays: SavedMove[]
+  userId: string | null
   playbooks: { id: string; name: string }[]
   setPlaybooks: Dispatch<SetStateAction<{ id: string; name: string }[]>>
-  tool: 'pointer' | 'select'
-  setTool: Dispatch<SetStateAction<'pointer' | 'select'>>
+  tool: 'pointer' | 'select' | 'draw'
+  setTool: (t: 'pointer' | 'select' | 'draw') => void
+  lineColor: string
+  lineDashed: boolean
+  setLineColor: (color: string) => void
+  setLineDashed: (dashed: boolean) => void
+  addLine: (line: Line) => void
+  deleteLine: (lineId: string) => void
   selectedPlayerIds: Set<string>
   setSelectedPlayerIds: Dispatch<SetStateAction<Set<string>>>
   setActiveFrameIndex: Dispatch<SetStateAction<number>>
@@ -246,9 +144,7 @@ export type UseTacticalBoardReturn = {
   saveFormation: () => void
   loadFormation: (formation: Formation) => void
   exportMove: () => void
-  handleSaveLocally: (title: string) => void
   handleSaveToPlaybook: (playbookId: string, title: string) => Promise<void>
-  handleLoadPlay: (play: SavedMove) => void
   playFrames: () => void
   stopPlayback: () => void
 }
@@ -274,9 +170,11 @@ export function useTacticalBoard({
   const [showFormationModal, setShowFormationModal] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
   const [panelTab, setPanelTab] = useState<PanelTab>('formations')
-  const [savedPlays, setSavedPlays] = useState<SavedMove[]>([])
   const [playbooks, setPlaybooks] = useState<{ id: string; name: string }[]>([])
-  const [tool, setTool] = useState<'pointer' | 'select'>('pointer')
+  const [userId, setUserId] = useState<string | null>(null)
+  const [tool, setTool] = useState<'pointer' | 'select' | 'draw'>('pointer')
+  const [lineColor, setLineColor] = useState('#f8fafc')
+  const [lineDashed, setLineDashed] = useState(false)
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set())
 
   // Keyboard shortcuts
@@ -284,6 +182,7 @@ export function useTacticalBoard({
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.key === 'g' || e.key === 'G') setTool('select')
+      if (e.key === 'd' || e.key === 'D') setTool('draw')
       if (e.key === 'p' || e.key === 'P') { setTool('pointer'); setSelectedPlayerIds(new Set()) }
       if (e.key === 'Escape') { setTool('pointer'); setSelectedPlayerIds(new Set()) }
     }
@@ -291,19 +190,11 @@ export function useTacticalBoard({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Load formations: DB if logged in, localStorage fallback
+  // Load formations from Supabase
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
-        try {
-          const saved = window.localStorage.getItem(storageKeys.formations)
-          setFormations(saved ? JSON.parse(saved) : [])
-        } catch {
-          setFormations([])
-        }
-        return
-      }
+      if (!user) return
       supabase
         .from('formations')
         .select('id,name,category,players,updated_at')
@@ -311,91 +202,59 @@ export function useTacticalBoard({
         .order('updated_at', { ascending: false })
         .limit(24)
         .then(({ data }) => {
-          if (!data || data.length === 0) {
-            try {
-              const saved = window.localStorage.getItem(storageKeys.formations)
-              setFormations(saved ? JSON.parse(saved) : [])
-            } catch {
-              setFormations([])
-            }
-            return
-          }
-          const dbFormations: Formation[] = data.map((f) => ({
+          if (!data) return
+          setFormations(data.map((f) => ({
             id: f.id,
             name: f.name,
             category: f.category as FormationCategory,
             players: f.players as PlayerPosition[],
             createdAt: f.updated_at,
-          }))
-          setFormations(dbFormations)
-          window.localStorage.setItem(storageKeys.formations, JSON.stringify(dbFormations))
+          })))
         })
     })
   }, [])
 
   // Initialise frames from pending move/formation or mode
   useEffect(() => {
-    try {
-      const pendingMove =
-        mode === 'local' ? window.localStorage.getItem(storageKeys.pendingMove) : null
-      if (pendingMove) {
-        const move = JSON.parse(pendingMove) as SavedMove
-        window.localStorage.removeItem(storageKeys.pendingMove)
-        const loadedFrames = normalizeFrames(move.frames)
-        originalFramesRef.current = loadedFrames
-        setFrames(loadedFrames)
-        setActiveFrameIndex(0)
-        return
-      }
-
-      if (mode === 'fresh') {
-        window.localStorage.removeItem(storageKeys.pendingMove)
-        window.localStorage.removeItem(storageKeys.pendingFormation)
-        setFrames([defaultFrame])
-        setActiveFrameIndex(0)
-        return
-      }
-
-      const pendingFormation =
-        mode === 'local' ? window.localStorage.getItem(storageKeys.pendingFormation) : null
-      if (pendingFormation) {
-        const formation = JSON.parse(pendingFormation) as Formation
-        window.localStorage.removeItem(storageKeys.pendingFormation)
-        setFrames((currentFrames) => {
-          const firstFrame = currentFrames[0] ?? defaultFrame
-          return [
-            {
-              ...firstFrame,
-              players: firstFrame.players.map((player) => {
-                const savedPlayer = formation.players.find((item) => item.id === player.id)
-                return savedPlayer ? { ...savedPlayer } : player
-              }),
-            },
-          ]
-        })
-      }
-    } catch {
-      /* ignore parse errors */
+    if (mode === 'fresh') {
+      setFrames([defaultFrame])
+      setActiveFrameIndex(0)
     }
   }, [mode])
 
   // Load saved plays and playbooks
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(storageKeys.moves)
-      setSavedPlays(stored ? (JSON.parse(stored) as SavedMove[]) : [])
-    } catch {
-      setSavedPlays([])
-    }
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
+      setUserId(user?.id ?? null)
       if (!user) return
+
       supabase
         .from('playbooks')
         .select('id,name')
         .eq('owner_id', user.id)
         .order('name')
         .then(({ data }) => setPlaybooks(data ?? []))
+
+      supabase
+        .from('formations')
+        .select('id,name,category,players,created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(12)
+        .then(({ data }) => {
+          if (data) {
+            setFormations(
+              data.map((f) => ({
+                id: f.id,
+                name: f.name,
+                category: f.category as FormationCategory,
+                players: f.players as PlayerPosition[],
+                createdAt: f.created_at,
+              })),
+            )
+          }
+        })
     })
   }, [])
 
@@ -493,31 +352,39 @@ export function useTacticalBoard({
 
   const saveFormation = useCallback(() => {
     const trimmedName = formationName.trim()
-    if (!trimmedName) return
+    if (!trimmedName || !userId) return
 
-    const id = crypto.randomUUID()
-    const nextFormation: Formation = {
-      id,
-      name: trimmedName,
-      category: formationCategory,
-      players: activeFrame.players.map((player) => ({ ...player })),
-      createdAt: new Date().toISOString(),
-    }
+    const supabase = createClient()
+    supabase
+      .from('formations')
+      .insert({
+        name: trimmedName,
+        category: formationCategory,
+        players: activeFrame.players,
+        user_id: userId,
+      })
+      .select('id,name,category,players,created_at')
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setFormations((prev) =>
+            [
+              {
+                id: data.id,
+                name: data.name,
+                category: data.category as FormationCategory,
+                players: data.players as PlayerPosition[],
+                createdAt: data.created_at,
+              },
+              ...prev,
+            ].slice(0, 12),
+          )
+        }
+      })
 
-    const nextFormations = [nextFormation, ...formations].slice(0, 24)
-    setFormations(nextFormations)
-    window.localStorage.setItem(storageKeys.formations, JSON.stringify(nextFormations))
     setFormationName('')
     setShowFormationModal(false)
-
-    // Persist to DB (fire and forget — localStorage is already saved)
-    saveFormationAction({
-      id,
-      name: trimmedName,
-      category: formationCategory,
-      players: activeFrame.players.map((p) => ({ ...p })),
-    }).catch(() => { /* localStorage fallback already done */ })
-  }, [activeFrame.players, formations, formationCategory, formationName])
+  }, [activeFrame.players, formationCategory, formationName, userId])
 
   const loadFormation = useCallback(
     (formation: Formation) => {
@@ -545,33 +412,9 @@ export function useTacticalBoard({
     downloadTextFile('rugbymove-move.svg', svg, 'image/svg+xml')
   }, [frames])
 
-  const persistLocally = useCallback(
-    (title: string): SavedMove => {
-      const move: SavedMove = {
-        id: crypto.randomUUID(),
-        title,
-        frames: normalizeFrames(frames),
-        updatedAt: new Date().toISOString(),
-      }
-      saveMoveToStorage(move)
-      setSavedPlays((prev) => [move, ...prev.filter((p) => p.id !== move.id)].slice(0, 24))
-      return move
-    },
-    [frames],
-  )
-
-  const handleSaveLocally = useCallback(
-    (title: string) => {
-      persistLocally(title)
-      setSaveStatus('Saved locally.')
-    },
-    [persistLocally],
-  )
-
   const handleSaveToPlaybook = useCallback(
     async (playbookId: string, title: string) => {
-      const move = persistLocally(title)
-      const normalizedFrames = move.frames
+      const normalizedFrames = normalizeFrames(frames)
       try {
         const play = await savePlay({
           id:
@@ -594,24 +437,37 @@ export function useTacticalBoard({
             { onConflict: 'playbook_id,play_id' },
           )
         setSaveStatus('Saved to playbook.')
-      } catch (error) {
-        setSaveStatus(
-          error instanceof Error && error.message.includes('signed in')
-            ? 'Saved locally. Log in to save to your account.'
-            : 'Saved locally. Account save failed.',
-        )
+      } catch {
+        setSaveStatus('Save failed. Please try again.')
       }
     },
-    [playCategory, playDescription, playId, persistLocally],
+    [playCategory, playDescription, playId, frames],
   )
 
-  const handleLoadPlay = useCallback(
-    (play: SavedMove) => {
-      stopPlayback()
-      setFrames(normalizeFrames(play.frames))
-      setActiveFrameIndex(0)
+  const addLine = useCallback(
+    (line: Line) => {
+      setFrames((currentFrames) =>
+        currentFrames.map((frame, index) =>
+          index !== activeFrameIndex
+            ? frame
+            : { ...frame, lines: [...frame.lines, line] },
+        ),
+      )
     },
-    [stopPlayback],
+    [activeFrameIndex],
+  )
+
+  const deleteLine = useCallback(
+    (lineId: string) => {
+      setFrames((currentFrames) =>
+        currentFrames.map((frame, index) =>
+          index !== activeFrameIndex
+            ? frame
+            : { ...frame, lines: frame.lines.filter((l) => l.id !== lineId) },
+        ),
+      )
+    },
+    [activeFrameIndex],
   )
 
   const playFrames = useCallback(() => {
@@ -671,11 +527,17 @@ export function useTacticalBoard({
     setPanelOpen,
     panelTab,
     setPanelTab,
-    savedPlays,
+    userId,
     playbooks,
     setPlaybooks,
     tool,
     setTool,
+    lineColor,
+    lineDashed,
+    setLineColor,
+    setLineDashed,
+    addLine,
+    deleteLine,
     selectedPlayerIds,
     setSelectedPlayerIds,
     setActiveFrameIndex,
@@ -686,9 +548,7 @@ export function useTacticalBoard({
     saveFormation,
     loadFormation,
     exportMove,
-    handleSaveLocally,
     handleSaveToPlaybook,
-    handleLoadPlay,
     playFrames,
     stopPlayback,
   }
