@@ -1,16 +1,15 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { BookOpen, ChevronDown, Globe, Lock, Users, Trash2 } from 'lucide-react'
+import { BookOpen, ChevronDown, Globe, Lock, Trash2, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import AppHeader from '@/components/AppHeader'
 import {
   addMember,
-  addPlayToPlaybook,
   removeMember,
-  removePlayFromPlaybook,
   updatePlaybook,
 } from '@/app/actions/playbooks'
 import DeletePlaybookButton from '@/components/playbooks/DeletePlaybookButton'
+import PlaybookMovesSection from '@/components/playbooks/PlaybookMovesSection'
 import type { PlayCategory } from '@/types/play'
 
 type PageProps = {
@@ -129,119 +128,20 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_300px]">
           {/* Left column: moves */}
-          <section className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
-            <h2 className="text-lg font-bold text-white">Moves</h2>
-
-            {/* Category filter */}
-            {playbookPlaysRows && playbookPlaysRows.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Link
-                  href={`/playbooks/${params.id}`}
-                  className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                    !activeCategory
-                      ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
-                      : 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10'
-                  }`}
-                >
-                  All
-                </Link>
-                {CATEGORIES.map((cat) => (
-                  <Link
-                    key={cat}
-                    href={`/playbooks/${params.id}?category=${cat}`}
-                    className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
-                      activeCategory === cat
-                        ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
-                        : 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10'
-                    }`}
-                  >
-                    {CATEGORY_LABEL[cat]}
-                  </Link>
-                ))}
-              </div>
-            )}
-
-            {playbookPlaysRows && playbookPlaysRows.length > 0 ? (
-              <ul className="mt-4 space-y-2">
-                {playbookPlaysRows.map((row) => {
-                  const play = row.plays as unknown as {
-                    id: string
-                    title: string
-                    category: string
-                  } | null
-                  if (!play) return null
-                  if (activeCategory && play.category !== activeCategory) return null
-                  return (
-                    <li
-                      key={row.play_id}
-                      className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 p-3"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <Link
-                          href={`/playbook/${play.id}?from=${params.id}`}
-                          className="truncate font-medium text-white transition-colors hover:text-blue-400"
-                        >
-                          {play.title}
-                        </Link>
-                        <p className="text-xs text-white/40">{play.category}</p>
-                      </div>
-                      {canManage && (
-                        <form action={removePlayFromPlaybook}>
-                          <input type="hidden" name="playbook_id" value={params.id} />
-                          <input type="hidden" name="play_id" value={play.id} />
-                          <button
-                            type="submit"
-                            aria-label="Remove move"
-                            className="rounded-lg p-1.5 text-white/30 transition hover:bg-red-500/10 hover:text-red-400"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </form>
-                      )}
-                    </li>
-                  )
-                })}
-              </ul>
-            ) : (
-              <p className="mt-4 text-sm text-white/40">
-                {activeCategory ? `No ${CATEGORY_LABEL[activeCategory]} moves in this playbook.` : 'No moves added yet.'}
-              </p>
-            )}
-
-            {canManage && availablePlays.length > 0 && (
-              <form action={addPlayToPlaybook} className="mt-4 flex gap-2">
-                <input type="hidden" name="playbook_id" value={params.id} />
-                <select
-                  name="play_id"
-                  required
-                  className="flex-1 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 [&>option]:bg-zinc-900"
-                >
-                  <option value="">Select a move…</option>
-                  {availablePlays.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.title} ({p.category})
-                    </option>
-                  ))}
-                </select>
-                <button
-                  type="submit"
-                  className="rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90"
-                >
-                  Add
-                </button>
-              </form>
-            )}
-
-            {canManage && availablePlays.length === 0 && playbookPlaysRows?.length === 0 && (
-              <p className="mt-3 text-sm text-white/40">
-                Save moves from the board first, then add them here.
-              </p>
-            )}
-
-            {canManage && availablePlays.length === 0 && (playbookPlaysRows?.length ?? 0) > 0 && (
-              <p className="mt-3 text-sm text-white/40">All your saved moves are in this playbook.</p>
-            )}
-          </section>
+          <PlaybookMovesSection
+            playbookId={params.id}
+            plays={(playbookPlaysRows ?? [])
+              .map((row) => {
+                const p = row.plays as unknown as { id: string; title: string; category: string } | null
+                return p ? { id: p.id, title: p.title, category: p.category } : null
+              })
+              .filter((p): p is { id: string; title: string; category: string } => p !== null)}
+            canManage={canManage}
+            availablePlays={availablePlays.map((p) => ({ id: p.id, title: p.title, category: p.category as string }))}
+            activeCategory={activeCategory}
+            categories={CATEGORIES}
+            categoryLabel={CATEGORY_LABEL}
+          />
 
           {/* Right column: collapsible panels */}
           <aside className="space-y-3">

@@ -49,7 +49,8 @@ export default function TacticalBoard(props: TacticalBoardProps) {
 
   const isMobile = useIsMobile()
   const { playTitle = 'Untitled move', viewOnly: viewOnlyProp = false } = props
-  const viewOnly = viewOnlyProp || isMobile
+  const [desktopViewOnly, setDesktopViewOnly] = useState(false)
+  const viewOnly = viewOnlyProp || isMobile || desktopViewOnly
 
   const getBoardPct = (clientX: number, clientY: number) => {
     const el = boardRef.current
@@ -275,8 +276,24 @@ export default function TacticalBoard(props: TacticalBoardProps) {
               <Pencil className="h-4 w-4" />
             </button>
 
+            <div className="h-5 w-px bg-white/10" />
+
+            {/* View / Edit toggle */}
+            <button
+              type="button"
+              onClick={() => setDesktopViewOnly((v) => !v)}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition',
+                desktopViewOnly
+                  ? 'border-amber-500/50 bg-amber-500/20 text-amber-300'
+                  : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
+              )}
+            >
+              {desktopViewOnly ? 'View' : 'Edit'}
+            </button>
+
             {/* Draw tool colour + dashed options */}
-            {board.tool === 'draw' && (
+            {board.tool === 'draw' && !desktopViewOnly && (
               <>
                 <div className="h-5 w-px bg-white/10" />
                 {LINE_COLORS.map((c) => (
@@ -553,6 +570,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
             board.setShowFormationModal(true)
           }}
           onSaveToPlaybook={board.handleSaveToPlaybook}
+          onLoadPlay={(id) => { window.location.href = `/playbook/${id}` }}
           onExport={board.exportMove}
           isExporting={board.isExporting}
           initialTitle={playTitle}

@@ -1,17 +1,24 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, ChevronUp, Download, Layers, Loader2, Save, X } from 'lucide-react'
+import { BookOpen, ChevronDown, ChevronUp, Download, Layers, Loader2, Save, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FORMATION_CATEGORIES } from '@/lib/board/storage'
 import type { Formation } from '@/lib/board/storage'
+import { createClient } from '@/lib/supabase/client'
 
 type Playbook = {
   id: string
   name: string
 }
 
-export type PanelTab = 'formations' | 'save'
+type PlayItem = {
+  id: string
+  title: string
+  category: string
+}
+
+export type PanelTab = 'formations' | 'playbooks' | 'save'
 
 type Props = {
   isOpen: boolean
@@ -23,6 +30,7 @@ type Props = {
   onLoadFormation: (formation: Formation) => void
   onOpenSaveFormation: () => void
   onSaveToPlaybook: (playbookId: string, title: string) => void
+  onLoadPlay: (playId: string) => void
   onExport: () => void
   isExporting: boolean
   initialTitle: string
@@ -39,6 +47,7 @@ export default function PanelSlideOver({
   onLoadFormation,
   onOpenSaveFormation,
   onSaveToPlaybook,
+  onLoadPlay,
   onExport,
   isExporting,
   initialTitle,
@@ -50,6 +59,9 @@ export default function PanelSlideOver({
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(FORMATION_CATEGORIES),
   )
+  const [selectedPlaybookId, setSelectedPlaybookId] = useState('')
+  const [playbookPlays, setPlaybookPlays] = useState<PlayItem[]>([])
+  const [playsLoading, setPlaysLoading] = useState(false)
   const prevSaveStatus = useRef(saveStatus)
   useEffect(() => {
     if (saveStatus !== prevSaveStatus.current) {
@@ -69,6 +81,28 @@ export default function PanelSlideOver({
       else next.add(cat)
       return next
     })
+  }
+
+  const handlePlaybookSelect = async (id: string) => {
+    setSelectedPlaybookId(id)
+    setPlaybookPlays([])
+    if (!id) return
+    setPlaysLoading(true)
+    const supabase = createClient()
+    const { data } = await supabase
+      .from('playbook_plays')
+      .select('play_id, sort_order, plays(id, title, category)')
+      .eq('playbook_id', id)
+      .order('sort_order')
+    setPlaybookPlays(
+      (data ?? [])
+        .map((row) => {
+          const p = row.plays as unknown as PlayItem | null
+          return p ? { id: p.id, title: p.title, category: p.category } : null
+        })
+        .filter((p): p is PlayItem => p !== null),
+    )
+    setPlaysLoading(false)
   }
 
   return (
@@ -96,6 +130,7 @@ export default function PanelSlideOver({
           {(
             [
               { id: 'formations', label: 'Formations', Icon: Layers },
+              { id: 'playbooks', label: 'Playbooks', Icon: BookOpen },
               { id: 'save', label: 'Save', Icon: Save },
             ] as const
           ).map(({ id, label, Icon }) => (
@@ -191,6 +226,63 @@ export default function PanelSlideOver({
                     </div>
                   )
                 })
+              )}
+            </div>
+          )}
+
+          {/* ── Playbooks tab ── */}
+          {activeTab === 'playbooks' && (
+            <div className="flex flex-col gap-4 p-4">
+              {playbooks.length === 0 ? (
+                <div className="rounded-xl border border-dashed border-white/10 p-4 text-sm text-white/40">
+                  <a href="/playbooks/new" className="font-semibold text-blue-400 hover:text-blue-300">
+                    Create a playbook
+                  </a>{' '}
+                  first.
+                </div>
+              ) : (
+                <>
+                  <select
+                    value={selectedPlaybookId}
+                    onChange={(e) => handlePlaybookSelect(e.target.value)}
+                    className="w-full rounded-xl border border-white/10 bg-zinc-800 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-400 [&>option]:bg-zinc-900"
+                  >
+                    <option value="">Select a playbook…</option>
+                    {playbooks.map((pb) => (
+                      <option key={pb.id} value={pb.id}>{pb.name}</option>
+                    ))}
+                  </select>
+
+                  {playsLoading && (
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="h-5 w-5 animate-spin text-white/30" />
+                    </div>
+                  )}
+
+                  {!playsLoading && selectedPlaybookId && playbookPlays.length === 0 && (
+                    <p className="text-sm text-white/40">No moves in this playbook yet.</p>
+                  )}
+
+                  {!playsLoading && playbookPlays.length > 0 && (
+                    <ul className="space-y-1.5">
+                      {playbookPlays.map((play) => (
+                        <li key={play.id}>
+                          <button
+                            type="button"
+                            onClick={() => { onLoadPlay(play.id); onClose() }}
+                            className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-left transition hover:bg-white/10"
+                          >
+                            <span>
+                              <span className="block font-medium text-white">{play.title}</span>
+                              <span className="text-xs text-white/40">{play.category}</span>
+                            </span>
+                            <span className="text-xs font-semibold text-blue-400">Open →</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
               )}
             </div>
           )}
