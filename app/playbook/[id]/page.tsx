@@ -7,7 +7,7 @@ import DeleteMoveButton from '@/components/plays/DeleteMoveButton'
 import { createClient } from '@/lib/supabase/server'
 import { setPlayVisibility } from '@/app/actions/plays'
 import type { AnimationData, Frame, Play } from '@/types/play'
-import { defaultFrame } from '@/hooks/useTacticalBoard'
+import { defaultFrame } from '@/lib/board/defaults'
 import type { PlayerPosition } from '@/types/play'
 
 type PageProps = {
