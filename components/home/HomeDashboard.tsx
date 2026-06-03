@@ -37,12 +37,10 @@ export default function HomeDashboard({ cloudPlays, cloudPlaybooks, cloudOrgs, c
       <div className="relative z-10 mx-auto flex max-w-7xl flex-col gap-6">
         {/* Header */}
         <header className="flex flex-col gap-4 border-b border-white/10 pb-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 font-black text-white shadow-lg shadow-blue-500/30">
-              RM
-            </div>
-            <h1 className="text-2xl font-black tracking-tight text-white sm:text-3xl">RugbyMove</h1>
-          </div>
+          <Link href="/" className="flex items-center gap-3 transition hover:opacity-80">
+            <Image src="/logo-icon.png" alt="RugbyMove" width={40} height={40} className="rounded-xl" />
+            <Image src="/logo-text.png" alt="" width={120} height={30} className="hidden sm:block" />
+          </Link>
           <div className="flex items-center gap-3">
             <Link
               href="/account"
