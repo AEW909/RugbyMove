@@ -4,11 +4,12 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { BookOpen, FolderOpen, HardDrive, Plus, Users } from 'lucide-react'
 import { storageKeys } from '@/lib/board/storage'
-import type { Formation, SavedMove } from '@/lib/board/storage'
+import type { SavedMove } from '@/lib/board/storage'
 
 type CloudPlay = { id: string; title: string; category: string; updated_at: string }
 type CloudPlaybook = { id: string; name: string }
 type CloudOrg = { id: string; name: string; role: string }
+type CloudFormation = { id: string; name: string; category: string; players: Array<{ id: string; x: number; y: number }>; createdAt: string }
 
 const orgRoleLabel: Record<string, string> = {
   head_coach: 'Head Coach',
@@ -20,23 +21,21 @@ type Props = {
   cloudPlays: CloudPlay[]
   cloudPlaybooks: CloudPlaybook[]
   cloudOrgs: CloudOrg[]
+  cloudFormations: CloudFormation[]
 }
 
-export default function HomeDashboard({ cloudPlays, cloudPlaybooks, cloudOrgs }: Props) {
+export default function HomeDashboard({ cloudPlays, cloudPlaybooks, cloudOrgs, cloudFormations }: Props) {
   const [localMoves, setLocalMoves] = useState<SavedMove[]>([])
-  const [formations, setFormations] = useState<Formation[]>([])
 
   useEffect(() => {
     try {
       setLocalMoves(JSON.parse(window.localStorage.getItem(storageKeys.moves) ?? '[]'))
-      setFormations(JSON.parse(window.localStorage.getItem(storageKeys.formations) ?? '[]'))
     } catch {
       setLocalMoves([])
-      setFormations([])
     }
   }, [])
 
-  const startFromFormation = (formation: Formation) => {
+  const startFromFormation = (formation: CloudFormation) => {
     window.localStorage.setItem(storageKeys.pendingFormation, JSON.stringify(formation))
   }
 
@@ -258,24 +257,24 @@ export default function HomeDashboard({ cloudPlays, cloudPlaybooks, cloudOrgs }:
               <p className="mb-3 text-xs text-white/50">
                 Saved starting positions. Click to open a new move pre-arranged.
               </p>
-              {formations.length === 0 ? (
+              {cloudFormations.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-white/10 p-4 text-sm text-white/40">
                   No formations saved yet. Arrange players on the board then save.
                 </div>
               ) : (
                 <div className="grid gap-2">
-                  {formations.map((formation) => (
+                  {cloudFormations.map((cloudFormation) => (
                     <Link
                       href="/playbook/new"
-                      key={formation.id}
-                      onClick={() => startFromFormation(formation)}
+                      key={cloudFormation.id}
+                      onClick={() => startFromFormation(cloudFormation)}
                       className="rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur-sm transition hover:bg-white/[0.08]"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-white/90">{formation.name}</span>
-                        {formation.category && (
+                        <span className="font-medium text-white/90">{cloudFormation.name}</span>
+                        {cloudFormation.category && (
                           <span className="shrink-0 rounded-full border border-blue-500/20 bg-blue-500/20 px-2 py-0.5 text-[10px] font-semibold text-blue-300">
-                            {formation.category}
+                            {cloudFormation.category}
                           </span>
                         )}
                       </div>

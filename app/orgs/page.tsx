@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { Users, Plus } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { joinViaCode } from '@/app/actions/orgs'
+import AppHeader from '@/components/AppHeader'
 
 type PageProps = {
   searchParams: { message?: string; error?: string }
@@ -33,11 +34,9 @@ export default async function OrgsPage({ searchParams }: PageProps) {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
 
       <div className="relative z-10 mx-auto max-w-4xl">
+        <AppHeader />
         <header className="mb-6 flex items-end justify-between border-b border-white/10 pb-5">
           <div>
-            <Link href="/" className="text-sm font-medium text-white/40 transition-colors hover:text-white">
-              ← Home
-            </Link>
             <h1 className="mt-2 text-3xl font-black tracking-tight text-white">My Organisations</h1>
             <p className="mt-1 text-sm text-white/60">Manage your squads and coaching teams.</p>
           </div>

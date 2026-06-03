@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { CalendarDays, Lock, Share2 } from 'lucide-react'
 import TacticalBoard from '@/components/TacticalBoard'
+import DeleteMoveButton from '@/components/plays/DeleteMoveButton'
 import { createClient } from '@/lib/supabase/server'
 import { setPlayVisibility } from '@/app/actions/plays'
 import type { AnimationData, Play } from '@/types/play'
@@ -235,6 +236,12 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
           isGuest={isGuest}
           viewOnly={viewOnly}
         />
+
+        {isOwner && mode === 'saved' && (
+          <div className="flex justify-end">
+            <DeleteMoveButton playId={play.id} />
+          </div>
+        )}
 
         {isGuest && (
           <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 px-5 py-4 text-center backdrop-blur-sm">

@@ -9,7 +9,7 @@ export default async function HomePage() {
   } = await supabase.auth.getUser()
 
   if (user) {
-    const [{ data: rawPlays }, { data: rawPlaybooks }, { data: rawOrgs }] = await Promise.all([
+    const [{ data: rawPlays }, { data: rawPlaybooks }, { data: rawOrgs }, { data: rawFormations }] = await Promise.all([
       supabase
         .from('plays')
         .select('id, title, category, updated_at')
@@ -28,6 +28,12 @@ export default async function HomePage() {
         .eq('user_id', user.id)
         .order('joined_at')
         .limit(10),
+      supabase
+        .from('formations')
+        .select('id,name,category,players,created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(12),
     ])
     const cloudPlays = (rawPlays ?? []) as Array<{
       id: string; title: string; category: string; updated_at: string
@@ -37,7 +43,14 @@ export default async function HomePage() {
       const org = m.organisations as unknown as { id: string; name: string } | null
       return org ? { id: org.id, name: org.name, role: m.role } : null
     }).filter((o): o is { id: string; name: string; role: string } => o !== null)
-    return <HomeDashboard cloudPlays={cloudPlays} cloudPlaybooks={cloudPlaybooks} cloudOrgs={cloudOrgs} />
+    const cloudFormations = (rawFormations ?? []).map((f) => ({
+      id: f.id,
+      name: f.name,
+      category: f.category as string,
+      players: f.players as unknown as Array<{ id: string; x: number; y: number }>,
+      createdAt: f.created_at,
+    }))
+    return <HomeDashboard cloudPlays={cloudPlays} cloudPlaybooks={cloudPlaybooks} cloudOrgs={cloudOrgs} cloudFormations={cloudFormations} />
   }
 
   return (

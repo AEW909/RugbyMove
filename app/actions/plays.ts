@@ -1,5 +1,6 @@
 'use server'
 
+import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
@@ -112,20 +113,14 @@ export async function setPlayVisibility(formData: FormData): Promise<void> {
   revalidatePath('/')
 }
 
-export async function deletePlay(id: string) {
-  const parsedId = z.string().uuid().parse(id)
-  const { supabase } = await requireUser()
-
-  const { error } = await supabase.from('plays').delete().eq('id', parsedId)
-
-  if (error) {
-    throw new Error(error.message)
-  }
-
+export async function deletePlay(formData: FormData): Promise<void> {
+  const id = z.string().uuid().parse(formData.get('id'))
+  const { supabase, user } = await requireUser()
+  const { error } = await supabase.from('plays').delete().eq('id', id).eq('user_id', user.id)
+  if (error) throw new Error(error.message)
   revalidatePath('/')
-  revalidatePath(`/playbook/${parsedId}`)
-
-  return { id: parsedId }
+  revalidatePath('/account')
+  redirect('/')
 }
 
 export async function saveFormation(input: SaveFormationInput) {

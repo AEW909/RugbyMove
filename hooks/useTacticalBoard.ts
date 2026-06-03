@@ -260,6 +260,7 @@ export type UseTacticalBoardReturn = {
   setPanelOpen: (open: boolean) => void
   panelTab: PanelTab
   setPanelTab: (tab: PanelTab) => void
+  userId: string | null
   savedPlays: SavedMove[]
   playbooks: { id: string; name: string }[]
   setPlaybooks: Dispatch<SetStateAction<{ id: string; name: string }[]>>
@@ -311,6 +312,7 @@ export function useTacticalBoard({
   const [panelTab, setPanelTab] = useState<PanelTab>('formations')
   const [savedPlays, setSavedPlays] = useState<SavedMove[]>([])
   const [playbooks, setPlaybooks] = useState<{ id: string; name: string }[]>([])
+  const [userId, setUserId] = useState<string | null>(null)
   const [tool, setTool] = useState<'pointer' | 'select' | 'draw'>('pointer')
   const [lineColor, setLineColor] = useState('#f8fafc')
   const [lineDashed, setLineDashed] = useState(false)
@@ -330,9 +332,6 @@ export function useTacticalBoard({
 
   useEffect(() => {
     try {
-      const saved = window.localStorage.getItem(storageKeys.formations)
-      setFormations(saved ? JSON.parse(saved) : [])
-
       const pendingMove =
         mode === 'local' ? window.localStorage.getItem(storageKeys.pendingMove) : null
       if (pendingMove) {
@@ -345,7 +344,22 @@ export function useTacticalBoard({
 
       if (mode === 'fresh') {
         window.localStorage.removeItem(storageKeys.pendingMove)
+        const rawPendingFormation = window.localStorage.getItem(storageKeys.pendingFormation)
         window.localStorage.removeItem(storageKeys.pendingFormation)
+        if (rawPendingFormation) {
+          const formation = JSON.parse(rawPendingFormation) as Formation
+          setFrames([
+            {
+              ...defaultFrame,
+              players: defaultFrame.players.map((player) => {
+                const saved = formation.players.find((item) => item.id === player.id)
+                return saved ? { ...saved } : player
+              }),
+            },
+          ])
+          setActiveFrameIndex(0)
+          return
+        }
         setFrames([defaultFrame])
         setActiveFrameIndex(0)
         return
@@ -370,7 +384,7 @@ export function useTacticalBoard({
         })
       }
     } catch {
-      setFormations([])
+      // ignore
     }
   }, [mode])
 
@@ -381,15 +395,45 @@ export function useTacticalBoard({
     } catch {
       setSavedPlays([])
     }
+
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return
+      setUserId(user?.id ?? null)
+      if (!user) {
+        try {
+          const saved = window.localStorage.getItem(storageKeys.formations)
+          setFormations(saved ? JSON.parse(saved) : [])
+        } catch {
+          setFormations([])
+        }
+        return
+      }
       supabase
         .from('playbooks')
         .select('id,name')
         .eq('owner_id', user.id)
         .order('name')
         .then(({ data }) => setPlaybooks(data ?? []))
+
+      supabase
+        .from('formations')
+        .select('id,name,category,players,created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(12)
+        .then(({ data }) => {
+          if (data) {
+            setFormations(
+              data.map((f) => ({
+                id: f.id,
+                name: f.name,
+                category: f.category as FormationCategory,
+                players: f.players as PlayerPosition[],
+                createdAt: f.created_at,
+              })),
+            )
+          }
+        })
     })
   }, [])
 
@@ -488,19 +532,51 @@ export function useTacticalBoard({
   const saveFormation = useCallback(() => {
     const trimmedName = formationName.trim()
     if (!trimmedName) return
-    const nextFormation: Formation = {
-      id: crypto.randomUUID(),
-      name: trimmedName,
-      category: formationCategory,
-      players: activeFrame.players.map((player) => ({ ...player })),
-      createdAt: new Date().toISOString(),
+
+    if (userId) {
+      const supabase = createClient()
+      supabase
+        .from('formations')
+        .insert({
+          name: trimmedName,
+          category: formationCategory,
+          players: activeFrame.players,
+          user_id: userId,
+        })
+        .select('id,name,category,players,created_at')
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setFormations((prev) =>
+              [
+                {
+                  id: data.id,
+                  name: data.name,
+                  category: data.category as FormationCategory,
+                  players: data.players as PlayerPosition[],
+                  createdAt: data.created_at,
+                },
+                ...prev,
+              ].slice(0, 12),
+            )
+          }
+        })
+    } else {
+      const nextFormation: Formation = {
+        id: crypto.randomUUID(),
+        name: trimmedName,
+        category: formationCategory,
+        players: activeFrame.players.map((player) => ({ ...player })),
+        createdAt: new Date().toISOString(),
+      }
+      const nextFormations = [nextFormation, ...formations].slice(0, 12)
+      setFormations(nextFormations)
+      window.localStorage.setItem(storageKeys.formations, JSON.stringify(nextFormations))
     }
-    const nextFormations = [nextFormation, ...formations].slice(0, 12)
-    setFormations(nextFormations)
-    window.localStorage.setItem(storageKeys.formations, JSON.stringify(nextFormations))
+
     setFormationName('')
     setShowFormationModal(false)
-  }, [activeFrame.players, formations, formationCategory, formationName])
+  }, [activeFrame.players, formations, formationCategory, formationName, userId])
 
   const loadFormation = useCallback(
     (formation: Formation) => {
@@ -681,6 +757,7 @@ export function useTacticalBoard({
     setPanelOpen,
     panelTab,
     setPanelTab,
+    userId,
     savedPlays,
     playbooks,
     setPlaybooks,

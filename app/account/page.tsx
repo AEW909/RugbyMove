@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import { signOut } from '@/app/actions/auth'
 import { createClient } from '@/lib/supabase/server'
 import type { PlayCategory } from '@/types/play'
+import AppHeader from '@/components/AppHeader'
 
 const CATEGORIES: PlayCategory[] = ['Attacking', 'Defending', 'SetPiece']
 const CATEGORY_LABEL: Record<PlayCategory, string> = {
@@ -56,6 +57,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
 
       <div className="relative z-10 mx-auto flex max-w-3xl flex-col gap-6">
+        <AppHeader />
         {/* Header */}
         <section className="rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur-sm">
           <div className="flex items-start justify-between gap-4">

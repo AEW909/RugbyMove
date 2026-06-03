@@ -56,7 +56,7 @@ export async function createPlaybook(formData: FormData): Promise<void> {
 
   if (errorMessage) {
     const base = orgId ? `/playbooks/new?org_id=${orgId}` : '/playbooks/new'
-    redirect(`${base}&error=${encodeURIComponent(errorMessage)}`)
+    redirect(`${base}${orgId ? '&' : '?'}error=${encodeURIComponent(errorMessage)}`)
   }
   redirect(`/playbooks/${id}`)
 }

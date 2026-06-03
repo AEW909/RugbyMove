@@ -4,6 +4,7 @@ import { BookOpen, Key, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import { setPlaybookJoinCode } from '@/app/actions/orgs'
 import DeleteOrgPlaybookButton from '@/components/orgs/DeleteOrgPlaybookButton'
+import AppHeader from '@/components/AppHeader'
 
 type PageProps = {
   params: { id: string }
@@ -61,9 +62,7 @@ export default async function OrgDetailPage({ params, searchParams }: PageProps)
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
 
       <div className="relative z-10 mx-auto max-w-4xl">
-        <Link href="/orgs" className="text-sm font-medium text-white/40 transition-colors hover:text-white">
-          ← Organisations
-        </Link>
+        <AppHeader backHref="/orgs" backLabel="Organisations" />
 
         <div className="mt-4 flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
