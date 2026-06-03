@@ -154,12 +154,15 @@ export default function TacticalBoard(props: TacticalBoardProps) {
   return (
     <section className="overflow-visible rounded-xl border border-white/10 bg-black shadow-toolbar">
       {/* ── Toolbar ── */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-4 py-3">
-        <a href="/" aria-label="Home">
-          <Image src="/logo-icon.png" alt="RugbyMove" width={36} height={36} className="h-9 w-9 rounded-xl transition hover:opacity-80" />
-        </a>
-
-        <div className="h-5 w-px bg-white/10" />
+      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-3 py-2.5 sm:px-4 sm:py-3">
+        {!viewOnly && (
+          <>
+            <a href="/" aria-label="Home">
+              <Image src="/logo-icon.png" alt="RugbyMove" width={36} height={36} className="h-9 w-9 rounded-xl transition hover:opacity-80" />
+            </a>
+            <div className="h-5 w-px bg-white/10" />
+          </>
+        )}
 
         <button
           type="button"
@@ -173,7 +176,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
 
         {viewOnly ? (
           <span className="text-sm font-semibold text-white/50">
-            Frame {board.activeFrameIndex + 1} / {board.frames.length}
+            {board.activeFrameIndex + 1} / {board.frames.length}
           </span>
         ) : (
           <>
@@ -334,10 +337,10 @@ export default function TacticalBoard(props: TacticalBoardProps) {
       )}
 
       {/* ── Board ── */}
-      <div className="p-4">
+      <div className="p-2 sm:p-4">
         {/* Frame strip */}
-        <div className="mb-3 flex items-center gap-2 overflow-x-auto pb-1">
-          <span className="shrink-0 text-xs font-semibold uppercase text-slate-400">Frames</span>
+        <div className="mb-2 flex items-center gap-1.5 overflow-x-auto pb-1 sm:gap-2" style={{ touchAction: 'pan-x' }}>
+          <span className="shrink-0 text-xs font-semibold uppercase text-white/40">Frames</span>
           {board.frames.map((frame, index) => (
             viewOnly ? (
               <button
@@ -345,10 +348,11 @@ export default function TacticalBoard(props: TacticalBoardProps) {
                 type="button"
                 onClick={() => { board.stopPlayback(); board.setActiveFrameIndex(index) }}
                 className={cn(
-                  'shrink-0 rounded-md border px-3 py-1.5 text-sm font-semibold transition',
+                  'shrink-0 rounded-xl border px-4 text-sm font-semibold transition',
+                  'min-h-[44px] min-w-[44px]',
                   board.activeFrameIndex === index
-                    ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
-                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                    ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
+                    : 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10',
                 )}
               >
                 {index + 1}
@@ -357,10 +361,10 @@ export default function TacticalBoard(props: TacticalBoardProps) {
               <div
                 key={`${frame.players.length}-${index}`}
                 className={cn(
-                  'flex shrink-0 overflow-hidden rounded-md border transition',
+                  'flex shrink-0 overflow-hidden rounded-xl border transition',
                   board.activeFrameIndex === index
-                    ? 'border-emerald-700 bg-emerald-50 text-emerald-900'
-                    : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50',
+                    ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
+                    : 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10',
                 )}
               >
                 <button
@@ -373,7 +377,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
                 <button
                   type="button"
                   onClick={() => board.deleteFrame(index)}
-                  className="flex w-8 items-center justify-center border-l border-inherit text-slate-400 transition hover:bg-red-50 hover:text-red-600"
+                  className="flex w-8 items-center justify-center border-l border-white/10 text-white/30 transition hover:bg-red-500/10 hover:text-red-400"
                   aria-label={`Delete frame ${index + 1}`}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -387,7 +391,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
         <div
           ref={boardRef}
           className={cn(
-            'relative aspect-[4/3] w-full overflow-hidden rounded-md border border-slate-200 bg-emerald-700 shadow-inner',
+            'relative aspect-[4/3] w-full overflow-hidden rounded-xl border border-white/10 bg-emerald-700 shadow-inner',
             !viewOnly && 'min-h-[360px]',
             !viewOnly && (board.tool === 'select' || board.tool === 'draw') && 'cursor-crosshair',
           )}
@@ -499,7 +503,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
                   token.side === 'defend' && 'border-red-100 bg-red-600 text-white',
                   token.side === 'ball' &&
                     'h-6 w-10 rounded-[50%] border-emerald-900 bg-slate-50 text-transparent',
-                  token.side !== 'ball' && 'h-7 w-7 rounded-full',
+                  token.side !== 'ball' && 'h-7 w-7 rounded-full sm:h-8 sm:w-8',
                   !viewOnly && board.selectedPlayerIds.has(token.id) &&
                     'ring-2 ring-yellow-400 ring-offset-1',
                 )}
