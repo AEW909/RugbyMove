@@ -86,7 +86,7 @@ function createAnimatedSvg(frames: Frame[]): string {
     <line x1="553" y1="20" x2="553" y2="780" stroke-dasharray="6 8" stroke-opacity="0.4"/>
     <line x1="767" y1="20" x2="767" y2="780" stroke-dasharray="6 8" stroke-opacity="0.4"/>
   </g>
-  ${tokenMarkup}
+  ${paths}
 </svg>`
 }
 
@@ -190,19 +190,11 @@ export function useTacticalBoard({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Load formations: DB if logged in, localStorage fallback
+  // Load formations from Supabase
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) {
-        try {
-          const saved = window.localStorage.getItem(storageKeys.formations)
-          setFormations(saved ? JSON.parse(saved) : [])
-        } catch {
-          setFormations([])
-        }
-        return
-      }
+      if (!user) return
       supabase
         .from('formations')
         .select('id,name,category,players,updated_at')
@@ -210,24 +202,14 @@ export function useTacticalBoard({
         .order('updated_at', { ascending: false })
         .limit(24)
         .then(({ data }) => {
-          if (!data || data.length === 0) {
-            try {
-              const saved = window.localStorage.getItem(storageKeys.formations)
-              setFormations(saved ? JSON.parse(saved) : [])
-            } catch {
-              setFormations([])
-            }
-            return
-          }
-          const dbFormations: Formation[] = data.map((f) => ({
+          if (!data) return
+          setFormations(data.map((f) => ({
             id: f.id,
             name: f.name,
             category: f.category as FormationCategory,
             players: f.players as PlayerPosition[],
             createdAt: f.updated_at,
-          }))
-          setFormations(dbFormations)
-          window.localStorage.setItem(storageKeys.formations, JSON.stringify(dbFormations))
+          })))
         })
     })
   }, [])
@@ -459,7 +441,7 @@ export function useTacticalBoard({
         setSaveStatus('Save failed. Please try again.')
       }
     },
-    [isPublic, playCategory, playDescription, playId, frames],
+    [playCategory, playDescription, playId, frames],
   )
 
   const addLine = useCallback(

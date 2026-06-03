@@ -59,8 +59,9 @@ async function getPlay(id: string): Promise<Play | null> {
       user_id: 'local',
       title: 'New move',
       description: 'Start from a blank board or load one of your saved formations.',
-      category: 'Attacking',
+      category: 'Open Play',
       animation_data: { frames: [] },
+      is_public: false,
       updated_at: new Date().toISOString(),
       profiles: null,
     }
@@ -75,6 +76,7 @@ async function getPlay(id: string): Promise<Play | null> {
         'A simple two-frame pattern that shifts the defensive line before releasing the ball wide.',
       category: 'Open Play' as const,
       animation_data: demoAnimationData,
+      is_public: true,
       updated_at: new Date().toISOString(),
       profiles: {
         username: 'coach-demo',
@@ -256,7 +258,6 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
           playTitle={play.title}
           playDescription={play.description}
           playCategory={play.category}
-          isPublic={play.is_public}
           viewOnly={viewOnly}
         />
 

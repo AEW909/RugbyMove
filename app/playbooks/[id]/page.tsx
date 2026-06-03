@@ -1,18 +1,16 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { BookOpen, ChevronDown, ChevronUp, Globe, Lock, Users, Trash2 } from 'lucide-react'
+import { BookOpen, Globe, Lock, Users, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import AppHeader from '@/components/AppHeader'
 import {
   addMember,
   addPlayToPlaybook,
-  movePlayInPlaybook,
   removeMember,
   removePlayFromPlaybook,
   updatePlaybook,
 } from '@/app/actions/playbooks'
 import DeletePlaybookButton from '@/components/playbooks/DeletePlaybookButton'
-import AppHeader from '@/components/AppHeader'
 import type { PlayCategory } from '@/types/play'
 
 type PageProps = {
@@ -20,11 +18,14 @@ type PageProps = {
   searchParams: { message?: string; error?: string; category?: string }
 }
 
-const CATEGORIES: PlayCategory[] = ['Attacking', 'Defending', 'SetPiece']
+const CATEGORIES: PlayCategory[] = ['Scrum', 'Lineout', 'Open Play', 'Penalty', 'Kick Off', 'Other']
 const CATEGORY_LABEL: Record<PlayCategory, string> = {
-  Attacking: 'Attacking',
-  Defending: 'Defending',
-  SetPiece: 'Set Piece',
+  Scrum: 'Scrum',
+  Lineout: 'Lineout',
+  'Open Play': 'Open Play',
+  Penalty: 'Penalty',
+  'Kick Off': 'Kick Off',
+  Other: 'Other',
 }
 
 const visibilityOptions = [
@@ -187,32 +188,6 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                         </div>
                         {canManage && (
                           <div className="flex shrink-0 items-center gap-1">
-                            <form action={movePlayInPlaybook}>
-                              <input type="hidden" name="playbook_id" value={params.id} />
-                              <input type="hidden" name="play_id" value={play.id} />
-                              <input type="hidden" name="direction" value="up" />
-                              <button
-                                type="submit"
-                                disabled={idx === 0}
-                                aria-label="Move up"
-                                className="rounded-lg p-1.5 text-white/30 transition hover:bg-white/10 hover:text-white disabled:opacity-20"
-                              >
-                                <ChevronUp className="h-4 w-4" />
-                              </button>
-                            </form>
-                            <form action={movePlayInPlaybook}>
-                              <input type="hidden" name="playbook_id" value={params.id} />
-                              <input type="hidden" name="play_id" value={play.id} />
-                              <input type="hidden" name="direction" value="down" />
-                              <button
-                                type="submit"
-                                disabled={idx === total - 1}
-                                aria-label="Move down"
-                                className="rounded-lg p-1.5 text-white/30 transition hover:bg-white/10 hover:text-white disabled:opacity-20"
-                              >
-                                <ChevronDown className="h-4 w-4" />
-                              </button>
-                            </form>
                             <form action={removePlayFromPlaybook}>
                               <input type="hidden" name="playbook_id" value={params.id} />
                               <input type="hidden" name="play_id" value={play.id} />

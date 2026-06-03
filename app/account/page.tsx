@@ -5,11 +5,14 @@ import { createClient } from '@/lib/supabase/server'
 import type { PlayCategory } from '@/types/play'
 import AppHeader from '@/components/AppHeader'
 
-const CATEGORIES: PlayCategory[] = ['Attacking', 'Defending', 'SetPiece']
+const CATEGORIES: PlayCategory[] = ['Scrum', 'Lineout', 'Open Play', 'Penalty', 'Kick Off', 'Other']
 const CATEGORY_LABEL: Record<PlayCategory, string> = {
-  Attacking: 'Attacking',
-  Defending: 'Defending',
-  SetPiece: 'Set Piece',
+  Scrum: 'Scrum',
+  Lineout: 'Lineout',
+  'Open Play': 'Open Play',
+  Penalty: 'Penalty',
+  'Kick Off': 'Kick Off',
+  Other: 'Other',
 }
 
 type AccountPageProps = {

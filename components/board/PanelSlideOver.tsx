@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { ChevronDown, ChevronUp, Download, Layers, Save, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ChevronDown, ChevronUp, Download, Layers, Loader2, Save, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FORMATION_CATEGORIES } from '@/lib/board/storage'
 import type { Formation } from '@/lib/board/storage'
