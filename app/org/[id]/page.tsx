@@ -73,9 +73,19 @@ export default async function OrgDetailPage({ params, searchParams }: PageProps)
               {org.description && (
                 <p className="mt-1 text-sm text-white/60">{org.description}</p>
               )}
-              <span className="mt-2 inline-block rounded-full border border-blue-500/20 bg-blue-500/20 px-2 py-0.5 text-xs font-semibold text-blue-300">
-                {roleLabel[membership.role] ?? membership.role}
-              </span>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <span className="rounded-full border border-blue-500/20 bg-blue-500/20 px-2 py-0.5 text-xs font-semibold text-blue-300">
+                  {roleLabel[membership.role] ?? membership.role}
+                </span>
+                <span className="text-xs text-white/30">·</span>
+                <span className="text-xs text-white/50">
+                  {members?.length ?? 0} {(members?.length ?? 0) === 1 ? 'member' : 'members'}
+                </span>
+                <span className="text-xs text-white/30">·</span>
+                <span className="text-xs text-white/50">
+                  {playbooks?.length ?? 0} {(playbooks?.length ?? 0) === 1 ? 'playbook' : 'playbooks'}
+                </span>
+              </div>
             </div>
           </div>
         </div>

@@ -10,10 +10,18 @@ import {
   updatePlaybook,
 } from '@/app/actions/playbooks'
 import DeletePlaybookButton from '@/components/playbooks/DeletePlaybookButton'
+import type { PlayCategory } from '@/types/play'
 
 type PageProps = {
   params: { id: string }
-  searchParams: { message?: string; error?: string }
+  searchParams: { message?: string; error?: string; category?: string }
+}
+
+const CATEGORIES: PlayCategory[] = ['Attacking', 'Defending', 'SetPiece']
+const CATEGORY_LABEL: Record<PlayCategory, string> = {
+  Attacking: 'Attacking',
+  Defending: 'Defending',
+  SetPiece: 'Set Piece',
 }
 
 const visibilityOptions = [
@@ -28,6 +36,10 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
   } = await supabase.auth.getUser()
 
   if (!user) redirect('/login')
+
+  const activeCategory = CATEGORIES.includes(searchParams.category as PlayCategory)
+    ? (searchParams.category as PlayCategory)
+    : null
 
   const { data: playbook } = await supabase
     .from('playbooks')
@@ -121,6 +133,35 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
             <section className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
               <h2 className="text-lg font-bold text-white">Moves</h2>
 
+              {/* Category filter */}
+              {playbookPlaysRows && playbookPlaysRows.length > 0 && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Link
+                    href={`/playbooks/${params.id}`}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                      !activeCategory
+                        ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
+                        : 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10'
+                    }`}
+                  >
+                    All
+                  </Link>
+                  {CATEGORIES.map((cat) => (
+                    <Link
+                      key={cat}
+                      href={`/playbooks/${params.id}?category=${cat}`}
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                        activeCategory === cat
+                          ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
+                          : 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10'
+                      }`}
+                    >
+                      {CATEGORY_LABEL[cat]}
+                    </Link>
+                  ))}
+                </div>
+              )}
+
               {playbookPlaysRows && playbookPlaysRows.length > 0 ? (
                 <ul className="mt-4 space-y-2">
                   {playbookPlaysRows.map((row) => {
@@ -130,6 +171,7 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                       category: string
                     } | null
                     if (!play) return null
+                    if (activeCategory && play.category !== activeCategory) return null
                     return (
                       <li
                         key={row.play_id}
@@ -162,7 +204,9 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                   })}
                 </ul>
               ) : (
-                <p className="mt-4 text-sm text-white/40">No moves added yet.</p>
+                <p className="mt-4 text-sm text-white/40">
+                  {activeCategory ? `No ${CATEGORY_LABEL[activeCategory]} moves in this playbook.` : 'No moves added yet.'}
+                </p>
               )}
 
               {canManage && availablePlays.length > 0 && (

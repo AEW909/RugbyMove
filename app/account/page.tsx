@@ -2,11 +2,20 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { signOut } from '@/app/actions/auth'
 import { createClient } from '@/lib/supabase/server'
+import type { PlayCategory } from '@/types/play'
+
+const CATEGORIES: PlayCategory[] = ['Attacking', 'Defending', 'SetPiece']
+const CATEGORY_LABEL: Record<PlayCategory, string> = {
+  Attacking: 'Attacking',
+  Defending: 'Defending',
+  SetPiece: 'Set Piece',
+}
 
 type AccountPageProps = {
   searchParams: {
     message?: string
     error?: string
+    category?: string
   }
 }
 
@@ -20,18 +29,26 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
     redirect('/login')
   }
 
+  const activeCategory = CATEGORIES.includes(searchParams.category as PlayCategory)
+    ? (searchParams.category as PlayCategory)
+    : null
+
+  const playsQuery = supabase
+    .from('plays')
+    .select('id,title,category,is_public,updated_at')
+    .eq('user_id', user.id)
+    .order('updated_at', { ascending: false })
+    .limit(60)
+
+  if (activeCategory) playsQuery.eq('category', activeCategory)
+
   const [{ data: profile }, { data: plays }] = await Promise.all([
     supabase
       .from('profiles')
       .select('username,display_name')
       .eq('id', user.id)
       .single(),
-    supabase
-      .from('plays')
-      .select('id,title,category,is_public,updated_at')
-      .eq('user_id', user.id)
-      .order('updated_at', { ascending: false })
-      .limit(12),
+    playsQuery,
   ])
 
   return (
@@ -102,6 +119,34 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
               New move
             </Link>
           </div>
+
+          {/* Category filter */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Link
+              href="/account"
+              className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                !activeCategory
+                  ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
+                  : 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10'
+              }`}
+            >
+              All
+            </Link>
+            {CATEGORIES.map((cat) => (
+              <Link
+                key={cat}
+                href={`/account?category=${cat}`}
+                className={`rounded-full border px-3 py-1 text-xs font-semibold transition ${
+                  activeCategory === cat
+                    ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
+                    : 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10'
+                }`}
+              >
+                {CATEGORY_LABEL[cat]}
+              </Link>
+            ))}
+          </div>
+
           <div className="mt-4 grid gap-3">
             {plays?.length ? (
               plays.map((play) => (
@@ -123,7 +168,9 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
               ))
             ) : (
               <div className="rounded-2xl border border-dashed border-white/10 p-6 text-sm text-white/40">
-                No saved moves in your account yet.
+                {activeCategory
+                  ? `No ${CATEGORY_LABEL[activeCategory]} moves saved yet.`
+                  : 'No saved moves in your account yet.'}
               </div>
             )}
           </div>
