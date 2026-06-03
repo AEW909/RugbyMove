@@ -33,6 +33,7 @@ const animationDataSchema = z.object({
       }),
     )
     .min(1),
+  durations: z.array(z.number().min(200).max(3000)).optional(),
 })
 
 const savePlaySchema = z.object({

@@ -11,6 +11,10 @@ export { tokens, defaultFrame } from '@/lib/board/defaults'
 export type { Token } from '@/lib/board/defaults'
 export { SCRUM_FORMATION, LINEOUT_FORMATION } from '@/lib/board/defaults'
 
+export const DEFAULT_DURATION = 900
+export const MIN_DURATION = 200
+export const MAX_DURATION = 3000
+
 function normalizeFrame(frame: Partial<Frame> | undefined): Frame {
   return {
     players: Array.isArray(frame?.players) ? frame.players : defaultFrame.players,
@@ -23,6 +27,24 @@ function normalizeFrames(nextFrames: Partial<Frame>[] | undefined): Frame[] {
     return [defaultFrame]
   }
   return nextFrames.map(normalizeFrame)
+}
+
+export function normalizeDurations(raw: number[] | undefined, frameCount: number): number[] {
+  const needed = Math.max(0, frameCount - 1)
+  const base = Array.isArray(raw) ? raw : []
+  return Array.from({ length: needed }, (_, i) =>
+    Math.min(MAX_DURATION, Math.max(MIN_DURATION, base[i] ?? DEFAULT_DURATION)),
+  )
+}
+
+function buildCumulative(durations: number[]): number[] {
+  const cum: number[] = []
+  let acc = 0
+  for (const d of durations) {
+    acc += d
+    cum.push(acc)
+  }
+  return cum
 }
 
 function clamp(value: number) {
@@ -44,10 +66,9 @@ function interpolatePlayers(from: PlayerPosition[], to: PlayerPosition[], amount
   })
 }
 
-
-
 export type TacticalBoardProps = {
   initialFrames?: Frame[]
+  initialDurations?: number[]
   playId?: string
   mode?: 'fresh' | 'saved'
   playTitle?: string
@@ -59,6 +80,8 @@ export type TacticalBoardProps = {
 
 export type UseTacticalBoardReturn = {
   frames: Frame[]
+  durations: number[]
+  totalDuration: number
   activeFrameIndex: number
   activeFrame: Frame
   visiblePlayers: PlayerPosition[]
@@ -100,6 +123,8 @@ export type UseTacticalBoardReturn = {
   loadFormation: (formation: Formation) => void
   exportMove: () => void
   isExporting: boolean
+  setDuration: (segIndex: number, ms: number) => void
+  scrubTo: (timeMs: number) => void
   handleSaveToPlaybook: (playbookId: string, title: string, category: PlayCategory) => Promise<void>
   playFrames: () => void
   stopPlayback: () => void
@@ -107,6 +132,7 @@ export type UseTacticalBoardReturn = {
 
 export function useTacticalBoard({
   initialFrames,
+  initialDurations,
   playId,
   mode = 'saved',
   playTitle = 'rugbymove-move',
@@ -116,6 +142,9 @@ export function useTacticalBoard({
   const animationRef = useRef<number | null>(null)
   const originalFramesRef = useRef<Frame[] | null>(null)
   const [frames, setFrames] = useState<Frame[]>(() => normalizeFrames(initialFrames))
+  const [durations, setDurations] = useState<number[]>(() =>
+    normalizeDurations(initialDurations, normalizeFrames(initialFrames).length),
+  )
   const [activeFrameIndex, setActiveFrameIndex] = useState(0)
   const [displayPlayers, setDisplayPlayers] = useState<PlayerPosition[] | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -134,6 +163,8 @@ export function useTacticalBoard({
   const [lineDashed, setLineDashed] = useState(false)
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set())
   const [isExporting, setIsExporting] = useState(false)
+
+  const totalDuration = useMemo(() => durations.reduce((a, b) => a + b, 0), [durations])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -176,6 +207,7 @@ export function useTacticalBoard({
   useEffect(() => {
     if (mode === 'fresh') {
       setFrames([defaultFrame])
+      setDurations([])
       setActiveFrameIndex(0)
     }
   }, [mode])
@@ -280,6 +312,11 @@ export function useTacticalBoard({
       ]
       return normalizeFrames(nextFrames)
     })
+    setDurations((prev) => [
+      ...prev.slice(0, activeFrameIndex + 1),
+      DEFAULT_DURATION,
+      ...prev.slice(activeFrameIndex + 1),
+    ])
     setActiveFrameIndex((i) => i + 1)
   }, [activeFrameIndex])
 
@@ -288,11 +325,16 @@ export function useTacticalBoard({
       stopPlayback()
       if (frames.length <= 1) {
         setFrames([defaultFrame])
+        setDurations([])
         setActiveFrameIndex(0)
         return
       }
       const nextFrames = normalizeFrames(frames.filter((_, index) => index !== indexToDelete))
       setFrames(nextFrames)
+      setDurations((prev) => {
+        const next = prev.filter((_, i) => i !== indexToDelete)
+        return normalizeDurations(next, nextFrames.length)
+      })
       setActiveFrameIndex((currentIndex) => {
         if (currentIndex > indexToDelete) return currentIndex - 1
         if (currentIndex === indexToDelete) return Math.max(0, currentIndex - 1)
@@ -302,9 +344,45 @@ export function useTacticalBoard({
     [frames, stopPlayback],
   )
 
+  const setDuration = useCallback((segIndex: number, ms: number) => {
+    setDurations((prev) => {
+      const next = [...prev]
+      next[segIndex] = Math.min(MAX_DURATION, Math.max(MIN_DURATION, ms))
+      return next
+    })
+  }, [])
+
+  const scrubTo = useCallback(
+    (timeMs: number) => {
+      if (isPlaying) return
+      const playbackFrames = normalizeFrames(frames)
+      if (playbackFrames.length < 2) return
+      const segDurations = normalizeDurations(durations, playbackFrames.length)
+      const cumulative = buildCumulative(segDurations)
+      const total = cumulative[cumulative.length - 1] ?? 0
+      const t0 = Math.min(total, Math.max(0, timeMs))
+
+      let seg = 0
+      for (let i = 0; i < cumulative.length; i++) {
+        if (t0 <= cumulative[i]) { seg = i; break }
+        seg = i
+      }
+      const segStart = seg === 0 ? 0 : cumulative[seg - 1]
+      const segEnd = cumulative[seg]
+      const progress = segEnd > segStart ? (t0 - segStart) / (segEnd - segStart) : 0
+
+      setActiveFrameIndex(seg)
+      setDisplayPlayers(
+        interpolatePlayers(playbackFrames[seg].players, playbackFrames[Math.min(seg + 1, playbackFrames.length - 1)].players, progress),
+      )
+    },
+    [frames, durations, isPlaying],
+  )
+
   const resetBoard = useCallback(() => {
     stopPlayback()
     setFrames(originalFramesRef.current ?? [defaultFrame])
+    setDurations(normalizeDurations(undefined, (originalFramesRef.current ?? [defaultFrame]).length))
     setActiveFrameIndex(0)
   }, [stopPlayback])
 
@@ -368,9 +446,9 @@ export function useTacticalBoard({
   const exportMove = useCallback(() => {
     if (isExporting) return
     setIsExporting(true)
-    exportGif(normalizeFrames(frames), playTitle)
+    exportGif(normalizeFrames(frames), durations, playTitle)
       .finally(() => setIsExporting(false))
-  }, [frames, isExporting, playTitle])
+  }, [frames, durations, isExporting, playTitle])
 
   const handleSaveToPlaybook = useCallback(
     async (playbookId: string, title: string, category: PlayCategory) => {
@@ -387,7 +465,7 @@ export function useTacticalBoard({
           title,
           description: playDescription ?? null,
           category: category ?? 'Other',
-          animation_data: { frames: normalizedFrames },
+          animation_data: { frames: normalizedFrames, durations },
         })
         const supabase = createClient()
         await supabase
@@ -401,7 +479,7 @@ export function useTacticalBoard({
         setSaveStatus('Save failed. Please try again.')
       }
     },
-    [playDescription, playId, frames],
+    [playDescription, playId, frames, durations],
   )
 
   const addLine = useCallback(
@@ -434,40 +512,47 @@ export function useTacticalBoard({
     const playbackFrames = normalizeFrames(frames).filter((frame) => frame.players.length > 0)
     if (playbackFrames.length < 2 || isPlaying) return
 
-    const durationPerSegment = 900
+    const segDurations = normalizeDurations(durations, playbackFrames.length)
+    const cumulative = buildCumulative(segDurations)
+    const totalMs = cumulative[cumulative.length - 1] ?? 0
+
     const startedAt = performance.now()
-    const totalSegments = playbackFrames.length - 1
     setIsPlaying(true)
 
     const tick = (now: number) => {
       const elapsed = now - startedAt
-      const segment = Math.max(
-        0,
-        Math.min(totalSegments - 1, Math.floor(elapsed / durationPerSegment)),
-      )
-      const segmentProgress = Math.min(1, (elapsed % durationPerSegment) / durationPerSegment)
-      const fromFrame = playbackFrames[segment]
-      const toFrame = playbackFrames[segment + 1]
 
-      setActiveFrameIndex(segment)
-      setDisplayPlayers(interpolatePlayers(fromFrame.players, toFrame.players, segmentProgress))
-
-      if (elapsed < totalSegments * durationPerSegment) {
-        animationRef.current = requestAnimationFrame(tick)
+      if (elapsed >= totalMs) {
+        setActiveFrameIndex(playbackFrames.length - 1)
+        setDisplayPlayers(null)
+        setIsPlaying(false)
+        animationRef.current = null
         return
       }
 
-      setActiveFrameIndex(playbackFrames.length - 1)
-      setDisplayPlayers(null)
-      setIsPlaying(false)
-      animationRef.current = null
+      let seg = 0
+      for (let i = 0; i < cumulative.length; i++) {
+        if (elapsed < cumulative[i]) { seg = i; break }
+        seg = i
+      }
+      const segStart = seg === 0 ? 0 : cumulative[seg - 1]
+      const segEnd = cumulative[seg]
+      const progress = Math.min(1, (elapsed - segStart) / (segEnd - segStart))
+
+      setActiveFrameIndex(seg)
+      setDisplayPlayers(
+        interpolatePlayers(playbackFrames[seg].players, playbackFrames[seg + 1].players, progress),
+      )
+      animationRef.current = requestAnimationFrame(tick)
     }
 
     animationRef.current = requestAnimationFrame(tick)
-  }, [frames, isPlaying])
+  }, [frames, durations, isPlaying])
 
   return {
     frames,
+    durations,
+    totalDuration,
     activeFrameIndex,
     activeFrame,
     visiblePlayers,
@@ -509,6 +594,8 @@ export function useTacticalBoard({
     loadFormation,
     exportMove,
     isExporting,
+    setDuration,
+    scrubTo,
     handleSaveToPlaybook,
     playFrames,
     stopPlayback,

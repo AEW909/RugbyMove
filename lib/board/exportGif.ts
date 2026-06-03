@@ -5,11 +5,9 @@ import type { Frame, PlayerPosition } from '@/types/play'
 const W = 840
 const H = 490
 
-// Playback constants matching useTacticalBoard
-const MS_PER_SEGMENT = 900
+const DEFAULT_SEGMENT_MS = 900
 const FPS = 15
 const MS_PER_FRAME = Math.round(1000 / FPS)
-const FRAMES_PER_SEGMENT = Math.round(MS_PER_SEGMENT / MS_PER_FRAME)
 
 // Pitch geometry — must match TacticalBoard.tsx tray/pitch layout
 const TRAY_W = W * 0.08          // 8% tray on each side
@@ -139,7 +137,7 @@ function drawFrame(ctx: CanvasRenderingContext2D, players: PlayerPosition[]) {
   }
 }
 
-export async function exportGif(frames: Frame[], title = 'rugbymove-move'): Promise<void> {
+export async function exportGif(frames: Frame[], durations: number[], title = 'rugbymove-move'): Promise<void> {
   if (frames.length < 1) return
 
   const canvas = document.createElement('canvas')
@@ -155,10 +153,11 @@ export async function exportGif(frames: Frame[], title = 'rugbymove-move'): Prom
   for (let seg = 0; seg < Math.max(segments, 1); seg++) {
     const from = frames[seg]
     const to = frames[Math.min(seg + 1, frames.length - 1)]
-    const count = segments === 0 ? 1 : FRAMES_PER_SEGMENT
+    const segMs = segments === 0 ? DEFAULT_SEGMENT_MS : (durations[seg] ?? DEFAULT_SEGMENT_MS)
+    const count = segments === 0 ? 1 : Math.max(1, Math.round(segMs / MS_PER_FRAME))
 
     for (let i = 0; i < count; i++) {
-      const t = segments === 0 ? 0 : i / FRAMES_PER_SEGMENT
+      const t = segments === 0 ? 0 : i / count
       const players = interpolatePlayers(from.players, to.players, t)
       drawFrame(ctx, players)
 

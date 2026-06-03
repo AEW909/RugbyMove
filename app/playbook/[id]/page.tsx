@@ -201,6 +201,7 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
 
         <TacticalBoard
           initialFrames={play.animation_data.frames}
+          initialDurations={play.animation_data.durations}
           playId={play.id}
           mode={mode}
           playTitle={play.title}

@@ -27,6 +27,7 @@ export type Frame = {
 
 export type AnimationData = {
   frames: Frame[]
+  durations?: number[]  // ms per segment, length === frames.length - 1
 }
 
 export type Play = {

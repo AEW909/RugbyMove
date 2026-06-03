@@ -12,7 +12,6 @@ import {
   Play,
   Plus,
   RotateCcw,
-  Trash2,
   Users,
   X,
 } from 'lucide-react'
@@ -21,6 +20,7 @@ import type { FormationCategory } from '@/lib/board/storage'
 import { useTacticalBoard, tokens, SCRUM_FORMATION, LINEOUT_FORMATION } from '@/hooks/useTacticalBoard'
 import type { TacticalBoardProps } from '@/hooks/useTacticalBoard'
 import PanelSlideOver from '@/components/board/PanelSlideOver'
+import FrameTimeline from '@/components/board/FrameTimeline'
 import type { Line } from '@/types/play'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
@@ -358,54 +358,18 @@ export default function TacticalBoard(props: TacticalBoardProps) {
 
       {/* ── Board ── */}
       <div className="p-2 sm:p-4">
-        {/* Frame strip */}
-        <div className="mb-2 flex items-center gap-1.5 overflow-x-auto pb-1 sm:gap-2" style={{ touchAction: 'pan-x' }}>
-          {!isMobile && <span className="shrink-0 text-xs font-semibold uppercase text-white/40">Frames</span>}
-          {board.frames.map((frame, index) => (
-            viewOnly ? (
-              <button
-                key={`${frame.players.length}-${index}`}
-                type="button"
-                onClick={() => { board.stopPlayback(); board.setActiveFrameIndex(index) }}
-                className={cn(
-                  'shrink-0 rounded-xl border px-4 text-sm font-semibold transition',
-                  'min-h-[44px] min-w-[44px]',
-                  board.activeFrameIndex === index
-                    ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
-                    : 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10',
-                )}
-              >
-                {index + 1}
-              </button>
-            ) : (
-              <div
-                key={`${frame.players.length}-${index}`}
-                className={cn(
-                  'flex shrink-0 overflow-hidden rounded-xl border transition',
-                  board.activeFrameIndex === index
-                    ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
-                    : 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10',
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={() => { board.stopPlayback(); board.setActiveFrameIndex(index) }}
-                  className="px-3 py-1.5 text-sm font-semibold"
-                >
-                  {index + 1}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => board.deleteFrame(index)}
-                  className="flex w-8 items-center justify-center border-l border-white/10 text-white/30 transition hover:bg-red-500/10 hover:text-red-400"
-                  aria-label={`Delete frame ${index + 1}`}
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            )
-          ))}
-        </div>
+        <FrameTimeline
+          frames={board.frames}
+          durations={board.durations}
+          activeFrameIndex={board.activeFrameIndex}
+          totalDuration={board.totalDuration}
+          isPlaying={board.isPlaying}
+          viewOnly={viewOnly}
+          onSelectFrame={(i) => { board.stopPlayback(); board.setActiveFrameIndex(i) }}
+          onSetDuration={board.setDuration}
+          onScrub={board.scrubTo}
+          onDeleteFrame={board.deleteFrame}
+        />
 
         {/* Board canvas */}
         <div
