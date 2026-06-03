@@ -72,8 +72,11 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
 
       <div className="relative z-10 mx-auto max-w-4xl">
-        <Link href="/playbooks" className="text-sm font-medium text-white/40 transition-colors hover:text-white">
-          ← Playbooks
+        <Link
+          href={playbook.org_id ? `/org/${playbook.org_id}` : '/playbooks'}
+          className="text-sm font-medium text-white/40 transition-colors hover:text-white"
+        >
+          ← {playbook.org_id ? 'Organisation' : 'Playbooks'}
         </Link>
 
         <div className="mt-4 flex items-start gap-3">
