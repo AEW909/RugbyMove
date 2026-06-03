@@ -46,7 +46,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
     from: { x: number; y: number }; to: { x: number; y: number }
   } | null>(null)
 
-  const { isGuest = false, playTitle = 'Untitled move', viewOnly = false } = props
+  const { playTitle = 'Untitled move', viewOnly = false } = props
 
   const getBoardPct = (clientX: number, clientY: number) => {
     const el = boardRef.current
@@ -538,20 +538,16 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           activeTab={board.panelTab}
           onTabChange={board.setPanelTab}
           formations={board.formations}
-          savedPlays={board.savedPlays}
           playbooks={board.playbooks}
           onLoadFormation={board.loadFormation}
           onOpenSaveFormation={() => {
             board.setPanelOpen(false)
             board.setShowFormationModal(true)
           }}
-          onLoadPlay={board.handleLoadPlay}
           onSaveToPlaybook={board.handleSaveToPlaybook}
-          onSaveLocally={board.handleSaveLocally}
           onExport={board.exportMove}
           initialTitle={playTitle}
           saveStatus={board.saveStatus}
-          isGuest={isGuest}
         />
       )}
 

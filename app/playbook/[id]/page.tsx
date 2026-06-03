@@ -1,16 +1,18 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 import { CalendarDays, Lock, Share2 } from 'lucide-react'
 import TacticalBoard from '@/components/TacticalBoard'
 import DeleteMoveButton from '@/components/plays/DeleteMoveButton'
 import { createClient } from '@/lib/supabase/server'
 import { setPlayVisibility } from '@/app/actions/plays'
-import type { AnimationData, Play } from '@/types/play'
+import type { AnimationData, Frame, Play } from '@/types/play'
+import { defaultFrame } from '@/hooks/useTacticalBoard'
+import type { PlayerPosition } from '@/types/play'
 
 type PageProps = {
   params: { id: string }
-  searchParams: { from?: string }
+  searchParams: { from?: string; formation_id?: string }
 }
 
 const demoAnimationData: AnimationData = {
@@ -51,15 +53,12 @@ const demoAnimationData: AnimationData = {
 }
 
 async function getPlay(id: string): Promise<Play | null> {
-  if (id === 'new' || id === 'local') {
+  if (id === 'new') {
     return {
       id,
       user_id: 'local',
-      title: id === 'local' ? 'Saved move' : 'New move',
-      description:
-        id === 'local'
-          ? 'Continue editing a locally saved move.'
-          : 'Start from a blank board or load one of your saved formations.',
+      title: 'New move',
+      description: 'Start from a blank board or load one of your saved formations.',
       category: 'Attacking',
       animation_data: { frames: [] },
       is_public: false,
@@ -153,8 +152,12 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
     data: { user },
   } = await supabase.auth.getUser()
 
-  const isGuest = !user
-  const mode = play.id === 'new' ? 'fresh' : play.id === 'local' ? 'local' : 'saved'
+  // Require auth for all pages except demo
+  if (!user && params.id !== 'demo') {
+    redirect('/login')
+  }
+
+  const mode = play.id === 'new' ? 'fresh' : 'saved'
   const isOwner = user && play.user_id === user.id
   const viewOnly = mode === 'saved' && !isOwner
 
@@ -168,6 +171,29 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
       .eq('id', fromId)
       .single()
     fromPlaybook = data ?? null
+  }
+
+  // Resolve formation from URL param (for starting a new move from a formation)
+  let initialFrames: Frame[] | undefined
+  const formationId = searchParams?.formation_id
+  if (formationId && mode === 'fresh') {
+    const { data: formationData } = await supabase
+      .from('formations')
+      .select('id,name,category,players')
+      .eq('id', formationId)
+      .single()
+    if (formationData) {
+      const formationPlayers = formationData.players as PlayerPosition[]
+      initialFrames = [
+        {
+          ...defaultFrame,
+          players: defaultFrame.players.map((player) => {
+            const saved = formationPlayers.find((item) => item.id === player.id)
+            return saved ? { ...saved } : player
+          }),
+        },
+      ]
+    }
   }
 
   const backHref = fromPlaybook ? `/playbooks/${fromPlaybook.id}` : '/'
@@ -226,32 +252,19 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
         </header>
 
         <TacticalBoard
-          initialFrames={play.animation_data.frames}
+          initialFrames={initialFrames ?? play.animation_data.frames}
           playId={play.id}
           mode={mode}
           playTitle={play.title}
           playDescription={play.description}
           playCategory={play.category}
           isPublic={play.is_public}
-          isGuest={isGuest}
           viewOnly={viewOnly}
         />
 
         {isOwner && mode === 'saved' && (
           <div className="flex justify-end">
             <DeleteMoveButton playId={play.id} />
-          </div>
-        )}
-
-        {isGuest && (
-          <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 px-5 py-4 text-center backdrop-blur-sm">
-            <p className="text-sm text-white/70">
-              Build and save your own moves.{' '}
-              <Link href="/signup" className="font-semibold text-blue-400 transition-colors hover:text-blue-300">
-                Create a free account
-              </Link>{' '}
-              to get started.
-            </p>
           </div>
         )}
       </div>

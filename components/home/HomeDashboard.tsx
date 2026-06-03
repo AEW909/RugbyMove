@@ -1,10 +1,8 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
-import { BookOpen, FolderOpen, HardDrive, Plus, Users } from 'lucide-react'
-import { storageKeys } from '@/lib/board/storage'
-import type { SavedMove } from '@/lib/board/storage'
+import { useRouter } from 'next/navigation'
+import { BookOpen, FolderOpen, Plus, Users } from 'lucide-react'
 
 type CloudPlay = { id: string; title: string; category: string; updated_at: string }
 type CloudPlaybook = { id: string; name: string }
@@ -25,28 +23,11 @@ type Props = {
 }
 
 export default function HomeDashboard({ cloudPlays, cloudPlaybooks, cloudOrgs, cloudFormations }: Props) {
-  const [localMoves, setLocalMoves] = useState<SavedMove[]>([])
-
-  useEffect(() => {
-    try {
-      setLocalMoves(JSON.parse(window.localStorage.getItem(storageKeys.moves) ?? '[]'))
-    } catch {
-      setLocalMoves([])
-    }
-  }, [])
+  const router = useRouter()
 
   const startFromFormation = (formation: CloudFormation) => {
-    window.localStorage.setItem(storageKeys.pendingFormation, JSON.stringify(formation))
+    router.push(`/playbook/new?formation_id=${formation.id}`)
   }
-
-  const openLocalMove = (move: SavedMove) => {
-    window.localStorage.setItem(storageKeys.pendingMove, JSON.stringify(move))
-  }
-
-  // Local-only moves are those whose id doesn't match any cloud play's source
-  const localOnlyMoves = localMoves.filter(
-    (m) => !cloudPlays.some((cp) => cp.id === m.sourceMoveId),
-  )
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-black px-4 py-6 text-white sm:px-8">
@@ -152,30 +133,6 @@ export default function HomeDashboard({ cloudPlays, cloudPlaybooks, cloudOrgs, c
               )}
             </div>
 
-            {/* Local-only moves */}
-            {localOnlyMoves.length > 0 && (
-              <div>
-                <div className="mb-3 flex items-center gap-2">
-                  <HardDrive className="h-4 w-4 text-white/40" />
-                  <h2 className="text-sm font-semibold text-white/60">Locally saved (not uploaded)</h2>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {localOnlyMoves.map((move) => (
-                    <Link
-                      href="/playbook/local"
-                      key={move.id}
-                      onClick={() => openLocalMove(move)}
-                      className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm transition hover:bg-white/[0.08]"
-                    >
-                      <h3 className="font-semibold text-white/80">{move.title}</h3>
-                      <p className="mt-1 text-xs text-white/40">
-                        {move.frames.length} frame{move.frames.length === 1 ? '' : 's'} · local only
-                      </p>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           {/* Right sidebar */}
@@ -264,11 +221,11 @@ export default function HomeDashboard({ cloudPlays, cloudPlaybooks, cloudOrgs, c
               ) : (
                 <div className="grid gap-2">
                   {cloudFormations.map((cloudFormation) => (
-                    <Link
-                      href="/playbook/new"
+                    <button
+                      type="button"
                       key={cloudFormation.id}
                       onClick={() => startFromFormation(cloudFormation)}
-                      className="rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur-sm transition hover:bg-white/[0.08]"
+                      className="rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur-sm transition hover:bg-white/[0.08] text-left w-full"
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-medium text-white/90">{cloudFormation.name}</span>
@@ -278,7 +235,7 @@ export default function HomeDashboard({ cloudPlays, cloudPlaybooks, cloudOrgs, c
                           </span>
                         )}
                       </div>
-                    </Link>
+                    </button>
                   ))}
                 </div>
               )}

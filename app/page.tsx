@@ -91,25 +91,6 @@ export default async function HomePage() {
           </Link>
         </div>
 
-        <div className="relative my-6">
-          <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-white/10" />
-          </div>
-          <div className="relative flex justify-center">
-            <span className="bg-black px-3 text-xs text-white/40">or</span>
-          </div>
-        </div>
-
-        <Link
-          href="/playbook/new"
-          className="flex items-center justify-center rounded-xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-        >
-          Continue as guest
-        </Link>
-
-        <p className="mt-4 text-center text-xs text-white/40">
-          Guest mode lets you build and play moves, but saving to a playbook requires an account.
-        </p>
       </div>
     </main>
   )

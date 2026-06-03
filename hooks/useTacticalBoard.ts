@@ -2,8 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { savePlay } from '@/app/actions/plays'
 import { createClient } from '@/lib/supabase/client'
-import { storageKeys } from '@/lib/board/storage'
-import type { Formation, FormationCategory, SavedMove } from '@/lib/board/storage'
+import type { Formation, FormationCategory } from '@/lib/board/storage'
 import type { Frame, Line, PlayerPosition, PlayCategory } from '@/types/play'
 import type { PanelTab } from '@/components/board/PanelSlideOver'
 
@@ -210,32 +209,27 @@ function createAnimatedSvg(frames: Frame[]) {
   <g stroke="#ffffff" stroke-opacity="0.55" stroke-width="2">
     <rect x="20" y="20" width="1280" height="760" fill="none" stroke-opacity="0.9" stroke-width="5"/>
     <line x1="660" y1="20" x2="660" y2="780"/>
-    <line x1="66" y1="20" x2="66" y2="780" stroke-opacity="0.85"/>
-    <line x1="1254" y1="20" x2="1254" y2="780" stroke-opacity="0.85"/>
-    <line x1="290" y1="20" x2="290" y2="780" stroke-dasharray="12 12"/>
-    <line x1="1030" y1="20" x2="1030" y2="780" stroke-dasharray="12 12"/>
+    <line x1="127" y1="20" x2="127" y2="780" stroke-opacity="0.85"/>
+    <line x1="1193" y1="20" x2="1193" y2="780" stroke-opacity="0.85"/>
+    <line x1="361" y1="20" x2="361" y2="780" stroke-dasharray="12 12"/>
+    <line x1="959" y1="20" x2="959" y2="780" stroke-dasharray="12 12"/>
+    <line x1="553" y1="20" x2="553" y2="780" stroke-dasharray="6 8" stroke-opacity="0.4"/>
+    <line x1="767" y1="20" x2="767" y2="780" stroke-dasharray="6 8" stroke-opacity="0.4"/>
   </g>
   ${tokenMarkup}
 </svg>`
 }
 
-function saveMoveToStorage(move: SavedMove) {
-  const saved = window.localStorage.getItem(storageKeys.moves)
-  const moves = saved ? (JSON.parse(saved) as SavedMove[]) : []
-  const nextMoves = [move, ...moves.filter((item) => item.id !== move.id)].slice(0, 24)
-  window.localStorage.setItem(storageKeys.moves, JSON.stringify(nextMoves))
-}
 
 export type TacticalBoardProps = {
   initialFrames?: Frame[]
   playId?: string
-  mode?: 'fresh' | 'local' | 'saved'
+  mode?: 'fresh' | 'saved'
   playTitle?: string
   playDescription?: string | null
   playCategory?: PlayCategory
   isPublic?: boolean
   onFramesChange?: (frames: Frame[]) => void
-  isGuest?: boolean
   viewOnly?: boolean
 }
 
@@ -261,7 +255,6 @@ export type UseTacticalBoardReturn = {
   panelTab: PanelTab
   setPanelTab: (tab: PanelTab) => void
   userId: string | null
-  savedPlays: SavedMove[]
   playbooks: { id: string; name: string }[]
   setPlaybooks: Dispatch<SetStateAction<{ id: string; name: string }[]>>
   tool: 'pointer' | 'select' | 'draw'
@@ -282,9 +275,7 @@ export type UseTacticalBoardReturn = {
   saveFormation: () => void
   loadFormation: (formation: Formation) => void
   exportMove: () => void
-  handleSaveLocally: (title: string) => void
   handleSaveToPlaybook: (playbookId: string, title: string) => Promise<void>
-  handleLoadPlay: (play: SavedMove) => void
   playFrames: () => void
   stopPlayback: () => void
 }
@@ -310,7 +301,6 @@ export function useTacticalBoard({
   const [showFormationModal, setShowFormationModal] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
   const [panelTab, setPanelTab] = useState<PanelTab>('formations')
-  const [savedPlays, setSavedPlays] = useState<SavedMove[]>([])
   const [playbooks, setPlaybooks] = useState<{ id: string; name: string }[]>([])
   const [userId, setUserId] = useState<string | null>(null)
   const [tool, setTool] = useState<'pointer' | 'select' | 'draw'>('pointer')
@@ -331,83 +321,18 @@ export function useTacticalBoard({
   }, [])
 
   useEffect(() => {
-    try {
-      const pendingMove =
-        mode === 'local' ? window.localStorage.getItem(storageKeys.pendingMove) : null
-      if (pendingMove) {
-        const move = JSON.parse(pendingMove) as SavedMove
-        window.localStorage.removeItem(storageKeys.pendingMove)
-        setFrames(normalizeFrames(move.frames))
-        setActiveFrameIndex(0)
-        return
-      }
-
-      if (mode === 'fresh') {
-        window.localStorage.removeItem(storageKeys.pendingMove)
-        const rawPendingFormation = window.localStorage.getItem(storageKeys.pendingFormation)
-        window.localStorage.removeItem(storageKeys.pendingFormation)
-        if (rawPendingFormation) {
-          const formation = JSON.parse(rawPendingFormation) as Formation
-          setFrames([
-            {
-              ...defaultFrame,
-              players: defaultFrame.players.map((player) => {
-                const saved = formation.players.find((item) => item.id === player.id)
-                return saved ? { ...saved } : player
-              }),
-            },
-          ])
-          setActiveFrameIndex(0)
-          return
-        }
-        setFrames([defaultFrame])
-        setActiveFrameIndex(0)
-        return
-      }
-
-      const pendingFormation =
-        mode === 'local' ? window.localStorage.getItem(storageKeys.pendingFormation) : null
-      if (pendingFormation) {
-        const formation = JSON.parse(pendingFormation) as Formation
-        window.localStorage.removeItem(storageKeys.pendingFormation)
-        setFrames((currentFrames) => {
-          const firstFrame = currentFrames[0] ?? defaultFrame
-          return [
-            {
-              ...firstFrame,
-              players: firstFrame.players.map((player) => {
-                const savedPlayer = formation.players.find((item) => item.id === player.id)
-                return savedPlayer ? { ...savedPlayer } : player
-              }),
-            },
-          ]
-        })
-      }
-    } catch {
-      // ignore
+    if (mode === 'fresh') {
+      setFrames([defaultFrame])
+      setActiveFrameIndex(0)
     }
   }, [mode])
 
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(storageKeys.moves)
-      setSavedPlays(stored ? (JSON.parse(stored) as SavedMove[]) : [])
-    } catch {
-      setSavedPlays([])
-    }
-
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
       setUserId(user?.id ?? null)
-      if (!user) {
-        try {
-          const saved = window.localStorage.getItem(storageKeys.formations)
-          setFormations(saved ? JSON.parse(saved) : [])
-        } catch {
-          setFormations([])
-        }
-        return
-      }
+      if (!user) return
+
       supabase
         .from('playbooks')
         .select('id,name')
@@ -531,52 +456,39 @@ export function useTacticalBoard({
 
   const saveFormation = useCallback(() => {
     const trimmedName = formationName.trim()
-    if (!trimmedName) return
+    if (!trimmedName || !userId) return
 
-    if (userId) {
-      const supabase = createClient()
-      supabase
-        .from('formations')
-        .insert({
-          name: trimmedName,
-          category: formationCategory,
-          players: activeFrame.players,
-          user_id: userId,
-        })
-        .select('id,name,category,players,created_at')
-        .single()
-        .then(({ data }) => {
-          if (data) {
-            setFormations((prev) =>
-              [
-                {
-                  id: data.id,
-                  name: data.name,
-                  category: data.category as FormationCategory,
-                  players: data.players as PlayerPosition[],
-                  createdAt: data.created_at,
-                },
-                ...prev,
-              ].slice(0, 12),
-            )
-          }
-        })
-    } else {
-      const nextFormation: Formation = {
-        id: crypto.randomUUID(),
+    const supabase = createClient()
+    supabase
+      .from('formations')
+      .insert({
         name: trimmedName,
         category: formationCategory,
-        players: activeFrame.players.map((player) => ({ ...player })),
-        createdAt: new Date().toISOString(),
-      }
-      const nextFormations = [nextFormation, ...formations].slice(0, 12)
-      setFormations(nextFormations)
-      window.localStorage.setItem(storageKeys.formations, JSON.stringify(nextFormations))
-    }
+        players: activeFrame.players,
+        user_id: userId,
+      })
+      .select('id,name,category,players,created_at')
+      .single()
+      .then(({ data }) => {
+        if (data) {
+          setFormations((prev) =>
+            [
+              {
+                id: data.id,
+                name: data.name,
+                category: data.category as FormationCategory,
+                players: data.players as PlayerPosition[],
+                createdAt: data.created_at,
+              },
+              ...prev,
+            ].slice(0, 12),
+          )
+        }
+      })
 
     setFormationName('')
     setShowFormationModal(false)
-  }, [activeFrame.players, formations, formationCategory, formationName, userId])
+  }, [activeFrame.players, formationCategory, formationName, userId])
 
   const loadFormation = useCallback(
     (formation: Formation) => {
@@ -604,33 +516,9 @@ export function useTacticalBoard({
     downloadTextFile('rugbymove-move.svg', svg, 'image/svg+xml')
   }, [frames])
 
-  const persistLocally = useCallback(
-    (title: string): SavedMove => {
-      const move: SavedMove = {
-        id: crypto.randomUUID(),
-        title,
-        frames: normalizeFrames(frames),
-        updatedAt: new Date().toISOString(),
-      }
-      saveMoveToStorage(move)
-      setSavedPlays((prev) => [move, ...prev.filter((p) => p.id !== move.id)].slice(0, 24))
-      return move
-    },
-    [frames],
-  )
-
-  const handleSaveLocally = useCallback(
-    (title: string) => {
-      persistLocally(title)
-      setSaveStatus('Saved locally.')
-    },
-    [persistLocally],
-  )
-
   const handleSaveToPlaybook = useCallback(
     async (playbookId: string, title: string) => {
-      const move = persistLocally(title)
-      const normalizedFrames = move.frames
+      const normalizedFrames = normalizeFrames(frames)
       try {
         const play = await savePlay({
           id:
@@ -654,15 +542,11 @@ export function useTacticalBoard({
             { onConflict: 'playbook_id,play_id' },
           )
         setSaveStatus('Saved to playbook.')
-      } catch (error) {
-        setSaveStatus(
-          error instanceof Error && error.message.includes('signed in')
-            ? 'Saved locally. Log in to save to your account.'
-            : 'Saved locally. Account save failed.',
-        )
+      } catch {
+        setSaveStatus('Save failed. Please try again.')
       }
     },
-    [isPublic, playCategory, playDescription, playId, persistLocally],
+    [isPublic, playCategory, playDescription, playId, frames],
   )
 
   const addLine = useCallback(
@@ -689,15 +573,6 @@ export function useTacticalBoard({
       )
     },
     [activeFrameIndex],
-  )
-
-  const handleLoadPlay = useCallback(
-    (play: SavedMove) => {
-      stopPlayback()
-      setFrames(normalizeFrames(play.frames))
-      setActiveFrameIndex(0)
-    },
-    [stopPlayback],
   )
 
   const playFrames = useCallback(() => {
@@ -758,7 +633,6 @@ export function useTacticalBoard({
     panelTab,
     setPanelTab,
     userId,
-    savedPlays,
     playbooks,
     setPlaybooks,
     tool,
@@ -779,9 +653,7 @@ export function useTacticalBoard({
     saveFormation,
     loadFormation,
     exportMove,
-    handleSaveLocally,
     handleSaveToPlaybook,
-    handleLoadPlay,
     playFrames,
     stopPlayback,
   }
