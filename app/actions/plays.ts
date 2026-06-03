@@ -39,14 +39,14 @@ const savePlaySchema = z.object({
   id: z.string().uuid().optional(),
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(2000).optional().nullable(),
-  category: z.enum(['Attacking', 'Defending', 'SetPiece']),
+  category: z.enum(['Scrum', 'Lineout', 'Open Play', 'Penalty', 'Kick Off', 'Other']),
   animation_data: animationDataSchema,
-  is_public: z.boolean().default(false),
 })
 
 const formationSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().trim().min(1).max(80),
+  category: z.enum(['Scrum', 'Lineout', 'Penalty', 'Open Play']),
   players: z.array(
     z.object({
       id: z.string().min(1).max(12),
@@ -136,7 +136,7 @@ export async function saveFormation(input: SaveFormationInput) {
       },
       { onConflict: 'id' },
     )
-    .select('id,name,players,updated_at')
+    .select('id,name,category,players,updated_at')
     .single()
 
   if (error) {

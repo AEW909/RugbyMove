@@ -18,7 +18,7 @@ async function requireUser() {
   return { supabase, admin, user: user! }
 }
 
-const visibilitySchema = z.enum(['private', 'public'])
+const visibilitySchema = z.enum(['private', 'team', 'public'])
 const roleSchema = z.enum(['editor', 'viewer'])
 
 export async function createPlaybook(formData: FormData): Promise<void> {
@@ -229,16 +229,49 @@ export async function reorderPlaybookPlays(
 
 export async function removeMember(formData: FormData): Promise<void> {
   const playbookId = z.string().uuid().parse(formData.get('playbook_id'))
-  const userId = z.string().uuid().parse(formData.get('user_id'))
+  const playId = z.string().uuid().parse(formData.get('play_id'))
+  const direction = z.enum(['up', 'down']).parse(formData.get('direction'))
 
   const { admin } = await requireUser()
-  const { error } = await admin
-    .from('playbook_members')
-    .delete()
-    .eq('playbook_id', playbookId)
-    .eq('user_id', userId)
 
-  if (error) redirect(`/playbooks/${playbookId}?error=${encodeURIComponent(error.message)}`)
+  const { data: plays } = await admin
+    .from('playbook_plays')
+    .select('play_id, sort_order')
+    .eq('playbook_id', playbookId)
+    .order('sort_order')
+    .order('play_id')
+
+  if (!plays || plays.length < 2) {
+    redirect(`/playbooks/${playbookId}`)
+  }
+
+  const idx = plays.findIndex((p) => p.play_id === playId)
+  const swapIdx = direction === 'up' ? idx - 1 : idx + 1
+
+  if (idx < 0 || swapIdx < 0 || swapIdx >= plays.length) {
+    redirect(`/playbooks/${playbookId}`)
+  }
+
+  // Normalise all sort_orders to 0-based sequential, then swap
+  const ordered = plays.map((p, i) => ({ play_id: p.play_id, sort_order: i }))
+  const tmp = ordered[idx].sort_order
+  ordered[idx].sort_order = ordered[swapIdx].sort_order
+  ordered[swapIdx].sort_order = tmp
+
+  await Promise.all([
+    admin
+      .from('playbook_plays')
+      .update({ sort_order: ordered[idx].sort_order })
+      .eq('playbook_id', playbookId)
+      .eq('play_id', ordered[idx].play_id),
+    admin
+      .from('playbook_plays')
+      .update({ sort_order: ordered[swapIdx].sort_order })
+      .eq('playbook_id', playbookId)
+      .eq('play_id', ordered[swapIdx].play_id),
+  ])
+
   revalidatePath(`/playbooks/${playbookId}`)
   redirect(`/playbooks/${playbookId}`)
 }
+

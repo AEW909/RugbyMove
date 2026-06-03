@@ -75,6 +75,27 @@ export async function requestPasswordReset(formData: FormData) {
   redirect('/recover?message=Password%20reset%20email%20sent')
 }
 
+export async function updateProfile(formData: FormData) {
+  const username = z.string().trim().min(1).max(30).regex(/^[a-zA-Z0-9_]+$/, 'Username can only contain letters, numbers and underscores').parse(formData.get('username'))
+  const display_name = z.string().trim().min(1).max(60).parse(formData.get('display_name'))
+
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/login')
+
+  const { error } = await supabase
+    .from('profiles')
+    .update({ username, display_name })
+    .eq('id', user.id)
+
+  if (error) {
+    redirect(`/account?error=${encodeURIComponent(error.message)}`)
+  }
+
+  revalidatePath('/account')
+  redirect('/account?message=Profile%20updated')
+}
+
 export async function updatePassword(formData: FormData) {
   const password = passwordSchema.parse(formData.get('password'))
   const confirmPassword = passwordSchema.parse(formData.get('confirmPassword'))

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
-import { savePlay } from '@/app/actions/plays'
+import { savePlay, saveFormation as saveFormationAction } from '@/app/actions/plays'
 import { createClient } from '@/lib/supabase/client'
 import type { Formation, FormationCategory } from '@/lib/board/storage'
 import type { Frame, Line, PlayerPosition, PlayCategory } from '@/types/play'
@@ -46,55 +46,32 @@ function interpolatePlayers(from: PlayerPosition[], to: PlayerPosition[], amount
 function downloadTextFile(filename: string, content: string, type: string) {
   const blob = new Blob([content], { type })
   const url = URL.createObjectURL(blob)
-  const anchor = document.createElement('a')
-  anchor.href = url
-  anchor.download = filename
-  anchor.click()
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  a.click()
   URL.revokeObjectURL(url)
 }
 
-function svgPositionValues(frames: Frame[], id: string, axis: 'x' | 'y') {
-  return frames
-    .map((frame) => clamp(frame.players.find((player) => player.id === id)?.[axis] ?? 50))
-    .join('%;%')
-    .concat('%')
-}
+function createAnimatedSvg(frames: Frame[]): string {
+  const W = 800, H = 600
+  const R = 14
+  const dur = frames.length * 0.9
 
-function createAnimatedSvg(frames: Frame[]) {
-  const safeFrames = normalizeFrames(frames)
-  const duration = Math.max(1, safeFrames.length - 1)
-
-  const tokenMarkup = tokens
-    .map((token) => {
-      const first = safeFrames[0].players.find((player) => player.id === token.id)
-      if (!first) return ''
-
-      const xValues = svgPositionValues(safeFrames, token.id, 'x')
-      const yValues = svgPositionValues(safeFrames, token.id, 'y')
-      const firstX = clamp(first.x)
-      const firstY = clamp(first.y)
-      const animateX = `<animate attributeName="cx" dur="${duration}s" values="${xValues}" fill="freeze" />`
-      const animateY = `<animate attributeName="cy" dur="${duration}s" values="${yValues}" fill="freeze" />`
-
-      if (token.side === 'ball') {
-        return `
-          <g>
-            <ellipse cx="${firstX}%" cy="${firstY}%" rx="2.8%" ry="1.6%" fill="#f8fafc" stroke="#14532d" stroke-width="0.45%">
-              ${animateX}${animateY}
-            </ellipse>
-          </g>`
-      }
-
-      const fill = token.side === 'attack' ? '#2563eb' : '#dc2626'
-      return `
-        <g>
-          <circle cx="${firstX}%" cy="${firstY}%" r="2.1%" fill="${fill}" stroke="#ffffff" stroke-width="0.35%">
-            ${animateX}${animateY}
-          </circle>
-          <text x="${firstX}%" y="${firstY}%" dominant-baseline="central" text-anchor="middle" fill="#ffffff" font-size="13" font-weight="700">${token.label}</text>
-        </g>`
+  const allIds = frames[0]?.players.map((p) => p.id) ?? []
+  const paths = allIds
+    .map((id) => {
+      const positions = frames.map((f) => f.players.find((p) => p.id === id) ?? { x: 0, y: 0 })
+      const xs = positions.map((p) => ((p.x / 100) * W).toFixed(1)).join(';')
+      const ys = positions.map((p) => ((p.y / 100) * H).toFixed(1)).join(';')
+      const isAttack = id.startsWith('attack')
+      const fill = isAttack ? '#2563eb' : '#dc2626'
+      return `<circle r="${R}" fill="${fill}">
+  <animate attributeName="cx" values="${xs}" dur="${dur}s" repeatCount="indefinite"/>
+  <animate attributeName="cy" values="${ys}" dur="${dur}s" repeatCount="indefinite"/>
+</circle>`
     })
-    .join('')
+    .join('\n')
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" width="1320" height="800" viewBox="0 0 1320 800">
@@ -121,7 +98,6 @@ export type TacticalBoardProps = {
   playTitle?: string
   playDescription?: string | null
   playCategory?: PlayCategory
-  isPublic?: boolean
   onFramesChange?: (frames: Frame[]) => void
   viewOnly?: boolean
 }
@@ -178,10 +154,10 @@ export function useTacticalBoard({
   playId,
   mode = 'saved',
   playDescription,
-  playCategory = 'Attacking',
-  isPublic = false,
+  playCategory = 'Other',
 }: TacticalBoardProps): UseTacticalBoardReturn {
   const animationRef = useRef<number | null>(null)
+  const originalFramesRef = useRef<Frame[] | null>(null)
   const [frames, setFrames] = useState<Frame[]>(() => normalizeFrames(initialFrames))
   const [activeFrameIndex, setActiveFrameIndex] = useState(0)
   const [displayPlayers, setDisplayPlayers] = useState<PlayerPosition[] | null>(null)
@@ -201,6 +177,7 @@ export function useTacticalBoard({
   const [lineDashed, setLineDashed] = useState(false)
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set())
 
+  // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
@@ -213,6 +190,49 @@ export function useTacticalBoard({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  // Load formations: DB if logged in, localStorage fallback
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
+        try {
+          const saved = window.localStorage.getItem(storageKeys.formations)
+          setFormations(saved ? JSON.parse(saved) : [])
+        } catch {
+          setFormations([])
+        }
+        return
+      }
+      supabase
+        .from('formations')
+        .select('id,name,category,players,updated_at')
+        .eq('user_id', user.id)
+        .order('updated_at', { ascending: false })
+        .limit(24)
+        .then(({ data }) => {
+          if (!data || data.length === 0) {
+            try {
+              const saved = window.localStorage.getItem(storageKeys.formations)
+              setFormations(saved ? JSON.parse(saved) : [])
+            } catch {
+              setFormations([])
+            }
+            return
+          }
+          const dbFormations: Formation[] = data.map((f) => ({
+            id: f.id,
+            name: f.name,
+            category: f.category as FormationCategory,
+            players: f.players as PlayerPosition[],
+            createdAt: f.updated_at,
+          }))
+          setFormations(dbFormations)
+          window.localStorage.setItem(storageKeys.formations, JSON.stringify(dbFormations))
+        })
+    })
+  }, [])
+
+  // Initialise frames from pending move/formation or mode
   useEffect(() => {
     if (mode === 'fresh') {
       setFrames([defaultFrame])
@@ -220,6 +240,7 @@ export function useTacticalBoard({
     }
   }, [mode])
 
+  // Load saved plays and playbooks
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -343,7 +364,7 @@ export function useTacticalBoard({
 
   const resetBoard = useCallback(() => {
     stopPlayback()
-    setFrames([defaultFrame])
+    setFrames(originalFramesRef.current ?? [defaultFrame])
     setActiveFrameIndex(0)
   }, [stopPlayback])
 
@@ -422,9 +443,8 @@ export function useTacticalBoard({
               ? playId
               : undefined,
           title,
-          description: playDescription,
-          category: playCategory,
-          is_public: isPublic,
+          description: playDescription ?? null,
+          category: playCategory ?? 'Other',
           animation_data: { frames: normalizedFrames },
         })
         const supabase = createClient()

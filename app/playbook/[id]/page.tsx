@@ -61,7 +61,6 @@ async function getPlay(id: string): Promise<Play | null> {
       description: 'Start from a blank board or load one of your saved formations.',
       category: 'Attacking',
       animation_data: { frames: [] },
-      is_public: false,
       updated_at: new Date().toISOString(),
       profiles: null,
     }
@@ -74,9 +73,8 @@ async function getPlay(id: string): Promise<Play | null> {
       title: 'Wide pod launch',
       description:
         'A simple two-frame pattern that shifts the defensive line before releasing the ball wide.',
-      category: 'Attacking',
+      category: 'Open Play' as const,
       animation_data: demoAnimationData,
-      is_public: true,
       updated_at: new Date().toISOString(),
       profiles: {
         username: 'coach-demo',
@@ -88,7 +86,7 @@ async function getPlay(id: string): Promise<Play | null> {
   const { data, error } = await supabase
     .from('plays')
     .select(
-      'id,user_id,title,description,category,animation_data,is_public,updated_at,profiles(username)',
+      'id,user_id,title,description,category,animation_data,updated_at,profiles(username)',
     )
     .eq('id', id)
     .single()

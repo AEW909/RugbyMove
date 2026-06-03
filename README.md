@@ -1,6 +1,6 @@
-# RugbySlate Clone
+# RugbyMove
 
-A production-ready Next.js App Router scaffold for a RugbySlate.com-style tactical playbook app.
+A production-ready Next.js App Router scaffold for a rugby based tactical playbook app.
 
 ## Stack
 

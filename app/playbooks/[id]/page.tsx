@@ -1,10 +1,12 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { BookOpen, Globe, Lock, Trash2 } from 'lucide-react'
+import { BookOpen, ChevronDown, ChevronUp, Globe, Lock, Users, Trash2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
+import AppHeader from '@/components/AppHeader'
 import {
   addMember,
   addPlayToPlaybook,
+  movePlayInPlaybook,
   removeMember,
   removePlayFromPlaybook,
   updatePlaybook,
@@ -27,7 +29,8 @@ const CATEGORY_LABEL: Record<PlayCategory, string> = {
 
 const visibilityOptions = [
   { value: 'private', label: 'Private', desc: 'Only you', Icon: Lock },
-  { value: 'public', label: 'Public', desc: 'Anyone with the link', Icon: Globe },
+  { value: 'team',    label: 'Team',    desc: 'Members you invite', Icon: Users },
+  { value: 'public',  label: 'Public',  desc: 'Anyone with the link', Icon: Globe },
 ] as const
 
 export default async function PlaybookDetailPage({ params, searchParams }: PageProps) {
@@ -160,7 +163,7 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
 
               {playbookPlaysRows && playbookPlaysRows.length > 0 ? (
                 <ul className="mt-4 space-y-2">
-                  {playbookPlaysRows.map((row) => {
+                  {playbookPlaysRows.map((row, idx) => {
                     const play = row.plays as unknown as {
                       id: string
                       title: string
@@ -173,7 +176,7 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                         key={row.play_id}
                         className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 p-3"
                       >
-                        <div className="min-w-0">
+                        <div className="min-w-0 flex-1">
                           <Link
                             href={`/playbook/${play.id}?from=${params.id}`}
                             className="truncate font-medium text-white transition-colors hover:text-blue-400"
@@ -183,17 +186,45 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                           <p className="text-xs text-white/40">{play.category}</p>
                         </div>
                         {canManage && (
-                          <form action={removePlayFromPlaybook}>
-                            <input type="hidden" name="playbook_id" value={params.id} />
-                            <input type="hidden" name="play_id" value={play.id} />
-                            <button
-                              type="submit"
-                              aria-label="Remove move"
-                              className="rounded-lg p-1.5 text-white/30 transition hover:bg-red-500/10 hover:text-red-400"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </form>
+                          <div className="flex shrink-0 items-center gap-1">
+                            <form action={movePlayInPlaybook}>
+                              <input type="hidden" name="playbook_id" value={params.id} />
+                              <input type="hidden" name="play_id" value={play.id} />
+                              <input type="hidden" name="direction" value="up" />
+                              <button
+                                type="submit"
+                                disabled={idx === 0}
+                                aria-label="Move up"
+                                className="rounded-lg p-1.5 text-white/30 transition hover:bg-white/10 hover:text-white disabled:opacity-20"
+                              >
+                                <ChevronUp className="h-4 w-4" />
+                              </button>
+                            </form>
+                            <form action={movePlayInPlaybook}>
+                              <input type="hidden" name="playbook_id" value={params.id} />
+                              <input type="hidden" name="play_id" value={play.id} />
+                              <input type="hidden" name="direction" value="down" />
+                              <button
+                                type="submit"
+                                disabled={idx === total - 1}
+                                aria-label="Move down"
+                                className="rounded-lg p-1.5 text-white/30 transition hover:bg-white/10 hover:text-white disabled:opacity-20"
+                              >
+                                <ChevronDown className="h-4 w-4" />
+                              </button>
+                            </form>
+                            <form action={removePlayFromPlaybook}>
+                              <input type="hidden" name="playbook_id" value={params.id} />
+                              <input type="hidden" name="play_id" value={play.id} />
+                              <button
+                                type="submit"
+                                aria-label="Remove move"
+                                className="rounded-lg p-1.5 text-white/30 transition hover:bg-red-500/10 hover:text-red-400"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </form>
+                          </div>
                         )}
                       </li>
                     )
