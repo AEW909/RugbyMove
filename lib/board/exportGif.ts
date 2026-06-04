@@ -41,60 +41,100 @@ function drawFrame(ctx: CanvasRenderingContext2D, players: PlayerPosition[]) {
   ctx.fillStyle = '#15803d'
   ctx.fillRect(0, 0, W, H)
 
-  // Attack tray (left)
-  ctx.fillStyle = 'rgba(37, 99, 235, 0.25)'
-  ctx.fillRect(0, 0, TRAY_W, H)
+  // ── Helpers ──
+  const px = (xPct: number) => toCanvasX(xPct)
+  const py = (yPct: number) => toCanvasY(yPct)
 
-  // Defence tray (right)
-  ctx.fillStyle = 'rgba(185, 28, 28, 0.25)'
-  ctx.fillRect(W - TRAY_W, 0, TRAY_W, H)
-
-  // ── Pitch lines ──
-  ctx.save()
-  ctx.strokeStyle = 'rgba(255,255,255,0.75)'
-  ctx.lineWidth = 2
-
-  const line = (xPct: number, dashed = false) => {
-    const x = toCanvasX(xPct)
+  const vline = (xPct: number, alpha: number, width = 1.5, dashed = false) => {
+    const x = px(xPct)
+    ctx.save()
+    ctx.globalAlpha = alpha
+    ctx.lineWidth = width
+    ctx.setLineDash(dashed ? [8, 6] : [])
     ctx.beginPath()
-    if (dashed) ctx.setLineDash([8, 8])
-    else ctx.setLineDash([])
     ctx.moveTo(x, 0)
     ctx.lineTo(x, H)
     ctx.stroke()
+    ctx.restore()
   }
 
-  // In-goal (5%)
-  ctx.globalAlpha = 0.85
-  line(5)
-  line(95)
+  const hline = (yPct: number, alpha: number, dashed = false) => {
+    const y = py(yPct)
+    ctx.save()
+    ctx.globalAlpha = alpha
+    ctx.lineWidth = 1
+    ctx.setLineDash(dashed ? [6, 8] : [])
+    ctx.beginPath()
+    ctx.moveTo(0, y)
+    ctx.lineTo(W, y)
+    ctx.stroke()
+    ctx.restore()
+  }
 
-  // 22m (26.67%)
-  ctx.globalAlpha = 0.75
-  line(26.67)
-  line(73.33)
+  const crosshair = (xPct: number, yPct: number) => {
+    const x = px(xPct)
+    const y = py(yPct)
+    const s = 5
+    ctx.save()
+    ctx.globalAlpha = 0.55
+    ctx.lineWidth = 1.5
+    ctx.setLineDash([])
+    ctx.beginPath()
+    ctx.moveTo(x - s, y); ctx.lineTo(x + s, y)
+    ctx.moveTo(x, y - s); ctx.lineTo(x, y + s)
+    ctx.stroke()
+    ctx.restore()
+  }
 
-  // 10m (41.67%)
-  ctx.globalAlpha = 0.65
-  line(41.67)
-  line(58.33)
+  ctx.strokeStyle = 'rgba(255,255,255,1)'
 
-  // Halfway (50%)
+  // In-goal shading
+  ctx.fillStyle = 'rgba(255,255,255,0.04)'
+  ctx.fillRect(0, 0, px(8.33), H)
+  ctx.fillRect(px(91.67), 0, W - px(91.67), H)
+
+  // Touchlines (top/bottom) and dead-ball lines (left/right)
+  ctx.save()
   ctx.globalAlpha = 0.7
-  ctx.strokeStyle = 'rgba(255,255,255,0.85)'
-  line(50)
+  ctx.lineWidth = 2
+  ctx.setLineDash([])
+  ctx.strokeRect(0, 0, W, H)
+  ctx.restore()
 
-  // 5m lineout (dashed)
-  ctx.strokeStyle = 'rgba(255,255,255,0.45)'
+  // Try lines
+  vline(8.33, 0.85, 2)
+  vline(91.67, 0.85, 2)
+
+  // 22m lines
+  vline(26.67, 0.65)
+  vline(73.33, 0.65)
+
+  // 10m lines (dashed)
+  vline(41.67, 0.45, 1, true)
+  vline(58.33, 0.45, 1, true)
+
+  // Halfway
+  vline(50, 0.75, 1.5)
+
+  // Lineout horizontals — 5m (7.14%) and 15m (21.43%) from each touchline
+  hline(7.14, 0.35, true)
+  hline(92.86, 0.35, true)
+  hline(21.43, 0.25, true)
+  hline(78.57, 0.25, true)
+
+  // Crosshairs: try × 5m, try × 15m, 22m × 5m, 22m × 15m (both ends)
+  const xLines = [8.33, 91.67, 26.67, 73.33]
+  const yLines = [7.14, 92.86, 21.43, 78.57]
+  for (const x of xLines) for (const y of yLines) crosshair(x, y)
+
+  // Centre spot
+  ctx.save()
   ctx.globalAlpha = 0.5
-  line(7.14, true)
-  line(92.86, true)
-
-  // 15m lineout (dashed)
-  line(21.43, true)
-  line(78.57, true)
-
-  ctx.globalAlpha = 1
+  ctx.lineWidth = 1.5
+  ctx.setLineDash([])
+  ctx.beginPath()
+  ctx.arc(px(50), py(50), 4, 0, Math.PI * 2)
+  ctx.stroke()
   ctx.restore()
 
   // ── Tokens ──

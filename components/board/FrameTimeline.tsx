@@ -112,7 +112,7 @@ export default function FrameTimeline({
       <div
         ref={trackRef}
         className={cn(
-          'relative h-10 w-full touch-none',
+          'relative h-12 w-full touch-none',
           scrubbing ? 'cursor-grabbing' : 'cursor-pointer',
         )}
         onPointerDown={handleTrackPointerDown}
@@ -215,14 +215,31 @@ export default function FrameTimeline({
           )
         })}
 
-        {/* Playhead */}
+        {/* Playhead — wide hit zone + visible line + grab dot */}
         <div
+          data-marker
           className={cn(
-            'pointer-events-none absolute top-0 h-full w-px bg-white/80',
-            isPlaying && 'transition-none',
+            'absolute top-0 flex h-full cursor-grab items-center justify-center active:cursor-grabbing',
+            scrubbing && 'cursor-grabbing',
           )}
-          style={{ left: `${playheadXPct}%` }}
-        />
+          style={{ left: `${playheadXPct}%`, width: '28px', transform: 'translateX(-50%)' }}
+          onPointerDown={(e) => {
+            e.stopPropagation()
+            e.currentTarget.setPointerCapture(e.pointerId)
+            setScrubbing(true)
+            onScrub(ptrToMs(e.clientX))
+          }}
+          onPointerMove={(e) => {
+            if (!scrubbing || e.buttons !== 1) return
+            onScrub(ptrToMs(e.clientX))
+          }}
+          onPointerUp={() => setScrubbing(false)}
+        >
+          {/* Visible line */}
+          <div className="pointer-events-none absolute inset-y-0 left-1/2 w-0.5 -translate-x-px bg-white/90" />
+          {/* Grab dot centred on groove */}
+          <div className="pointer-events-none absolute top-1/2 left-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-white shadow-md shadow-black/40" />
+        </div>
       </div>
     </div>
   )

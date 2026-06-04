@@ -384,27 +384,57 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           onPointerMove={viewOnly ? undefined : handleBoardPointerMove}
           onPointerUp={viewOnly ? undefined : handleBoardPointerUp}
         >
-          {/* Pitch markings — proportions based on 120m×70m full pitch (10m in-goals) */}
-          <div className="pointer-events-none absolute inset-0">
-            {/* In-goal areas: 10m deep = 8.33% of 120m */}
-            <div className="absolute inset-y-0 left-0 w-[8.33%] border-r-2 border-white/80 bg-blue-900/20" />
-            <div className="absolute inset-y-0 right-0 w-[8.33%] border-l-2 border-white/80 bg-red-900/20" />
-            {/* 22m lines: 32m from dead-ball = 26.67% */}
-            <div className="absolute inset-y-0 left-[26.67%] w-px bg-white/65" />
-            <div className="absolute inset-y-0 right-[26.67%] w-px bg-white/65" />
-            {/* 10m lines: 50m from dead-ball = 41.67% */}
-            <div className="absolute inset-y-0 left-[41.67%] w-px border-l border-dashed border-white/45" />
-            <div className="absolute inset-y-0 right-[41.67%] w-px border-r border-dashed border-white/45" />
-            {/* Halfway line: 60m = 50% */}
-            <div className="absolute inset-y-0 left-1/2 w-px bg-white/70" />
-            {/* Centre spot cross */}
-            <div className="absolute inset-x-0 top-1/2 h-px bg-white/30" />
-            {/* Lineout lines — 5m from touchline = 7.14% of 70m; 15m = 21.43% */}
-            <div className="absolute inset-x-0 top-[7.14%] h-px bg-white/30 [background:repeating-linear-gradient(90deg,rgba(255,255,255,0.3)_0,rgba(255,255,255,0.3)_6px,transparent_6px,transparent_12px)]" />
-            <div className="absolute inset-x-0 bottom-[7.14%] h-px bg-white/30 [background:repeating-linear-gradient(90deg,rgba(255,255,255,0.3)_0,rgba(255,255,255,0.3)_6px,transparent_6px,transparent_12px)]" />
-            <div className="absolute inset-x-0 top-[21.43%] h-px [background:repeating-linear-gradient(90deg,rgba(255,255,255,0.2)_0,rgba(255,255,255,0.2)_6px,transparent_6px,transparent_12px)]" />
-            <div className="absolute inset-x-0 bottom-[21.43%] h-px [background:repeating-linear-gradient(90deg,rgba(255,255,255,0.2)_0,rgba(255,255,255,0.2)_6px,transparent_6px,transparent_12px)]" />
-          </div>
+          {/* Pitch markings — 120m×70m pitch, 10m in-goals */}
+          <svg className="pointer-events-none absolute inset-0 h-full w-full" xmlns="http://www.w3.org/2000/svg">
+            {/* In-goal shading */}
+            <rect x="0" y="0" width="8.33%" height="100%" fill="rgba(255,255,255,0.04)" />
+            <rect x="91.67%" y="0" width="8.33%" height="100%" fill="rgba(255,255,255,0.04)" />
+
+            {/* Touchlines (top/bottom) */}
+            <line x1="0" y1="0" x2="100%" y2="0" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+            <line x1="0" y1="100%" x2="100%" y2="100%" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+
+            {/* Dead-ball / try lines */}
+            <line x1="0" y1="0" x2="0" y2="100%" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+            <line x1="100%" y1="0" x2="100%" y2="100%" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+
+            {/* Try lines (in-goal boundaries) */}
+            <line x1="8.33%" y1="0" x2="8.33%" y2="100%" stroke="rgba(255,255,255,0.85)" strokeWidth="2" />
+            <line x1="91.67%" y1="0" x2="91.67%" y2="100%" stroke="rgba(255,255,255,0.85)" strokeWidth="2" />
+
+            {/* 22m lines */}
+            <line x1="26.67%" y1="0" x2="26.67%" y2="100%" stroke="rgba(255,255,255,0.65)" strokeWidth="1" />
+            <line x1="73.33%" y1="0" x2="73.33%" y2="100%" stroke="rgba(255,255,255,0.65)" strokeWidth="1" />
+
+            {/* 10m lines (dashed) */}
+            <line x1="41.67%" y1="0" x2="41.67%" y2="100%" stroke="rgba(255,255,255,0.45)" strokeWidth="1" strokeDasharray="8 6" />
+            <line x1="58.33%" y1="0" x2="58.33%" y2="100%" stroke="rgba(255,255,255,0.45)" strokeWidth="1" strokeDasharray="8 6" />
+
+            {/* Halfway */}
+            <line x1="50%" y1="0" x2="50%" y2="100%" stroke="rgba(255,255,255,0.75)" strokeWidth="1.5" />
+
+            {/* Lineout lines — 5m (7.14%) and 15m (21.43%) from each touchline */}
+            <line x1="0" y1="7.14%" x2="100%" y2="7.14%" stroke="rgba(255,255,255,0.35)" strokeWidth="1" strokeDasharray="6 8" />
+            <line x1="0" y1="92.86%" x2="100%" y2="92.86%" stroke="rgba(255,255,255,0.35)" strokeWidth="1" strokeDasharray="6 8" />
+            <line x1="0" y1="21.43%" x2="100%" y2="21.43%" stroke="rgba(255,255,255,0.25)" strokeWidth="1" strokeDasharray="6 8" />
+            <line x1="0" y1="78.57%" x2="100%" y2="78.57%" stroke="rgba(255,255,255,0.25)" strokeWidth="1" strokeDasharray="6 8" />
+
+            {/* Crosshairs at lineout positions — try line × 5m/15m; 22m × 5m/15m */}
+            {[
+              ['8.33%', '7.14%'], ['8.33%', '92.86%'], ['8.33%', '21.43%'], ['8.33%', '78.57%'],
+              ['91.67%', '7.14%'], ['91.67%', '92.86%'], ['91.67%', '21.43%'], ['91.67%', '78.57%'],
+              ['26.67%', '7.14%'], ['26.67%', '92.86%'], ['26.67%', '21.43%'], ['26.67%', '78.57%'],
+              ['73.33%', '7.14%'], ['73.33%', '92.86%'], ['73.33%', '21.43%'], ['73.33%', '78.57%'],
+            ].map(([cx, cy], idx) => (
+              <g key={idx} transform={`translate(${cx},${cy})`}>
+                <line x1="-5" y1="0" x2="5" y2="0" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
+                <line x1="0" y1="-5" x2="0" y2="5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
+              </g>
+            ))}
+
+            {/* Centre spot */}
+            <circle cx="50%" cy="50%" r="3" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" />
+          </svg>
 
           {/* Lines SVG — pointer-events enabled in draw mode */}
           <svg
