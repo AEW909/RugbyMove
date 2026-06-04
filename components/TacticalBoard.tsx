@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import {
   BoxSelect,
@@ -33,43 +33,68 @@ const LINE_COLORS = [
 ]
 
 const MIN_LINE_LENGTH_PCT = 2
+const MAX_ZOOM = 4
+const ZOOM_FACTOR = 1.15
 
 export default function TacticalBoard(props: TacticalBoardProps) {
   const board = useTacticalBoard(props)
   const boardRef = useRef<HTMLDivElement>(null)
 
+  // ── Edit state ──
   const selectionStartRef = useRef<{ x: number; y: number } | null>(null)
   const [selectionBox, setSelectionBox] = useState<{
     x1: number; y1: number; x2: number; y2: number
   } | null>(null)
-
   const drawStartRef = useRef<{ x: number; y: number } | null>(null)
   const [pendingLine, setPendingLine] = useState<{
     from: { x: number; y: number }; to: { x: number; y: number }
   } | null>(null)
 
+  // ── UI toggles ──
   const isMobile = useIsMobile()
   const { playTitle = 'Untitled move', viewOnly: viewOnlyProp = false } = props
   const [desktopViewOnly, setDesktopViewOnly] = useState(false)
   const [pitchPortrait, setPitchPortrait] = useState(false)
   const viewOnly = viewOnlyProp || isMobile || desktopViewOnly
 
-  const getBoardPct = (clientX: number, clientY: number) => {
+  // ── Zoom / pan state ──
+  const [zoom, setZoom] = useState(1)
+  const [panX, setPanX] = useState(0) // screen pixels
+  const [panY, setPanY] = useState(0) // screen pixels
+
+  // Gesture tracking refs (pointer id → position)
+  const activePointersRef = useRef<Map<number, { x: number; y: number }>>(new Map())
+  const panStartRef = useRef<{ x: number; y: number; startPanX: number; startPanY: number } | null>(null)
+  const pinchStartRef = useRef<{ dist: number; startZoom: number; startPanX: number; startPanY: number } | null>(null)
+
+  const clampPan = (px: number, py: number, z: number, r: DOMRect) => ({
+    x: Math.min(r.width / 2 * (z - 1),  Math.max(-r.width / 2 * (z - 1),  px)),
+    y: Math.min(r.height / 2 * (z - 1), Math.max(-r.height / 2 * (z - 1), py)),
+  })
+
+  const resetZoom = () => { setZoom(1); setPanX(0); setPanY(0) }
+
+  // ── Coordinate mapping (accounts for zoom + pan) ──
+  // transform: scale(zoom) translate(panX/zoom px, panY/zoom px) with origin center
+  // Inverse: lx = (screenX - cx) / zoom + cx - panX/zoom
+  const toBoard = (clientX: number, clientY: number) => {
     const el = boardRef.current
     if (!el) return { x: 0, y: 0 }
     const r = el.getBoundingClientRect()
+    const cx = r.width / 2
+    const cy = r.height / 2
+    const lx = (clientX - r.left - cx) / zoom + cx - panX / zoom
+    const ly = (clientY - r.top - cy) / zoom + cy - panY / zoom
     return {
-      x: Math.min(100, Math.max(0, ((clientX - r.left) / r.width) * 100)),
-      y: Math.min(100, Math.max(0, ((clientY - r.top) / r.height) * 100)),
+      x: Math.min(100, Math.max(0, (lx / r.width) * 100)),
+      y: Math.min(100, Math.max(0, (ly / r.height) * 100)),
     }
   }
 
   // ── Player drag ──
   const updatePlayerPosition = (id: string, clientX: number, clientY: number) => {
-    const el = boardRef.current
-    if (!el) return
-    const rect = el.getBoundingClientRect()
-    board.movePlayer(id, ((clientX - rect.left) / rect.width) * 100, ((clientY - rect.top) / rect.height) * 100)
+    const { x, y } = toBoard(clientX, clientY)
+    board.movePlayer(id, x, y)
   }
 
   const handlePointerDown = (id: string) => (e: React.PointerEvent<HTMLButtonElement>) => {
@@ -82,47 +107,145 @@ export default function TacticalBoard(props: TacticalBoardProps) {
     updatePlayerPosition(id, e.clientX, e.clientY)
   }
 
+  // ── Scroll-wheel zoom ──
+  const handleWheel = useCallback((e: WheelEvent) => {
+    e.preventDefault()
+    const r = boardRef.current?.getBoundingClientRect()
+    if (!r) return
+    const factor = e.deltaY < 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR
+    const newZoom = Math.min(MAX_ZOOM, Math.max(1, zoom * factor))
+    if (newZoom === zoom) return
+    // Zoom toward cursor
+    const dx = e.clientX - r.left - r.width / 2
+    const dy = e.clientY - r.top - r.height / 2
+    const rawPanX = dx * (1 - newZoom / zoom) + panX * newZoom / zoom
+    const rawPanY = dy * (1 - newZoom / zoom) + panY * newZoom / zoom
+    const clamped = clampPan(rawPanX, rawPanY, newZoom, r)
+    setZoom(newZoom)
+    setPanX(clamped.x)
+    setPanY(clamped.y)
+  }, [zoom, panX, panY])
+
+  useEffect(() => {
+    const el = boardRef.current
+    if (!el) return
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => el.removeEventListener('wheel', handleWheel)
+  }, [handleWheel])
+
   // ── Board pointer handlers ──
   const handleBoardPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const target = e.target as Element
+    activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
 
+    // ── Pinch: two fingers ──
+    if (activePointersRef.current.size >= 2) {
+      const pts = Array.from(activePointersRef.current.values())
+      const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y)
+      pinchStartRef.current = { dist, startZoom: zoom, startPanX: panX, startPanY: panY }
+      panStartRef.current = null
+      return
+    }
+
+    // ── Pan: zoom > 1 + pointer tool or view-only + not on a player ──
+    if (zoom > 1 && !target.closest('[data-player]') && (viewOnly || board.tool === 'pointer')) {
+      e.currentTarget.setPointerCapture(e.pointerId)
+      panStartRef.current = { x: e.clientX, y: e.clientY, startPanX: panX, startPanY: panY }
+      return
+    }
+
+    if (viewOnly) return
+
+    // ── Select tool ──
     if (board.tool === 'select') {
       if (target.closest('[data-player]')) return
       e.currentTarget.setPointerCapture(e.pointerId)
-      const { x, y } = getBoardPct(e.clientX, e.clientY)
+      const { x, y } = toBoard(e.clientX, e.clientY)
       selectionStartRef.current = { x, y }
       setSelectionBox({ x1: x, y1: y, x2: x, y2: y })
       board.setSelectedPlayerIds(new Set())
       return
     }
 
+    // ── Draw tool ──
     if (board.tool === 'draw') {
       if (target.tagName.toLowerCase() === 'line') return
       e.currentTarget.setPointerCapture(e.pointerId)
-      const { x, y } = getBoardPct(e.clientX, e.clientY)
+      const { x, y } = toBoard(e.clientX, e.clientY)
       drawStartRef.current = { x, y }
       setPendingLine({ from: { x, y }, to: { x, y } })
     }
   }
 
   const handleBoardPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+    // ── Pinch ──
+    if (pinchStartRef.current && activePointersRef.current.size >= 2) {
+      const pts = Array.from(activePointersRef.current.values())
+      const dist = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y)
+      const { startZoom, startPanX, startPanY } = pinchStartRef.current
+      const newZoom = Math.min(MAX_ZOOM, Math.max(1, startZoom * dist / pinchStartRef.current.dist))
+      const el = boardRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      const midX = (pts[0].x + pts[1].x) / 2 - r.left - r.width / 2
+      const midY = (pts[0].y + pts[1].y) / 2 - r.top - r.height / 2
+      const rawPanX = midX * (1 - newZoom / startZoom) + startPanX * newZoom / startZoom
+      const rawPanY = midY * (1 - newZoom / startZoom) + startPanY * newZoom / startZoom
+      const clamped = clampPan(rawPanX, rawPanY, newZoom, r)
+      setZoom(newZoom)
+      setPanX(clamped.x)
+      setPanY(clamped.y)
+      return
+    }
+
+    // ── Pan ──
+    if (panStartRef.current && e.buttons === 1) {
+      const el = boardRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      const rawPanX = panStartRef.current.startPanX + (e.clientX - panStartRef.current.x)
+      const rawPanY = panStartRef.current.startPanY + (e.clientY - panStartRef.current.y)
+      const clamped = clampPan(rawPanX, rawPanY, zoom, r)
+      setPanX(clamped.x)
+      setPanY(clamped.y)
+      return
+    }
+
     if (e.buttons !== 1) return
 
+    // ── Select drag ──
     if (board.tool === 'select' && selectionStartRef.current) {
-      const { x, y } = getBoardPct(e.clientX, e.clientY)
+      const { x, y } = toBoard(e.clientX, e.clientY)
       setSelectionBox({ x1: selectionStartRef.current.x, y1: selectionStartRef.current.y, x2: x, y2: y })
       return
     }
 
+    // ── Draw drag ──
     if (board.tool === 'draw' && drawStartRef.current) {
-      const { x, y } = getBoardPct(e.clientX, e.clientY)
+      const { x, y } = toBoard(e.clientX, e.clientY)
       setPendingLine({ from: drawStartRef.current, to: { x, y } })
     }
   }
 
   const handleBoardPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    activePointersRef.current.delete(e.pointerId)
+
+    if (panStartRef.current) {
+      panStartRef.current = null
+      return
+    }
+    if (pinchStartRef.current) {
+      if (activePointersRef.current.size < 2) pinchStartRef.current = null
+      return
+    }
+
+    if (viewOnly) return
+
+    // ── Select finalize ──
     if (board.tool === 'select' && selectionStartRef.current) {
-      const { x, y } = getBoardPct(e.clientX, e.clientY)
+      const { x, y } = toBoard(e.clientX, e.clientY)
       const minX = Math.min(selectionStartRef.current.x, x)
       const minY = Math.min(selectionStartRef.current.y, y)
       const maxX = Math.max(selectionStartRef.current.x, x)
@@ -139,6 +262,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
       return
     }
 
+    // ── Draw finalize ──
     if (board.tool === 'draw' && drawStartRef.current && pendingLine) {
       const dx = pendingLine.to.x - pendingLine.from.x
       const dy = pendingLine.to.y - pendingLine.from.y
@@ -156,6 +280,20 @@ export default function TacticalBoard(props: TacticalBoardProps) {
       setPendingLine(null)
     }
   }
+
+  const handleBoardPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    activePointersRef.current.delete(e.pointerId)
+    panStartRef.current = null
+    if (activePointersRef.current.size < 2) pinchStartRef.current = null
+  }
+
+  // Cursor style on the board
+  const boardCursor = (() => {
+    if (panStartRef.current) return 'cursor-grabbing'
+    if (zoom > 1 && (viewOnly || board.tool === 'pointer')) return 'cursor-grab'
+    if (!viewOnly && (board.tool === 'select' || board.tool === 'draw')) return 'cursor-crosshair'
+    return ''
+  })()
 
   return (
     <section className={cn('overflow-visible bg-black', !isMobile && 'rounded-xl border border-white/10 shadow-toolbar')}>
@@ -388,216 +526,216 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           onDeleteFrame={board.deleteFrame}
         />
 
-        {/* Board canvas */}
+        {/* Board canvas — overflow-hidden clips the zoomed inner content */}
         <div
           ref={boardRef}
           className={cn(
             'relative aspect-[12/7] w-full overflow-hidden rounded-xl border border-white/10 bg-emerald-700 shadow-inner',
             !viewOnly && 'min-h-[260px]',
-            !viewOnly && (board.tool === 'select' || board.tool === 'draw') && 'cursor-crosshair',
+            boardCursor,
           )}
           aria-label="Rugby tactical board"
-          onPointerDown={viewOnly ? undefined : handleBoardPointerDown}
-          onPointerMove={viewOnly ? undefined : handleBoardPointerMove}
-          onPointerUp={viewOnly ? undefined : handleBoardPointerUp}
+          onPointerDown={handleBoardPointerDown}
+          onPointerMove={handleBoardPointerMove}
+          onPointerUp={handleBoardPointerUp}
+          onPointerCancel={handleBoardPointerCancel}
         >
-          {/* Pitch markings — 120m×70m pitch, 10m in-goals.
-               Portrait mode swaps x↔y so the long axis runs top-to-bottom
-               while the landscape board container stays unchanged. */}
-          <svg className="pointer-events-none absolute inset-0 h-full w-full" xmlns="http://www.w3.org/2000/svg">
-            {(() => {
-              // Coordinate helpers — swap x/y when portrait
-              const x = (v: string) => pitchPortrait ? '0' : v
-              const y = (v: string) => pitchPortrait ? v : '0'
-              const x2 = (v: string) => pitchPortrait ? '100%' : v
-              const y2 = (v: string) => pitchPortrait ? v : '100%'
-              // A "main-axis" line (across the pitch)
-              const mainLine = (pct: string, stroke: string, sw: number, dash?: string) =>
-                pitchPortrait ? (
-                  <line x1="0" y1={pct} x2="100%" y2={pct} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
-                ) : (
-                  <line x1={pct} y1="0" x2={pct} y2="100%" stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
-                )
-              // A "cross-axis" line (along the touchlines)
-              const crossLine = (pct: string, stroke: string, sw: number, dash?: string) =>
-                pitchPortrait ? (
-                  <line x1={pct} y1="0" x2={pct} y2="100%" stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
-                ) : (
-                  <line x1="0" y1={pct} x2="100%" y2={pct} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
-                )
-              // In-goal shading rect
-              const inGoalRect = (near: boolean) =>
-                pitchPortrait ? (
-                  <rect x="0" y={near ? '0' : '91.67%'} width="100%" height="8.33%" fill="rgba(255,255,255,0.04)" />
-                ) : (
-                  <rect x={near ? '0' : '91.67%'} y="0" width="8.33%" height="100%" fill="rgba(255,255,255,0.04)" />
-                )
-              // Crosshair helper — cx/cy in main-axis/cross-axis percentages
-              const cross = (mainPct: string, crossPct: string, idx: number) => {
-                const [cx, cy] = pitchPortrait ? [crossPct, mainPct] : [mainPct, crossPct]
-                return (
-                  <g key={idx} transform={`translate(${cx},${cy})`}>
-                    <line x1="-5" y1="0" x2="5" y2="0" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
-                    <line x1="0" y1="-5" x2="0" y2="5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
-                  </g>
-                )
-              }
+          {/* Zoom indicator — click to reset */}
+          {zoom > 1 && (
+            <button
+              type="button"
+              onClick={resetZoom}
+              className="absolute bottom-2 right-2 z-10 rounded-lg border border-white/20 bg-black/60 px-2 py-1 text-xs font-semibold text-white/70 backdrop-blur-sm transition hover:bg-black/80 hover:text-white"
+            >
+              {zoom.toFixed(1)}× reset
+            </button>
+          )}
 
-              const mainLines = ['8.33%', '91.67%', '26.67%', '73.33%']
-              const crossLines = ['7.14%', '92.86%', '21.43%', '78.57%']
-
-              return (
-                <>
-                  {/* In-goal shading */}
-                  {inGoalRect(true)}
-                  {inGoalRect(false)}
-
-                  {/* Pitch border */}
-                  <line x1={x('0')} y1={y('0')} x2={x2('0')} y2={y2('0')} stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-                  <line x1={x('100%')} y1={y('100%')} x2={x2('100%')} y2={y2('100%')} stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-                  <line x1={x('0')} y1={y('100%')} x2={x2('100%')} y2={y2('100%')} stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-                  <line x1={x('100%')} y1={y('0')} x2={x2('0')} y2={y2('0')} stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-
-                  {/* Try lines */}
-                  {mainLine('8.33%', 'rgba(255,255,255,0.85)', 2)}
-                  {mainLine('91.67%', 'rgba(255,255,255,0.85)', 2)}
-                  {/* 22m lines */}
-                  {mainLine('26.67%', 'rgba(255,255,255,0.65)', 1)}
-                  {mainLine('73.33%', 'rgba(255,255,255,0.65)', 1)}
-                  {/* 10m dashed */}
-                  {mainLine('41.67%', 'rgba(255,255,255,0.45)', 1, '8 6')}
-                  {mainLine('58.33%', 'rgba(255,255,255,0.45)', 1, '8 6')}
-                  {/* Halfway */}
-                  {mainLine('50%', 'rgba(255,255,255,0.75)', 1.5)}
-                  {/* Lineout horizontals */}
-                  {crossLine('7.14%', 'rgba(255,255,255,0.35)', 1, '6 8')}
-                  {crossLine('92.86%', 'rgba(255,255,255,0.35)', 1, '6 8')}
-                  {crossLine('21.43%', 'rgba(255,255,255,0.25)', 1, '6 8')}
-                  {crossLine('78.57%', 'rgba(255,255,255,0.25)', 1, '6 8')}
-
-                  {/* Crosshairs */}
-                  {mainLines.flatMap((m, mi) =>
-                    crossLines.map((c, ci) => cross(m, c, mi * 4 + ci))
-                  )}
-
-                  {/* Centre spot */}
-                  <circle cx="50%" cy="50%" r="3" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" />
-                </>
-              )
-            })()}
-          </svg>
-
-          {/* Lines SVG — pointer-events enabled in draw mode */}
-          <svg
-            className={cn(
-              'absolute inset-0 h-full w-full',
-              !viewOnly && board.tool === 'draw' ? 'pointer-events-auto' : 'pointer-events-none',
-            )}
+          {/* ── Zoomed inner content ── */}
+          <div
+            className="absolute inset-0"
+            style={{
+              transform: zoom !== 1 || panX !== 0 || panY !== 0
+                ? `scale(${zoom}) translate(${panX / zoom}px, ${panY / zoom}px)`
+                : undefined,
+              transformOrigin: 'center',
+              willChange: zoom !== 1 ? 'transform' : undefined,
+            }}
           >
-            {board.activeFrame.lines.map((line) => (
-              <g key={line.id}>
-                {!viewOnly && board.tool === 'draw' && (
+            {/* Pitch markings SVG */}
+            <svg className="pointer-events-none absolute inset-0 h-full w-full" xmlns="http://www.w3.org/2000/svg">
+              {(() => {
+                const mainLine = (pct: string, stroke: string, sw: number, dash?: string) =>
+                  pitchPortrait ? (
+                    <line x1="0" y1={pct} x2="100%" y2={pct} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
+                  ) : (
+                    <line x1={pct} y1="0" x2={pct} y2="100%" stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
+                  )
+                const crossLine = (pct: string, stroke: string, sw: number, dash?: string) =>
+                  pitchPortrait ? (
+                    <line x1={pct} y1="0" x2={pct} y2="100%" stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
+                  ) : (
+                    <line x1="0" y1={pct} x2="100%" y2={pct} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
+                  )
+                const inGoalRect = (near: boolean) =>
+                  pitchPortrait ? (
+                    <rect x="0" y={near ? '0' : '91.67%'} width="100%" height="8.33%" fill="rgba(255,255,255,0.04)" />
+                  ) : (
+                    <rect x={near ? '0' : '91.67%'} y="0" width="8.33%" height="100%" fill="rgba(255,255,255,0.04)" />
+                  )
+                const cross = (mainPct: string, crossPct: string, idx: number) => {
+                  const [cx, cy] = pitchPortrait ? [crossPct, mainPct] : [mainPct, crossPct]
+                  return (
+                    <g key={idx} transform={`translate(${cx},${cy})`}>
+                      <line x1="-5" y1="0" x2="5" y2="0" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
+                      <line x1="0" y1="-5" x2="0" y2="5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
+                    </g>
+                  )
+                }
+                // Pitch border helpers
+                const bx = (v: string) => pitchPortrait ? '0' : v
+                const by = (v: string) => pitchPortrait ? v : '0'
+                const bx2 = (v: string) => pitchPortrait ? '100%' : v
+                const by2 = (v: string) => pitchPortrait ? v : '100%'
+                const mainLines = ['8.33%', '91.67%', '26.67%', '73.33%']
+                const crossLines = ['7.14%', '92.86%', '21.43%', '78.57%']
+                return (
+                  <>
+                    {inGoalRect(true)}
+                    {inGoalRect(false)}
+                    <line x1={bx('0')} y1={by('0')} x2={bx2('0')} y2={by2('0')} stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+                    <line x1={bx('100%')} y1={by('100%')} x2={bx2('100%')} y2={by2('100%')} stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+                    <line x1={bx('0')} y1={by('100%')} x2={bx2('100%')} y2={by2('100%')} stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+                    <line x1={bx('100%')} y1={by('0')} x2={bx2('0')} y2={by2('0')} stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+                    {mainLine('8.33%', 'rgba(255,255,255,0.85)', 2)}
+                    {mainLine('91.67%', 'rgba(255,255,255,0.85)', 2)}
+                    {mainLine('26.67%', 'rgba(255,255,255,0.65)', 1)}
+                    {mainLine('73.33%', 'rgba(255,255,255,0.65)', 1)}
+                    {mainLine('41.67%', 'rgba(255,255,255,0.45)', 1, '8 6')}
+                    {mainLine('58.33%', 'rgba(255,255,255,0.45)', 1, '8 6')}
+                    {mainLine('50%', 'rgba(255,255,255,0.75)', 1.5)}
+                    {crossLine('7.14%', 'rgba(255,255,255,0.35)', 1, '6 8')}
+                    {crossLine('92.86%', 'rgba(255,255,255,0.35)', 1, '6 8')}
+                    {crossLine('21.43%', 'rgba(255,255,255,0.25)', 1, '6 8')}
+                    {crossLine('78.57%', 'rgba(255,255,255,0.25)', 1, '6 8')}
+                    {mainLines.flatMap((m, mi) => crossLines.map((c, ci) => cross(m, c, mi * 4 + ci)))}
+                    <circle cx="50%" cy="50%" r="3" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" />
+                  </>
+                )
+              })()}
+            </svg>
+
+            {/* Lines SVG — pointer-events enabled in draw mode */}
+            <svg
+              className={cn(
+                'absolute inset-0 h-full w-full',
+                !viewOnly && board.tool === 'draw' ? 'pointer-events-auto' : 'pointer-events-none',
+              )}
+            >
+              {board.activeFrame.lines.map((line) => (
+                <g key={line.id}>
+                  {!viewOnly && board.tool === 'draw' && (
+                    <line
+                      x1={`${line.from.x}%`} y1={`${line.from.y}%`}
+                      x2={`${line.to.x}%`} y2={`${line.to.y}%`}
+                      stroke="transparent"
+                      strokeWidth="16"
+                      strokeLinecap="round"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => board.deleteLine(line.id)}
+                    />
+                  )}
                   <line
                     x1={`${line.from.x}%`} y1={`${line.from.y}%`}
                     x2={`${line.to.x}%`} y2={`${line.to.y}%`}
-                    stroke="transparent"
-                    strokeWidth="16"
+                    stroke={line.color ?? '#f8fafc'}
+                    strokeWidth="3"
                     strokeLinecap="round"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => board.deleteLine(line.id)}
+                    strokeDasharray={line.dashed ? '8 8' : undefined}
+                    style={{ pointerEvents: 'none' }}
                   />
-                )}
+                </g>
+              ))}
+              {pendingLine && (
                 <line
-                  x1={`${line.from.x}%`} y1={`${line.from.y}%`}
-                  x2={`${line.to.x}%`} y2={`${line.to.y}%`}
-                  stroke={line.color ?? '#f8fafc'}
+                  x1={`${pendingLine.from.x}%`} y1={`${pendingLine.from.y}%`}
+                  x2={`${pendingLine.to.x}%`} y2={`${pendingLine.to.y}%`}
+                  stroke={board.lineColor}
                   strokeWidth="3"
                   strokeLinecap="round"
-                  strokeDasharray={line.dashed ? '8 8' : undefined}
+                  strokeDasharray={board.lineDashed ? '8 8' : undefined}
+                  opacity={0.55}
                   style={{ pointerEvents: 'none' }}
                 />
-              </g>
-            ))}
+              )}
+            </svg>
 
-            {pendingLine && (
-              <line
-                x1={`${pendingLine.from.x}%`} y1={`${pendingLine.from.y}%`}
-                x2={`${pendingLine.to.x}%`} y2={`${pendingLine.to.y}%`}
-                stroke={board.lineColor}
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeDasharray={board.lineDashed ? '8 8' : undefined}
-                opacity={0.55}
-                style={{ pointerEvents: 'none' }}
+            {/* Selection box */}
+            {selectionBox && (
+              <div
+                className="pointer-events-none absolute border-2 border-dashed border-yellow-400 bg-yellow-400/10"
+                style={{
+                  left: `${Math.min(selectionBox.x1, selectionBox.x2)}%`,
+                  top: `${Math.min(selectionBox.y1, selectionBox.y2)}%`,
+                  width: `${Math.abs(selectionBox.x2 - selectionBox.x1)}%`,
+                  height: `${Math.abs(selectionBox.y2 - selectionBox.y1)}%`,
+                }}
               />
             )}
-          </svg>
 
-          {/* Selection box */}
-          {selectionBox && (
-            <div
-              className="pointer-events-none absolute border-2 border-dashed border-yellow-400 bg-yellow-400/10"
-              style={{
-                left: `${Math.min(selectionBox.x1, selectionBox.x2)}%`,
-                top: `${Math.min(selectionBox.y1, selectionBox.y2)}%`,
-                width: `${Math.abs(selectionBox.x2 - selectionBox.x1)}%`,
-                height: `${Math.abs(selectionBox.y2 - selectionBox.y1)}%`,
-              }}
-            />
-          )}
+            {/* Player tokens */}
+            {tokens.map((token) => {
+              const player = board.playerById.get(token.id)
+              if (!player) return null
+              const canDrag = !viewOnly && board.tool !== 'draw'
 
-          {/* Player tokens */}
-          {tokens.map((token) => {
-            const player = board.playerById.get(token.id)
-            if (!player) return null
-            const canDrag = !viewOnly && board.tool !== 'draw'
-
-            return (
-              <button
-                type="button"
-                key={token.id}
-                data-player={token.id}
-                onPointerDown={canDrag ? handlePointerDown(token.id) : undefined}
-                onPointerMove={canDrag ? handlePointerMove(token.id) : undefined}
-                className={cn(
-                  'absolute flex select-none items-center justify-center border-2 text-[10px] font-bold shadow-lg focus:outline-none',
-                  canDrag && 'touch-none transition-transform hover:scale-110 focus:ring-2 focus:ring-yellow-300',
-                  token.side === 'attack' && 'border-blue-100 bg-blue-600 text-white',
-                  token.side === 'defend' && 'border-red-100 bg-red-600 text-white',
-                  token.side === 'ball' &&
-                    'h-6 w-10 rounded-[50%] border-emerald-900 bg-slate-50 text-transparent',
-                  token.side !== 'ball' && 'h-7 w-7 rounded-full sm:h-8 sm:w-8',
-                  !viewOnly && board.selectedPlayerIds.has(token.id) &&
-                    'ring-2 ring-yellow-400 ring-offset-1',
-                )}
-                style={{
-                  left: `${player.x}%`,
-                  top: `${player.y}%`,
-                  transform: 'translate(-50%, -50%)',
-                  pointerEvents: canDrag ? undefined : 'none',
-                }}
-                aria-label={
-                  token.side === 'ball'
-                    ? 'Ball'
-                    : `${token.side === 'attack' ? 'Attacking' : 'Defending'} player ${token.label}`
-                }
-              >
-                {token.side === 'ball' ? (
-                  <>
-                    <span className="absolute inset-[2px] rounded-[50%] border-t-2 border-[#e11d48]" />
-                    <span className="absolute inset-[4px] rounded-[50%] border-b-2 border-[#2563eb]" />
-                    <span className="absolute left-[5px] top-1/2 h-[14px] w-[4px] -translate-y-1/2 rounded-[50%] border-l-2 border-[#16a34a]" />
-                    <span className="absolute right-[5px] top-1/2 h-[14px] w-[4px] -translate-y-1/2 rounded-[50%] border-r-2 border-[#16a34a]" />
-                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[6px] font-black tracking-[0.08em] text-slate-900">
-                      G
-                    </span>
-                  </>
-                ) : (
-                  token.label
-                )}
-              </button>
-            )
-          })}
+              return (
+                <button
+                  type="button"
+                  key={token.id}
+                  data-player={token.id}
+                  onPointerDown={canDrag ? handlePointerDown(token.id) : undefined}
+                  onPointerMove={canDrag ? handlePointerMove(token.id) : undefined}
+                  className={cn(
+                    'absolute flex select-none items-center justify-center border-2 text-[10px] font-bold shadow-lg focus:outline-none',
+                    canDrag && 'touch-none transition-transform hover:scale-110 focus:ring-2 focus:ring-yellow-300',
+                    token.side === 'attack' && 'border-blue-100 bg-blue-600 text-white',
+                    token.side === 'defend' && 'border-red-100 bg-red-600 text-white',
+                    token.side === 'ball' &&
+                      'h-6 w-10 rounded-[50%] border-emerald-900 bg-slate-50 text-transparent',
+                    token.side !== 'ball' && 'h-7 w-7 rounded-full sm:h-8 sm:w-8',
+                    !viewOnly && board.selectedPlayerIds.has(token.id) &&
+                      'ring-2 ring-yellow-400 ring-offset-1',
+                  )}
+                  style={{
+                    left: `${player.x}%`,
+                    top: `${player.y}%`,
+                    transform: 'translate(-50%, -50%)',
+                    pointerEvents: canDrag ? undefined : 'none',
+                  }}
+                  aria-label={
+                    token.side === 'ball'
+                      ? 'Ball'
+                      : `${token.side === 'attack' ? 'Attacking' : 'Defending'} player ${token.label}`
+                  }
+                >
+                  {token.side === 'ball' ? (
+                    <>
+                      <span className="absolute inset-[2px] rounded-[50%] border-t-2 border-[#e11d48]" />
+                      <span className="absolute inset-[4px] rounded-[50%] border-b-2 border-[#2563eb]" />
+                      <span className="absolute left-[5px] top-1/2 h-[14px] w-[4px] -translate-y-1/2 rounded-[50%] border-l-2 border-[#16a34a]" />
+                      <span className="absolute right-[5px] top-1/2 h-[14px] w-[4px] -translate-y-1/2 rounded-[50%] border-r-2 border-[#16a34a]" />
+                      <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[6px] font-black tracking-[0.08em] text-slate-900">
+                        G
+                      </span>
+                    </>
+                  ) : (
+                    token.label
+                  )}
+                </button>
+              )
+            })}
+          </div>{/* end zoomed inner div */}
         </div>
       </div>
 
