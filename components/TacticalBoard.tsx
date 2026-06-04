@@ -12,6 +12,7 @@ import {
   Play,
   Plus,
   RotateCcw,
+  RotateCw,
   Users,
   X,
 } from 'lucide-react'
@@ -50,6 +51,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
   const isMobile = useIsMobile()
   const { playTitle = 'Untitled move', viewOnly: viewOnlyProp = false } = props
   const [desktopViewOnly, setDesktopViewOnly] = useState(false)
+  const [pitchPortrait, setPitchPortrait] = useState(false)
   const viewOnly = viewOnlyProp || isMobile || desktopViewOnly
 
   const getBoardPct = (clientX: number, clientY: number) => {
@@ -292,6 +294,21 @@ export default function TacticalBoard(props: TacticalBoardProps) {
               {desktopViewOnly ? 'View' : 'Edit'}
             </button>
 
+            {/* Pitch rotation toggle */}
+            <button
+              type="button"
+              title="Rotate pitch"
+              onClick={() => setPitchPortrait((p) => !p)}
+              className={cn(
+                'inline-flex items-center justify-center rounded-xl border p-2 transition',
+                pitchPortrait
+                  ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
+                  : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
+              )}
+            >
+              <RotateCw className="h-4 w-4" />
+            </button>
+
             {/* Draw tool colour + dashed options */}
             {board.tool === 'draw' && !desktopViewOnly && (
               <>
@@ -384,56 +401,90 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           onPointerMove={viewOnly ? undefined : handleBoardPointerMove}
           onPointerUp={viewOnly ? undefined : handleBoardPointerUp}
         >
-          {/* Pitch markings — 120m×70m pitch, 10m in-goals */}
+          {/* Pitch markings — 120m×70m pitch, 10m in-goals.
+               Portrait mode swaps x↔y so the long axis runs top-to-bottom
+               while the landscape board container stays unchanged. */}
           <svg className="pointer-events-none absolute inset-0 h-full w-full" xmlns="http://www.w3.org/2000/svg">
-            {/* In-goal shading */}
-            <rect x="0" y="0" width="8.33%" height="100%" fill="rgba(255,255,255,0.04)" />
-            <rect x="91.67%" y="0" width="8.33%" height="100%" fill="rgba(255,255,255,0.04)" />
+            {(() => {
+              // Coordinate helpers — swap x/y when portrait
+              const x = (v: string) => pitchPortrait ? '0' : v
+              const y = (v: string) => pitchPortrait ? v : '0'
+              const x2 = (v: string) => pitchPortrait ? '100%' : v
+              const y2 = (v: string) => pitchPortrait ? v : '100%'
+              // A "main-axis" line (across the pitch)
+              const mainLine = (pct: string, stroke: string, sw: number, dash?: string) =>
+                pitchPortrait ? (
+                  <line x1="0" y1={pct} x2="100%" y2={pct} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
+                ) : (
+                  <line x1={pct} y1="0" x2={pct} y2="100%" stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
+                )
+              // A "cross-axis" line (along the touchlines)
+              const crossLine = (pct: string, stroke: string, sw: number, dash?: string) =>
+                pitchPortrait ? (
+                  <line x1={pct} y1="0" x2={pct} y2="100%" stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
+                ) : (
+                  <line x1="0" y1={pct} x2="100%" y2={pct} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
+                )
+              // In-goal shading rect
+              const inGoalRect = (near: boolean) =>
+                pitchPortrait ? (
+                  <rect x="0" y={near ? '0' : '91.67%'} width="100%" height="8.33%" fill="rgba(255,255,255,0.04)" />
+                ) : (
+                  <rect x={near ? '0' : '91.67%'} y="0" width="8.33%" height="100%" fill="rgba(255,255,255,0.04)" />
+                )
+              // Crosshair helper — cx/cy in main-axis/cross-axis percentages
+              const cross = (mainPct: string, crossPct: string, idx: number) => {
+                const [cx, cy] = pitchPortrait ? [crossPct, mainPct] : [mainPct, crossPct]
+                return (
+                  <g key={idx} transform={`translate(${cx},${cy})`}>
+                    <line x1="-5" y1="0" x2="5" y2="0" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
+                    <line x1="0" y1="-5" x2="0" y2="5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
+                  </g>
+                )
+              }
 
-            {/* Touchlines (top/bottom) */}
-            <line x1="0" y1="0" x2="100%" y2="0" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-            <line x1="0" y1="100%" x2="100%" y2="100%" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+              const mainLines = ['8.33%', '91.67%', '26.67%', '73.33%']
+              const crossLines = ['7.14%', '92.86%', '21.43%', '78.57%']
 
-            {/* Dead-ball / try lines */}
-            <line x1="0" y1="0" x2="0" y2="100%" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-            <line x1="100%" y1="0" x2="100%" y2="100%" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+              return (
+                <>
+                  {/* In-goal shading */}
+                  {inGoalRect(true)}
+                  {inGoalRect(false)}
 
-            {/* Try lines (in-goal boundaries) */}
-            <line x1="8.33%" y1="0" x2="8.33%" y2="100%" stroke="rgba(255,255,255,0.85)" strokeWidth="2" />
-            <line x1="91.67%" y1="0" x2="91.67%" y2="100%" stroke="rgba(255,255,255,0.85)" strokeWidth="2" />
+                  {/* Pitch border */}
+                  <line x1={x('0')} y1={y('0')} x2={x2('0')} y2={y2('0')} stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+                  <line x1={x('100%')} y1={y('100%')} x2={x2('100%')} y2={y2('100%')} stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+                  <line x1={x('0')} y1={y('100%')} x2={x2('100%')} y2={y2('100%')} stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+                  <line x1={x('100%')} y1={y('0')} x2={x2('0')} y2={y2('0')} stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
 
-            {/* 22m lines */}
-            <line x1="26.67%" y1="0" x2="26.67%" y2="100%" stroke="rgba(255,255,255,0.65)" strokeWidth="1" />
-            <line x1="73.33%" y1="0" x2="73.33%" y2="100%" stroke="rgba(255,255,255,0.65)" strokeWidth="1" />
+                  {/* Try lines */}
+                  {mainLine('8.33%', 'rgba(255,255,255,0.85)', 2)}
+                  {mainLine('91.67%', 'rgba(255,255,255,0.85)', 2)}
+                  {/* 22m lines */}
+                  {mainLine('26.67%', 'rgba(255,255,255,0.65)', 1)}
+                  {mainLine('73.33%', 'rgba(255,255,255,0.65)', 1)}
+                  {/* 10m dashed */}
+                  {mainLine('41.67%', 'rgba(255,255,255,0.45)', 1, '8 6')}
+                  {mainLine('58.33%', 'rgba(255,255,255,0.45)', 1, '8 6')}
+                  {/* Halfway */}
+                  {mainLine('50%', 'rgba(255,255,255,0.75)', 1.5)}
+                  {/* Lineout horizontals */}
+                  {crossLine('7.14%', 'rgba(255,255,255,0.35)', 1, '6 8')}
+                  {crossLine('92.86%', 'rgba(255,255,255,0.35)', 1, '6 8')}
+                  {crossLine('21.43%', 'rgba(255,255,255,0.25)', 1, '6 8')}
+                  {crossLine('78.57%', 'rgba(255,255,255,0.25)', 1, '6 8')}
 
-            {/* 10m lines (dashed) */}
-            <line x1="41.67%" y1="0" x2="41.67%" y2="100%" stroke="rgba(255,255,255,0.45)" strokeWidth="1" strokeDasharray="8 6" />
-            <line x1="58.33%" y1="0" x2="58.33%" y2="100%" stroke="rgba(255,255,255,0.45)" strokeWidth="1" strokeDasharray="8 6" />
+                  {/* Crosshairs */}
+                  {mainLines.flatMap((m, mi) =>
+                    crossLines.map((c, ci) => cross(m, c, mi * 4 + ci))
+                  )}
 
-            {/* Halfway */}
-            <line x1="50%" y1="0" x2="50%" y2="100%" stroke="rgba(255,255,255,0.75)" strokeWidth="1.5" />
-
-            {/* Lineout lines — 5m (7.14%) and 15m (21.43%) from each touchline */}
-            <line x1="0" y1="7.14%" x2="100%" y2="7.14%" stroke="rgba(255,255,255,0.35)" strokeWidth="1" strokeDasharray="6 8" />
-            <line x1="0" y1="92.86%" x2="100%" y2="92.86%" stroke="rgba(255,255,255,0.35)" strokeWidth="1" strokeDasharray="6 8" />
-            <line x1="0" y1="21.43%" x2="100%" y2="21.43%" stroke="rgba(255,255,255,0.25)" strokeWidth="1" strokeDasharray="6 8" />
-            <line x1="0" y1="78.57%" x2="100%" y2="78.57%" stroke="rgba(255,255,255,0.25)" strokeWidth="1" strokeDasharray="6 8" />
-
-            {/* Crosshairs at lineout positions — try line × 5m/15m; 22m × 5m/15m */}
-            {[
-              ['8.33%', '7.14%'], ['8.33%', '92.86%'], ['8.33%', '21.43%'], ['8.33%', '78.57%'],
-              ['91.67%', '7.14%'], ['91.67%', '92.86%'], ['91.67%', '21.43%'], ['91.67%', '78.57%'],
-              ['26.67%', '7.14%'], ['26.67%', '92.86%'], ['26.67%', '21.43%'], ['26.67%', '78.57%'],
-              ['73.33%', '7.14%'], ['73.33%', '92.86%'], ['73.33%', '21.43%'], ['73.33%', '78.57%'],
-            ].map(([cx, cy], idx) => (
-              <g key={idx} transform={`translate(${cx},${cy})`}>
-                <line x1="-5" y1="0" x2="5" y2="0" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
-                <line x1="0" y1="-5" x2="0" y2="5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
-              </g>
-            ))}
-
-            {/* Centre spot */}
-            <circle cx="50%" cy="50%" r="3" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" />
+                  {/* Centre spot */}
+                  <circle cx="50%" cy="50%" r="3" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" />
+                </>
+              )
+            })()}
           </svg>
 
           {/* Lines SVG — pointer-events enabled in draw mode */}
