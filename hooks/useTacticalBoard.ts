@@ -122,7 +122,7 @@ export type UseTacticalBoardReturn = {
   lineDashed: boolean
   setLineColor: (color: string) => void
   setLineDashed: (dashed: boolean) => void
-  activePlayers: string[] | undefined
+  activePlayers: string[]
   addPlayers: (ids: string[]) => void
   addZone: (x: number, y: number) => void
   moveZone: (id: string, x: number, y: number) => void
@@ -194,9 +194,8 @@ export function useTacticalBoard({
   const [isExporting, setIsExporting] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
   const initialLoadDone = useRef(false)
-  // undefined = legacy/all-active; [] = fresh empty board; [...] = specific players added
-  const [activePlayers, setActivePlayers] = useState<string[] | undefined>(
-    mode === 'fresh' ? [] : initialActivePlayers,
+  const [activePlayers, setActivePlayers] = useState<string[]>(
+    mode === 'fresh' ? [] : (initialActivePlayers ?? []),
   )
 
   const totalDuration = useMemo(() => durations.reduce((a, b) => a + b, 0), [durations])
@@ -450,11 +449,9 @@ export function useTacticalBoard({
     const trimmedName = formationName.trim()
     if (!trimmedName || !userId) return
 
-    // Only save active players — formations are sparse groups, not all 30
-    const playersToSave =
-      activePlayers !== undefined
-        ? activeFrame.players.filter((p) => p.id === 'ball' || activePlayers.includes(p.id))
-        : activeFrame.players
+    const playersToSave = activeFrame.players.filter(
+      (p) => p.id === 'ball' || activePlayers.includes(p.id),
+    )
 
     const supabase = createClient()
     supabase

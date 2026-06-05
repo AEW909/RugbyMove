@@ -772,8 +772,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
             {tokens.map((token) => {
               const player = board.playerById.get(token.id)
               if (!player) return null
-              // Hide non-ball tokens that haven't been added yet (activePlayers=[] or specific list)
-              if (token.side !== 'ball' && board.activePlayers !== undefined && !board.activePlayers.includes(token.id)) return null
+              if (token.side !== 'ball' && !board.activePlayers.includes(token.id)) return null
               const canDrag = !viewOnly && board.tool !== 'draw'
 
               return (

@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils'
 type Side = 'attack' | 'defence'
 
 type Props = {
-  activePlayers: string[] | undefined
+  activePlayers: string[]
   onAdd: (ids: string[]) => void
   onClose: () => void
 }
@@ -24,7 +24,7 @@ export default function AddPlayersDialog({ activePlayers, onAdd, onClose }: Prop
 
   const isActive = (num: number) => {
     const id = side === 'attack' ? `attack-${num}` : `defend-${num}`
-    return activePlayers !== undefined && activePlayers.includes(id)
+    return activePlayers.includes(id)
   }
 
   const toggle = (num: number) => {
