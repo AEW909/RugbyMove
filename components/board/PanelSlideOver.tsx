@@ -10,6 +10,32 @@ import type { PlayCategory } from '@/types/play'
 
 const PLAY_CATEGORIES: PlayCategory[] = ['Scrum', 'Lineout', 'Open Play', 'Penalty', 'Kick Off', 'Other']
 
+function formationSummary(players: { id: string }[]): string {
+  const attackNums = players
+    .filter((p) => p.id.startsWith('attack-'))
+    .map((p) => parseInt(p.id.split('-')[1]))
+    .sort((a, b) => a - b)
+  const defendNums = players
+    .filter((p) => p.id.startsWith('defend-'))
+    .map((p) => parseInt(p.id.split('-')[1]))
+    .sort((a, b) => a - b)
+
+  const fmt = (nums: number[]) => {
+    if (nums.length === 0) return null
+    if (nums.length === 1) return `${nums[0]}`
+    // Check if contiguous
+    const isContiguous = nums.every((n, i) => i === 0 || n === nums[i - 1] + 1)
+    return isContiguous ? `${nums[0]}–${nums[nums.length - 1]}` : nums.join(', ')
+  }
+
+  const parts: string[] = []
+  const a = fmt(attackNums)
+  const d = fmt(defendNums)
+  if (a) parts.push(`Att ${a}`)
+  if (d) parts.push(`Def ${d}`)
+  return parts.join(' · ') || 'No players'
+}
+
 type Playbook = {
   id: string
   name: string
@@ -236,8 +262,11 @@ export default function PanelSlideOver({
                               }}
                               className="flex w-full items-center justify-between px-4 py-3 text-left text-sm transition hover:bg-white/5"
                             >
-                              <span className="font-medium text-white/80">{f.name}</span>
-                              <span className="text-xs font-semibold text-blue-400">
+                              <span>
+                                <span className="block font-medium text-white/80">{f.name}</span>
+                                <span className="text-xs text-white/35">{formationSummary(f.players)}</span>
+                              </span>
+                              <span className="shrink-0 text-xs font-semibold text-blue-400">
                                 Load →
                               </span>
                             </button>

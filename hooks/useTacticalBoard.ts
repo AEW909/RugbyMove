@@ -450,13 +450,19 @@ export function useTacticalBoard({
     const trimmedName = formationName.trim()
     if (!trimmedName || !userId) return
 
+    // Only save active players — formations are sparse groups, not all 30
+    const playersToSave =
+      activePlayers !== undefined
+        ? activeFrame.players.filter((p) => p.id === 'ball' || activePlayers.includes(p.id))
+        : activeFrame.players
+
     const supabase = createClient()
     supabase
       .from('formations')
       .insert({
         name: trimmedName,
         category: formationCategory,
-        players: activeFrame.players,
+        players: playersToSave,
         user_id: userId,
       })
       .select('id,name,category,players,created_at')
@@ -480,11 +486,25 @@ export function useTacticalBoard({
 
     setFormationName('')
     setShowFormationModal(false)
-  }, [activeFrame.players, formationCategory, formationName, userId])
+  }, [activeFrame.players, activePlayers, formationCategory, formationName, userId])
 
   const loadFormation = useCallback(
     (formation: Formation) => {
       stopPlayback()
+
+      // Add formation's player IDs to the active set
+      const formationIds = formation.players.filter((p) => p.id !== 'ball').map((p) => p.id)
+      if (formationIds.length > 0) {
+        setActivePlayers((prev) => {
+          const current = prev ?? []
+          const next = [...current]
+          for (const id of formationIds) {
+            if (!next.includes(id)) next.push(id)
+          }
+          return next
+        })
+      }
+
       setFrames((currentFrames) =>
         normalizeFrames(
           currentFrames.map((frame, index) => {
