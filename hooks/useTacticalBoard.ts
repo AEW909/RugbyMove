@@ -125,7 +125,7 @@ export type UseTacticalBoardReturn = {
   isExporting: boolean
   setDuration: (segIndex: number, ms: number) => void
   scrubTo: (timeMs: number) => void
-  handleSaveToPlaybook: (playbookId: string, title: string, category: PlayCategory) => Promise<void>
+  handleSaveToPlaybook: (playbookId: string, title: string, category: PlayCategory, description: string) => Promise<void>
   playFrames: () => void
   stopPlayback: () => void
 }
@@ -451,7 +451,7 @@ export function useTacticalBoard({
   }, [frames, durations, isExporting, playTitle])
 
   const handleSaveToPlaybook = useCallback(
-    async (playbookId: string, title: string, category: PlayCategory) => {
+    async (playbookId: string, title: string, category: PlayCategory, description: string) => {
       const normalizedFrames = normalizeFrames(frames)
       try {
         const play = await savePlay({
@@ -463,7 +463,7 @@ export function useTacticalBoard({
               ? playId
               : undefined,
           title,
-          description: playDescription ?? null,
+          description: description.trim() || null,
           category: category ?? 'Other',
           animation_data: { frames: normalizedFrames, durations },
         })
@@ -479,7 +479,7 @@ export function useTacticalBoard({
         setSaveStatus('Save failed. Please try again.')
       }
     },
-    [playDescription, playId, frames, durations],
+    [playId, frames, durations],
   )
 
   const addLine = useCallback(

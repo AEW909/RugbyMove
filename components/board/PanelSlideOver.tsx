@@ -33,11 +33,12 @@ type Props = {
   onLoadFormation: (formation: Formation) => void
   onOpenSaveFormation: () => void
   playCategory?: PlayCategory
-  onSaveToPlaybook: (playbookId: string, title: string, category: PlayCategory) => void
+  onSaveToPlaybook: (playbookId: string, title: string, category: PlayCategory, description: string) => void
   onLoadPlay: (playId: string) => void
   onExport: () => void
   isExporting: boolean
   initialTitle: string
+  initialDescription?: string | null
   saveStatus: string
 }
 
@@ -56,9 +57,11 @@ export default function PanelSlideOver({
   onExport,
   isExporting,
   initialTitle,
+  initialDescription,
   saveStatus,
 }: Props) {
   const [saveTitle, setSaveTitle] = useState(initialTitle)
+  const [saveDescription, setSaveDescription] = useState(initialDescription ?? '')
   const [saveCategory, setSaveCategory] = useState<PlayCategory>(playCategory ?? 'Other')
   const [selectedPlaybook, setSelectedPlaybook] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -79,6 +82,10 @@ export default function PanelSlideOver({
   useEffect(() => {
     setSaveTitle(initialTitle)
   }, [initialTitle])
+
+  useEffect(() => {
+    setSaveDescription(initialDescription ?? '')
+  }, [initialDescription])
 
   useEffect(() => {
     if (playCategory) setSaveCategory(playCategory)
@@ -311,6 +318,18 @@ export default function PanelSlideOver({
               </label>
 
               <label className="block text-sm font-semibold text-white/80">
+                Description
+                <textarea
+                  value={saveDescription}
+                  onChange={(e) => setSaveDescription(e.target.value)}
+                  placeholder="Optional notes about this move…"
+                  rows={2}
+                  maxLength={2000}
+                  className="mt-1 w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-normal text-white placeholder:text-white/30 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+                />
+              </label>
+
+              <label className="block text-sm font-semibold text-white/80">
                 Category
                 <select
                   value={saveCategory}
@@ -351,7 +370,7 @@ export default function PanelSlideOver({
                 <button
                   type="button"
                   disabled={!selectedPlaybook || !saveTitle.trim() || isSaving}
-                  onClick={() => { setIsSaving(true); onSaveToPlaybook(selectedPlaybook, saveTitle.trim(), saveCategory) }}
+                  onClick={() => { setIsSaving(true); onSaveToPlaybook(selectedPlaybook, saveTitle.trim(), saveCategory, saveDescription.trim()) }}
                   className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90 disabled:opacity-40"
                 >
                   {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}

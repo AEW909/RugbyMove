@@ -766,6 +766,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           onExport={board.exportMove}
           isExporting={board.isExporting}
           initialTitle={playTitle}
+          initialDescription={props.playDescription}
           saveStatus={board.saveStatus}
         />
       )}
