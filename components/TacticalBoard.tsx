@@ -67,24 +67,28 @@ export default function TacticalBoard(props: TacticalBoardProps) {
   const panStartRef = useRef<{ x: number; y: number; startPanX: number; startPanY: number } | null>(null)
   const pinchStartRef = useRef<{ dist: number; startZoom: number; startPanX: number; startPanY: number } | null>(null)
 
+  // With transform: scale(zoom) translate(panX, panY), visual movement = panX * zoom.
+  // Clamp so content edge never shows empty space:
+  //   left edge at screen: cx*(1-zoom) + panX*zoom ≤ 0  →  panX ≤ cx*(zoom-1)/zoom
   const clampPan = (px: number, py: number, z: number, r: DOMRect) => ({
-    x: Math.min(r.width / 2 * (z - 1),  Math.max(-r.width / 2 * (z - 1),  px)),
-    y: Math.min(r.height / 2 * (z - 1), Math.max(-r.height / 2 * (z - 1), py)),
+    x: Math.min(r.width  / 2 * (z - 1) / z, Math.max(-r.width  / 2 * (z - 1) / z, px)),
+    y: Math.min(r.height / 2 * (z - 1) / z, Math.max(-r.height / 2 * (z - 1) / z, py)),
   })
 
   const resetZoom = () => { setZoom(1); setPanX(0); setPanY(0) }
 
   // ── Coordinate mapping (accounts for zoom + pan) ──
-  // transform: scale(zoom) translate(panX/zoom px, panY/zoom px) with origin center
-  // Inverse: lx = (screenX - cx) / zoom + cx - panX/zoom
+  // transform: scale(zoom) translate(panX px, panY px) with origin center
+  // Combined: screenX = cx + (localX - cx + panX) * zoom
+  // Inverse:  localX = (screenX - cx) / zoom + cx - panX
   const toBoard = (clientX: number, clientY: number) => {
     const el = boardRef.current
     if (!el) return { x: 0, y: 0 }
     const r = el.getBoundingClientRect()
     const cx = r.width / 2
     const cy = r.height / 2
-    const lx = (clientX - r.left - cx) / zoom + cx - panX / zoom
-    const ly = (clientY - r.top - cy) / zoom + cy - panY / zoom
+    const lx = (clientX - r.left - cx) / zoom + cx - panX
+    const ly = (clientY - r.top - cy) / zoom + cy - panY
     return {
       x: Math.min(100, Math.max(0, (lx / r.width) * 100)),
       y: Math.min(100, Math.max(0, (ly / r.height) * 100)),
@@ -115,11 +119,12 @@ export default function TacticalBoard(props: TacticalBoardProps) {
     const factor = e.deltaY < 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR
     const newZoom = Math.min(MAX_ZOOM, Math.max(1, zoom * factor))
     if (newZoom === zoom) return
-    // Zoom toward cursor
+    // Zoom toward cursor — keep local point under cursor fixed:
+    //   localX = (dx)/zoom + cx - panX  →  newPanX = panX + dx*(1/newZoom - 1/zoom)
     const dx = e.clientX - r.left - r.width / 2
     const dy = e.clientY - r.top - r.height / 2
-    const rawPanX = dx * (1 - newZoom / zoom) + panX * newZoom / zoom
-    const rawPanY = dy * (1 - newZoom / zoom) + panY * newZoom / zoom
+    const rawPanX = panX + dx * (1 / newZoom - 1 / zoom)
+    const rawPanY = panY + dy * (1 / newZoom - 1 / zoom)
     const clamped = clampPan(rawPanX, rawPanY, newZoom, r)
     setZoom(newZoom)
     setPanX(clamped.x)
@@ -191,8 +196,8 @@ export default function TacticalBoard(props: TacticalBoardProps) {
       const r = el.getBoundingClientRect()
       const midX = (pts[0].x + pts[1].x) / 2 - r.left - r.width / 2
       const midY = (pts[0].y + pts[1].y) / 2 - r.top - r.height / 2
-      const rawPanX = midX * (1 - newZoom / startZoom) + startPanX * newZoom / startZoom
-      const rawPanY = midY * (1 - newZoom / startZoom) + startPanY * newZoom / startZoom
+      const rawPanX = startPanX + midX * (1 / newZoom - 1 / startZoom)
+      const rawPanY = startPanY + midY * (1 / newZoom - 1 / startZoom)
       const clamped = clampPan(rawPanX, rawPanY, newZoom, r)
       setZoom(newZoom)
       setPanX(clamped.x)
@@ -556,7 +561,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
             className="absolute inset-0"
             style={{
               transform: zoom !== 1 || panX !== 0 || panY !== 0
-                ? `scale(${zoom}) translate(${panX / zoom}px, ${panY / zoom}px)`
+                ? `scale(${zoom}) translate(${panX}px, ${panY}px)`
                 : undefined,
               transformOrigin: 'center',
               willChange: zoom !== 1 ? 'transform' : undefined,
@@ -584,11 +589,14 @@ export default function TacticalBoard(props: TacticalBoardProps) {
                     <rect x={near ? '0' : '91.67%'} y="0" width="8.33%" height="100%" fill="rgba(255,255,255,0.04)" />
                   )
                 const cross = (mainPct: string, crossPct: string, idx: number) => {
-                  const [cx, cy] = pitchPortrait ? [crossPct, mainPct] : [mainPct, crossPct]
+                  const [xPct, yPct] = pitchPortrait ? [crossPct, mainPct] : [mainPct, crossPct]
+                  const xN = parseFloat(xPct)
+                  const yN = parseFloat(yPct)
+                  // Arms: ~0.7% of width horizontally, ~1.2% of height vertically
                   return (
-                    <g key={idx} transform={`translate(${cx},${cy})`}>
-                      <line x1="-5" y1="0" x2="5" y2="0" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
-                      <line x1="0" y1="-5" x2="0" y2="5" stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
+                    <g key={idx}>
+                      <line x1={`${xN - 0.7}%`} y1={yPct} x2={`${xN + 0.7}%`} y2={yPct} stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
+                      <line x1={xPct} y1={`${yN - 1.2}%`} x2={xPct} y2={`${yN + 1.2}%`} stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
                     </g>
                   )
                 }
