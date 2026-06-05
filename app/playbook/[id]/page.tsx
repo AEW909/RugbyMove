@@ -167,36 +167,29 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
   const backLabel = fromPlaybook ? `← ${fromPlaybook.name}` : '← Home'
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-black px-4 py-6 text-white sm:px-8">
+    <main className="relative flex h-dvh flex-col overflow-hidden bg-black text-white">
       {/* BG gradient overlay */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
 
-      <div className="relative z-10 mx-auto flex max-w-7xl flex-col gap-6">
-        <header className="flex flex-col gap-3 pb-4 sm:gap-4 sm:pb-5">
-          <div className="flex items-center justify-between gap-4">
-            <Link href={backHref} className="text-sm font-medium text-white/40 transition-colors hover:text-white">
-              {backLabel}
-            </Link>
-            <span className="inline-flex items-center gap-2 text-sm text-white/40">
-              <CalendarDays className="h-4 w-4" />
-              {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(
-                new Date(play.updated_at),
-              )}
-            </span>
-          </div>
-          <div>
-            <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold uppercase text-white/60">
-              {play.category}
-            </span>
-            <h1 className="mt-2 text-3xl font-black tracking-tight text-white sm:text-5xl">{play.title}</h1>
-            {play.description ? (
-              <p className="mt-2 line-clamp-2 max-w-3xl text-sm leading-6 text-white/60 sm:line-clamp-none sm:mt-3 sm:text-base">
-                {play.description}
-              </p>
-            ) : null}
-          </div>
-        </header>
+      {/* Compact top bar */}
+      <header className="relative z-10 flex shrink-0 items-center justify-between gap-4 border-b border-white/10 px-4 py-2 sm:px-6">
+        <Link href={backHref} className="text-sm font-medium text-white/40 transition-colors hover:text-white">
+          {backLabel}
+        </Link>
+        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
+          <span className="hidden rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold uppercase text-white/50 sm:inline">
+            {play.category}
+          </span>
+          <h1 className="truncate text-sm font-bold text-white">{play.title}</h1>
+        </div>
+        <span className="hidden shrink-0 items-center gap-1.5 text-xs text-white/40 sm:inline-flex">
+          <CalendarDays className="h-3.5 w-3.5" />
+          {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(new Date(play.updated_at))}
+        </span>
+      </header>
 
+      {/* Board fills remaining space */}
+      <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
         <TacticalBoard
           initialFrames={play.animation_data.frames}
           initialDurations={play.animation_data.durations}
@@ -210,8 +203,8 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
         />
 
         {isGuest && (
-          <div className="rounded-2xl border border-blue-500/20 bg-blue-500/10 px-5 py-4 text-center backdrop-blur-sm">
-            <p className="text-sm text-white/70">
+          <div className="shrink-0 border-t border-white/10 px-4 py-2 text-center">
+            <p className="text-xs text-white/60">
               Build and save your own moves.{' '}
               <Link href="/signup" className="font-semibold text-blue-400 transition-colors hover:text-blue-300">
                 Create a free account

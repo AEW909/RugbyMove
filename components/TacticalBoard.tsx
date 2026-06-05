@@ -300,7 +300,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
   })()
 
   return (
-    <section className={cn('overflow-visible bg-black', !isMobile && 'rounded-xl border border-white/10 shadow-toolbar')}>
+    <section className={cn('flex min-h-0 flex-1 flex-col overflow-hidden bg-black', !isMobile && 'rounded-xl border border-white/10 shadow-toolbar')}>
       {/* ── Toolbar ── */}
       <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-3 py-2.5 sm:px-4 sm:py-3">
         {!viewOnly && (
@@ -516,7 +516,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
       )}
 
       {/* ── Board ── */}
-      <div className="p-2 sm:p-4">
+      <div className="flex min-h-0 flex-1 flex-col p-2 sm:p-3">
         <FrameTimeline
           frames={board.frames}
           durations={board.durations}
@@ -534,8 +534,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
         <div
           ref={boardRef}
           className={cn(
-            'relative aspect-[12/7] w-full overflow-hidden rounded-xl border border-white/10 bg-emerald-700 shadow-inner',
-            !viewOnly && 'min-h-[260px]',
+            'relative min-h-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-emerald-700 shadow-inner',
             boardCursor,
           )}
           aria-label="Rugby tactical board"
