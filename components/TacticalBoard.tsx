@@ -600,21 +600,16 @@ export default function TacticalBoard(props: TacticalBoardProps) {
                     </g>
                   )
                 }
-                // Pitch border helpers
-                const bx = (v: string) => pitchPortrait ? '0' : v
-                const by = (v: string) => pitchPortrait ? v : '0'
-                const bx2 = (v: string) => pitchPortrait ? '100%' : v
-                const by2 = (v: string) => pitchPortrait ? v : '100%'
                 const mainLines = ['8.33%', '91.67%', '26.67%', '73.33%']
                 const crossLines = ['7.14%', '92.86%', '21.43%', '78.57%']
                 return (
                   <>
                     {inGoalRect(true)}
                     {inGoalRect(false)}
-                    <line x1={bx('0')} y1={by('0')} x2={bx2('0')} y2={by2('0')} stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-                    <line x1={bx('100%')} y1={by('100%')} x2={bx2('100%')} y2={by2('100%')} stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-                    <line x1={bx('0')} y1={by('100%')} x2={bx2('100%')} y2={by2('100%')} stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-                    <line x1={bx('100%')} y1={by('0')} x2={bx2('0')} y2={by2('0')} stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+                    <line x1="0" y1="0" x2="0" y2="100%" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+                    <line x1="100%" y1="0" x2="100%" y2="100%" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+                    <line x1="0" y1="0" x2="100%" y2="0" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
+                    <line x1="0" y1="100%" x2="100%" y2="100%" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
                     {mainLine('8.33%', 'rgba(255,255,255,0.85)', 2)}
                     {mainLine('91.67%', 'rgba(255,255,255,0.85)', 2)}
                     {mainLine('26.67%', 'rgba(255,255,255,0.65)', 1)}
