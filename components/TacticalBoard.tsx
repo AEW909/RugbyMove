@@ -498,6 +498,14 @@ export default function TacticalBoard(props: TacticalBoardProps) {
             )}
           </>
         )}
+
+        {/* Unsaved changes indicator */}
+        {!viewOnly && board.isDirty && (
+          <span className="ml-auto flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+            Unsaved changes
+          </span>
+        )}
       </div>
 
       {/* Fixed side tab */}

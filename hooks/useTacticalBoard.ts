@@ -94,6 +94,7 @@ export type UseTacticalBoardReturn = {
   formationCategory: FormationCategory
   setFormationCategory: (cat: FormationCategory) => void
   saveStatus: string
+  isDirty: boolean
   snapGrid: boolean
   setSnapGrid: Dispatch<SetStateAction<boolean>>
   showFormationModal: boolean
@@ -173,8 +174,29 @@ export function useTacticalBoard({
   const [lineDashed, setLineDashed] = useState(false)
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set())
   const [isExporting, setIsExporting] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
+  const initialLoadDone = useRef(false)
 
   const totalDuration = useMemo(() => durations.reduce((a, b) => a + b, 0), [durations])
+
+  // Mark dirty when frames/durations change after initial load
+  useEffect(() => {
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true
+      return
+    }
+    setIsDirty(true)
+  }, [frames, durations])
+
+  // Warn on browser close/refresh when there are unsaved changes
+  useEffect(() => {
+    if (!isDirty) return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -502,6 +524,7 @@ export function useTacticalBoard({
             { onConflict: 'playbook_id,play_id' },
           )
         setSaveStatus('Saved to playbook.')
+        setIsDirty(false)
       } catch {
         setSaveStatus('Save failed. Please try again.')
       }
@@ -528,6 +551,7 @@ export function useTacticalBoard({
             { onConflict: 'playbook_id,play_id' },
           )
         setSaveStatus('Saved as new copy.')
+        setIsDirty(false)
       } catch {
         setSaveStatus('Save failed. Please try again.')
       }
@@ -617,6 +641,7 @@ export function useTacticalBoard({
     formationCategory,
     setFormationCategory,
     saveStatus,
+    isDirty,
     snapGrid,
     setSnapGrid,
     showFormationModal,
