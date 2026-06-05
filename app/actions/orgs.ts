@@ -133,6 +133,73 @@ export async function deleteOrgPlaybook(formData: FormData): Promise<void> {
   redirect(`/org/${orgId}?message=Playbook+deleted`)
 }
 
+export async function addOrgMember(formData: FormData): Promise<void> {
+  const orgId = z.string().uuid().parse(formData.get('org_id'))
+  const username = z.string().trim().min(1).max(80).parse(formData.get('username'))
+  const role = z.enum(['coach', 'player']).parse(formData.get('role') ?? 'coach')
+  const { admin, supabase, user } = await requireUser()
+
+  const { data: myMembership } = await admin
+    .from('org_members')
+    .select('role')
+    .eq('org_id', orgId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!myMembership || myMembership.role !== 'head_coach') {
+    redirect(`/org/${orgId}?error=Not+authorized`)
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('username', username)
+    .single()
+
+  if (!profile) {
+    redirect(`/org/${orgId}?error=${encodeURIComponent(`No user found with username "${username}".`)}`)
+  }
+
+  const { error } = await admin
+    .from('org_members')
+    .upsert({ org_id: orgId, user_id: profile.id, role }, { onConflict: 'org_id,user_id' })
+
+  if (error) redirect(`/org/${orgId}?error=${encodeURIComponent(error.message)}`)
+  revalidatePath(`/org/${orgId}`)
+  redirect(`/org/${orgId}?message=Member+added`)
+}
+
+export async function removeOrgMember(formData: FormData): Promise<void> {
+  const orgId = z.string().uuid().parse(formData.get('org_id'))
+  const userId = z.string().uuid().parse(formData.get('user_id'))
+  const { admin, user } = await requireUser()
+
+  const { data: myMembership } = await admin
+    .from('org_members')
+    .select('role')
+    .eq('org_id', orgId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!myMembership || myMembership.role !== 'head_coach') {
+    redirect(`/org/${orgId}?error=Not+authorized`)
+  }
+
+  if (userId === user.id) {
+    redirect(`/org/${orgId}?error=Cannot+remove+yourself`)
+  }
+
+  const { error } = await admin
+    .from('org_members')
+    .delete()
+    .eq('org_id', orgId)
+    .eq('user_id', userId)
+
+  if (error) redirect(`/org/${orgId}?error=${encodeURIComponent(error.message)}`)
+  revalidatePath(`/org/${orgId}`)
+  redirect(`/org/${orgId}?message=Member+removed`)
+}
+
 export async function setPlaybookJoinCode(formData: FormData): Promise<void> {
   const orgId = z.string().uuid().parse(formData.get('org_id'))
   const playbookId = z.string().uuid().parse(formData.get('playbook_id'))

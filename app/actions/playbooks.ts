@@ -229,49 +229,122 @@ export async function reorderPlaybookPlays(
 
 export async function removeMember(formData: FormData): Promise<void> {
   const playbookId = z.string().uuid().parse(formData.get('playbook_id'))
-  const playId = z.string().uuid().parse(formData.get('play_id'))
-  const direction = z.enum(['up', 'down']).parse(formData.get('direction'))
+  const userId = z.string().uuid().parse(formData.get('user_id'))
+  const { admin, user } = await requireUser()
 
-  const { admin } = await requireUser()
+  const { data: playbook } = await admin
+    .from('playbooks')
+    .select('owner_id')
+    .eq('id', playbookId)
+    .single()
 
-  const { data: plays } = await admin
-    .from('playbook_plays')
-    .select('play_id, sort_order')
+  if (!playbook || playbook.owner_id !== user.id) {
+    redirect(`/playbooks/${playbookId}?error=Not+authorized`)
+  }
+
+  const { error } = await admin
+    .from('playbook_members')
+    .delete()
     .eq('playbook_id', playbookId)
-    .order('sort_order')
-    .order('play_id')
+    .eq('user_id', userId)
 
-  if (!plays || plays.length < 2) {
-    redirect(`/playbooks/${playbookId}`)
-  }
-
-  const idx = plays.findIndex((p) => p.play_id === playId)
-  const swapIdx = direction === 'up' ? idx - 1 : idx + 1
-
-  if (idx < 0 || swapIdx < 0 || swapIdx >= plays.length) {
-    redirect(`/playbooks/${playbookId}`)
-  }
-
-  // Normalise all sort_orders to 0-based sequential, then swap
-  const ordered = plays.map((p, i) => ({ play_id: p.play_id, sort_order: i }))
-  const tmp = ordered[idx].sort_order
-  ordered[idx].sort_order = ordered[swapIdx].sort_order
-  ordered[swapIdx].sort_order = tmp
-
-  await Promise.all([
-    admin
-      .from('playbook_plays')
-      .update({ sort_order: ordered[idx].sort_order })
-      .eq('playbook_id', playbookId)
-      .eq('play_id', ordered[idx].play_id),
-    admin
-      .from('playbook_plays')
-      .update({ sort_order: ordered[swapIdx].sort_order })
-      .eq('playbook_id', playbookId)
-      .eq('play_id', ordered[swapIdx].play_id),
-  ])
-
+  if (error) redirect(`/playbooks/${playbookId}?error=${encodeURIComponent(error.message)}`)
   revalidatePath(`/playbooks/${playbookId}`)
-  redirect(`/playbooks/${playbookId}`)
+  redirect(`/playbooks/${playbookId}?message=Member+removed`)
 }
 
+export async function addPlaybookMemberById(formData: FormData): Promise<void> {
+  const playbookId = z.string().uuid().parse(formData.get('playbook_id'))
+  const userId = z.string().uuid().parse(formData.get('user_id'))
+  const role = roleSchema.parse(formData.get('role') ?? 'viewer')
+  const returnPath = z.string().optional().parse(formData.get('return_path') || undefined)
+  const { admin, user } = await requireUser()
+
+  // Caller must own the playbook or be an editor
+  const { data: playbook } = await admin
+    .from('playbooks')
+    .select('owner_id, org_id')
+    .eq('id', playbookId)
+    .single()
+
+  if (!playbook) redirect(`/playbooks/${playbookId}?error=Not+found`)
+
+  const isOwner = playbook.owner_id === user.id
+  const { data: callerMembership } = await admin
+    .from('playbook_members')
+    .select('role')
+    .eq('playbook_id', playbookId)
+    .eq('user_id', user.id)
+    .single()
+
+  // Also allow org head_coach to manage
+  let isOrgHeadCoach = false
+  if (playbook.org_id) {
+    const { data: orgMembership } = await admin
+      .from('org_members')
+      .select('role')
+      .eq('org_id', playbook.org_id)
+      .eq('user_id', user.id)
+      .single()
+    isOrgHeadCoach = orgMembership?.role === 'head_coach'
+  }
+
+  if (!isOwner && callerMembership?.role !== 'editor' && !isOrgHeadCoach) {
+    const dest = returnPath ?? `/playbooks/${playbookId}`
+    redirect(`${dest}?error=Not+authorized`)
+  }
+
+  const { error } = await admin
+    .from('playbook_members')
+    .upsert({ playbook_id: playbookId, user_id: userId, role }, { onConflict: 'playbook_id,user_id' })
+
+  const dest = returnPath ?? `/playbooks/${playbookId}`
+  if (error) redirect(`${dest}?error=${encodeURIComponent(error.message)}`)
+  revalidatePath(dest)
+  if (playbook.org_id) revalidatePath(`/org/${playbook.org_id}`)
+  redirect(`${dest}?message=Access+granted`)
+}
+
+export async function updatePlaybookMemberRole(formData: FormData): Promise<void> {
+  const playbookId = z.string().uuid().parse(formData.get('playbook_id'))
+  const userId = z.string().uuid().parse(formData.get('user_id'))
+  const role = roleSchema.parse(formData.get('role'))
+  const returnPath = z.string().optional().parse(formData.get('return_path') || undefined)
+  const { admin, user } = await requireUser()
+
+  const { data: playbook } = await admin
+    .from('playbooks')
+    .select('owner_id, org_id')
+    .eq('id', playbookId)
+    .single()
+
+  if (!playbook) redirect(returnPath ?? `/playbooks/${playbookId}`)
+
+  const isOwner = playbook.owner_id === user.id
+  let isOrgHeadCoach = false
+  if (playbook.org_id) {
+    const { data: orgMembership } = await admin
+      .from('org_members')
+      .select('role')
+      .eq('org_id', playbook.org_id)
+      .eq('user_id', user.id)
+      .single()
+    isOrgHeadCoach = orgMembership?.role === 'head_coach'
+  }
+
+  if (!isOwner && !isOrgHeadCoach) {
+    redirect(`${returnPath ?? `/playbooks/${playbookId}`}?error=Not+authorized`)
+  }
+
+  const { error } = await admin
+    .from('playbook_members')
+    .update({ role })
+    .eq('playbook_id', playbookId)
+    .eq('user_id', userId)
+
+  const dest = returnPath ?? `/playbooks/${playbookId}`
+  if (error) redirect(`${dest}?error=${encodeURIComponent(error.message)}`)
+  revalidatePath(dest)
+  if (playbook.org_id) revalidatePath(`/org/${playbook.org_id}`)
+  redirect(`${dest}?message=Role+updated`)
+}
