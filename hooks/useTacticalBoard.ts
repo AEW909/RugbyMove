@@ -3,7 +3,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import { savePlay, saveFormation as saveFormationAction } from '@/app/actions/plays'
 import { createClient } from '@/lib/supabase/client'
 import type { Formation, FormationCategory } from '@/lib/board/storage'
-import type { Frame, Line, PlayerPosition, PlayCategory } from '@/types/play'
+import type { Frame, Line, PlayerPosition, Zone, PlayCategory } from '@/types/play'
 import type { PanelTab } from '@/components/board/PanelSlideOver'
 import { tokens, defaultFrame } from '@/lib/board/defaults'
 import { exportGif } from '@/lib/board/exportGif'
@@ -18,8 +18,16 @@ export const MAX_DURATION = 3000
 function normalizeFrame(frame: Partial<Frame> | undefined): Frame {
   return {
     players: Array.isArray(frame?.players) ? frame.players : defaultFrame.players,
+    zones: Array.isArray(frame?.zones) ? frame.zones : [],
     lines: Array.isArray(frame?.lines) ? frame.lines : [],
   }
+}
+
+function interpolateZones(from: Zone[], to: Zone[], amount: number): Zone[] {
+  return from.map((zone) => {
+    const next = to.find((z) => z.id === zone.id) ?? zone
+    return { ...zone, x: lerp(zone.x, next.x, amount), y: lerp(zone.y, next.y, amount) }
+  })
 }
 
 function normalizeFrames(nextFrames: Partial<Frame>[] | undefined): Frame[] {
@@ -86,6 +94,7 @@ export type UseTacticalBoardReturn = {
   activeFrameIndex: number
   activeFrame: Frame
   visiblePlayers: PlayerPosition[]
+  visibleZones: Zone[]
   playerById: Map<string, PlayerPosition>
   isPlaying: boolean
   formations: Formation[]
@@ -112,6 +121,10 @@ export type UseTacticalBoardReturn = {
   lineDashed: boolean
   setLineColor: (color: string) => void
   setLineDashed: (dashed: boolean) => void
+  addZone: (x: number, y: number) => void
+  moveZone: (id: string, x: number, y: number) => void
+  deleteZone: (id: string) => void
+  updateZoneLabel: (id: string, label: string) => void
   addLine: (line: Line) => void
   deleteLine: (lineId: string) => void
   selectedPlayerIds: Set<string>
@@ -157,6 +170,7 @@ export function useTacticalBoard({
   )
   const [activeFrameIndex, setActiveFrameIndex] = useState(0)
   const [displayPlayers, setDisplayPlayers] = useState<PlayerPosition[] | null>(null)
+  const [displayZones, setDisplayZones] = useState<Zone[] | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [formations, setFormations] = useState<Formation[]>([])
   const [formationName, setFormationName] = useState('')
@@ -282,6 +296,7 @@ export function useTacticalBoard({
 
   const activeFrame = frames[activeFrameIndex] ?? frames[0] ?? defaultFrame
   const visiblePlayers = displayPlayers ?? activeFrame.players
+  const visibleZones = displayZones ?? activeFrame.zones
 
   const playerById = useMemo(() => {
     return new Map(visiblePlayers.map((player) => [player.id, player]))
@@ -294,6 +309,7 @@ export function useTacticalBoard({
     }
     setIsPlaying(false)
     setDisplayPlayers(null)
+    setDisplayZones(null)
   }, [])
 
   const movePlayer = useCallback(
@@ -338,6 +354,7 @@ export function useTacticalBoard({
         ...currentFrames.slice(0, activeFrameIndex + 1),
         {
           players: source.players.map((player) => ({ ...player })),
+          zones: source.zones.map((z) => ({ ...z })),
           lines: source.lines.map((line) => ({ ...line })),
         },
         ...currentFrames.slice(activeFrameIndex + 1),
@@ -406,6 +423,9 @@ export function useTacticalBoard({
       setActiveFrameIndex(seg)
       setDisplayPlayers(
         interpolatePlayers(playbackFrames[seg].players, playbackFrames[Math.min(seg + 1, playbackFrames.length - 1)].players, progress),
+      )
+      setDisplayZones(
+        interpolateZones(playbackFrames[seg].zones, playbackFrames[Math.min(seg + 1, playbackFrames.length - 1)].zones, progress),
       )
     },
     [frames, durations, isPlaying],
@@ -585,6 +605,44 @@ export function useTacticalBoard({
     [activeFrameIndex],
   )
 
+  const addZone = useCallback((x: number, y: number) => {
+    const id = crypto.randomUUID()
+    setFrames((currentFrames) =>
+      currentFrames.map((frame) => ({
+        ...frame,
+        zones: [...frame.zones, { id, x, y, r: 8, label: 'Zone' }],
+      })),
+    )
+  }, [])
+
+  const moveZone = useCallback(
+    (id: string, x: number, y: number) => {
+      if (isPlaying) return
+      setFrames((currentFrames) =>
+        currentFrames.map((frame, index) => {
+          if (index !== activeFrameIndex) return frame
+          return { ...frame, zones: frame.zones.map((z) => (z.id === id ? { ...z, x, y } : z)) }
+        }),
+      )
+    },
+    [activeFrameIndex, isPlaying],
+  )
+
+  const deleteZone = useCallback((id: string) => {
+    setFrames((currentFrames) =>
+      currentFrames.map((frame) => ({ ...frame, zones: frame.zones.filter((z) => z.id !== id) })),
+    )
+  }, [])
+
+  const updateZoneLabel = useCallback((id: string, label: string) => {
+    setFrames((currentFrames) =>
+      currentFrames.map((frame) => ({
+        ...frame,
+        zones: frame.zones.map((z) => (z.id === id ? { ...z, label } : z)),
+      })),
+    )
+  }, [])
+
   const playFrames = useCallback(() => {
     const playbackFrames = normalizeFrames(frames).filter((frame) => frame.players.length > 0)
     if (playbackFrames.length < 2 || isPlaying) return
@@ -620,6 +678,9 @@ export function useTacticalBoard({
       setDisplayPlayers(
         interpolatePlayers(playbackFrames[seg].players, playbackFrames[seg + 1].players, progress),
       )
+      setDisplayZones(
+        interpolateZones(playbackFrames[seg].zones, playbackFrames[seg + 1].zones, progress),
+      )
       animationRef.current = requestAnimationFrame(tick)
     }
 
@@ -633,6 +694,7 @@ export function useTacticalBoard({
     activeFrameIndex,
     activeFrame,
     visiblePlayers,
+    visibleZones,
     playerById,
     isPlaying,
     formations,
@@ -659,6 +721,10 @@ export function useTacticalBoard({
     lineDashed,
     setLineColor,
     setLineDashed,
+    addZone,
+    moveZone,
+    deleteZone,
+    updateZoneLabel,
     addLine,
     deleteLine,
     selectedPlayerIds,

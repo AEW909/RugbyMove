@@ -12,6 +12,14 @@ export type PlayerPosition = {
   y: number
 }
 
+export type Zone = {
+  id: string
+  x: number
+  y: number
+  r: number   // radius as % of board width (default 8)
+  label: string
+}
+
 export type Line = {
   id: string
   from: { x: number; y: number }
@@ -22,6 +30,7 @@ export type Line = {
 
 export type Frame = {
   players: PlayerPosition[]
+  zones: Zone[]
   lines: Line[]
 }
 
