@@ -757,6 +757,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           }}
           playCategory={props.playCategory}
           onSaveToPlaybook={board.handleSaveToPlaybook}
+          onSaveAsCopy={board.handleSaveAsCopy}
           onLoadPlay={(id) => { window.location.href = `/playbook/${id}` }}
           onExport={board.exportMove}
           isExporting={board.isExporting}

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { GripVertical, LayoutList, Trash2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { removePlayFromPlaybook, reorderPlaybookPlays } from '@/app/actions/playbooks'
+import DuplicateMoveButton from '@/components/plays/DuplicateMoveButton'
 import type { PlayCategory } from '@/types/play'
 
 type Play = { id: string; title: string; category: string }
@@ -174,17 +175,20 @@ export default function PlaybookMovesSection({
                 <p className="text-xs text-white/40">{play.category}</p>
               </div>
               {canManage && !reordering && (
-                <form action={removePlayFromPlaybook}>
-                  <input type="hidden" name="playbook_id" value={playbookId} />
-                  <input type="hidden" name="play_id" value={play.id} />
-                  <button
-                    type="submit"
-                    aria-label="Remove move"
-                    className="rounded-lg p-1.5 text-white/30 transition hover:bg-red-500/10 hover:text-red-400"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </form>
+                <div className="flex items-center gap-1">
+                  <DuplicateMoveButton playId={play.id} playbookId={playbookId} />
+                  <form action={removePlayFromPlaybook}>
+                    <input type="hidden" name="playbook_id" value={playbookId} />
+                    <input type="hidden" name="play_id" value={play.id} />
+                    <button
+                      type="submit"
+                      aria-label="Remove move"
+                      className="rounded-lg p-1.5 text-white/30 transition hover:bg-red-500/10 hover:text-red-400"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </form>
+                </div>
               )}
             </li>
           ))}

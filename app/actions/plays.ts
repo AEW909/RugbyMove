@@ -100,6 +100,54 @@ export async function savePlay(input: SavePlayInput) {
   return data
 }
 
+export async function duplicatePlay(formData: FormData): Promise<void> {
+  const id = z.string().uuid().parse(formData.get('play_id'))
+  const playbookId = z.string().uuid().optional().parse(formData.get('playbook_id') || undefined)
+  const { supabase, user } = await requireUser()
+
+  const { data: original, error: fetchErr } = await supabase
+    .from('plays')
+    .select('title, description, category, animation_data')
+    .eq('id', id)
+    .single()
+
+  if (fetchErr || !original) throw new Error('Play not found.')
+
+  const { data: copy, error: insertErr } = await supabase
+    .from('plays')
+    .insert({
+      user_id: user.id,
+      title: `${original.title} (copy)`,
+      description: original.description,
+      category: original.category,
+      animation_data: original.animation_data,
+    })
+    .select('id')
+    .single()
+
+  if (insertErr || !copy) throw new Error(insertErr?.message ?? 'Failed to duplicate.')
+
+  if (playbookId) {
+    const { data: maxRow } = await supabase
+      .from('playbook_plays')
+      .select('sort_order')
+      .eq('playbook_id', playbookId)
+      .order('sort_order', { ascending: false })
+      .limit(1)
+      .single()
+
+    await supabase.from('playbook_plays').insert({
+      playbook_id: playbookId,
+      play_id: copy.id,
+      sort_order: (maxRow?.sort_order ?? 0) + 1,
+    })
+    revalidatePath(`/playbooks/${playbookId}`)
+  }
+
+  revalidatePath('/')
+  revalidatePath(`/playbook/${copy.id}`)
+}
+
 export async function setPlayVisibility(formData: FormData): Promise<void> {
   const id = z.string().uuid().parse(formData.get('id'))
   const is_public = formData.get('is_public') === 'true'

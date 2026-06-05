@@ -34,6 +34,7 @@ type Props = {
   onOpenSaveFormation: () => void
   playCategory?: PlayCategory
   onSaveToPlaybook: (playbookId: string, title: string, category: PlayCategory, description: string) => void
+  onSaveAsCopy: (playbookId: string, title: string, category: PlayCategory, description: string) => void
   onLoadPlay: (playId: string) => void
   onExport: () => void
   isExporting: boolean
@@ -53,6 +54,7 @@ export default function PanelSlideOver({
   onOpenSaveFormation,
   playCategory,
   onSaveToPlaybook,
+  onSaveAsCopy,
   onLoadPlay,
   onExport,
   isExporting,
@@ -65,6 +67,7 @@ export default function PanelSlideOver({
   const [saveCategory, setSaveCategory] = useState<PlayCategory>(playCategory ?? 'Other')
   const [selectedPlaybook, setSelectedPlaybook] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [isCopying, setIsCopying] = useState(false)
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(FORMATION_CATEGORIES),
   )
@@ -75,6 +78,7 @@ export default function PanelSlideOver({
   useEffect(() => {
     if (saveStatus !== prevSaveStatus.current) {
       setIsSaving(false)
+      setIsCopying(false)
       prevSaveStatus.current = saveStatus
     }
   }, [saveStatus])
@@ -375,6 +379,15 @@ export default function PanelSlideOver({
                 >
                   {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                   {isSaving ? 'Saving…' : 'Save to playbook'}
+                </button>
+                <button
+                  type="button"
+                  disabled={!selectedPlaybook || !saveTitle.trim() || isCopying}
+                  onClick={() => { setIsCopying(true); onSaveAsCopy(selectedPlaybook, saveTitle.trim(), saveCategory, saveDescription.trim()) }}
+                  className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 disabled:opacity-40"
+                >
+                  {isCopying && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                  {isCopying ? 'Saving…' : 'Save as copy'}
                 </button>
               </div>
 

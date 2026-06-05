@@ -126,6 +126,7 @@ export type UseTacticalBoardReturn = {
   setDuration: (segIndex: number, ms: number) => void
   scrubTo: (timeMs: number) => void
   handleSaveToPlaybook: (playbookId: string, title: string, category: PlayCategory, description: string) => Promise<void>
+  handleSaveAsCopy: (playbookId: string, title: string, category: PlayCategory, description: string) => Promise<void>
   playFrames: () => void
   stopPlayback: () => void
 }
@@ -482,6 +483,32 @@ export function useTacticalBoard({
     [playId, frames, durations],
   )
 
+  const handleSaveAsCopy = useCallback(
+    async (playbookId: string, title: string, category: PlayCategory, description: string) => {
+      const normalizedFrames = normalizeFrames(frames)
+      try {
+        const play = await savePlay({
+          // No id — always inserts a new play
+          title,
+          description: description.trim() || null,
+          category: category ?? 'Other',
+          animation_data: { frames: normalizedFrames, durations },
+        })
+        const supabase = createClient()
+        await supabase
+          .from('playbook_plays')
+          .upsert(
+            { playbook_id: playbookId, play_id: play.id },
+            { onConflict: 'playbook_id,play_id' },
+          )
+        setSaveStatus('Saved as new copy.')
+      } catch {
+        setSaveStatus('Save failed. Please try again.')
+      }
+    },
+    [frames, durations],
+  )
+
   const addLine = useCallback(
     (line: Line) => {
       setFrames((currentFrames) =>
@@ -597,6 +624,7 @@ export function useTacticalBoard({
     setDuration,
     scrubTo,
     handleSaveToPlaybook,
+    handleSaveAsCopy,
     playFrames,
     stopPlayback,
   }
