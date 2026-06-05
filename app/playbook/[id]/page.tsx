@@ -11,7 +11,13 @@ type PageProps = {
   searchParams: { from?: string }
 }
 
+const ALL_PLAYERS = [
+  ...Array.from({ length: 15 }, (_, i) => `attack-${i + 1}`),
+  ...Array.from({ length: 15 }, (_, i) => `defend-${i + 1}`),
+]
+
 const demoAnimationData: AnimationData = {
+  activePlayers: ALL_PLAYERS,
   frames: [
     {
       players: [
@@ -27,6 +33,7 @@ const demoAnimationData: AnimationData = {
         })),
         { id: 'ball', x: 34, y: 46 },
       ],
+      zones: [],
       lines: [],
     },
     {
@@ -43,6 +50,7 @@ const demoAnimationData: AnimationData = {
         })),
         { id: 'ball', x: 49, y: 39 },
       ],
+      zones: [],
       lines: [],
     },
   ],
@@ -194,6 +202,7 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
           initialFrames={play.animation_data.frames}
           initialDurations={play.animation_data.durations}
           initialPitchPortrait={play.animation_data.pitchPortrait}
+          initialActivePlayers={play.animation_data.activePlayers}
           playId={play.id}
           mode={mode}
           playTitle={play.title}

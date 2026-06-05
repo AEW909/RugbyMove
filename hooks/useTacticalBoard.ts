@@ -3,7 +3,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import { savePlay, saveFormation as saveFormationAction } from '@/app/actions/plays'
 import { createClient } from '@/lib/supabase/client'
 import type { Formation, FormationCategory } from '@/lib/board/storage'
-import type { Frame, Line, PlayerPosition, PlayCategory } from '@/types/play'
+import type { Frame, Line, PlayerPosition, Zone, PlayCategory } from '@/types/play'
 import type { PanelTab } from '@/components/board/PanelSlideOver'
 import { tokens, defaultFrame } from '@/lib/board/defaults'
 import { exportGif } from '@/lib/board/exportGif'
@@ -18,8 +18,16 @@ export const MAX_DURATION = 3000
 function normalizeFrame(frame: Partial<Frame> | undefined): Frame {
   return {
     players: Array.isArray(frame?.players) ? frame.players : defaultFrame.players,
+    zones: Array.isArray(frame?.zones) ? frame.zones : [],
     lines: Array.isArray(frame?.lines) ? frame.lines : [],
   }
+}
+
+function interpolateZones(from: Zone[], to: Zone[], amount: number): Zone[] {
+  return from.map((zone) => {
+    const next = to.find((z) => z.id === zone.id) ?? zone
+    return { ...zone, x: lerp(zone.x, next.x, amount), y: lerp(zone.y, next.y, amount) }
+  })
 }
 
 function normalizeFrames(nextFrames: Partial<Frame>[] | undefined): Frame[] {
@@ -70,6 +78,7 @@ export type TacticalBoardProps = {
   initialFrames?: Frame[]
   initialDurations?: number[]
   initialPitchPortrait?: boolean
+  initialActivePlayers?: string[]
   playId?: string
   mode?: 'fresh' | 'saved'
   playTitle?: string
@@ -86,6 +95,7 @@ export type UseTacticalBoardReturn = {
   activeFrameIndex: number
   activeFrame: Frame
   visiblePlayers: PlayerPosition[]
+  visibleZones: Zone[]
   playerById: Map<string, PlayerPosition>
   isPlaying: boolean
   formations: Formation[]
@@ -94,6 +104,7 @@ export type UseTacticalBoardReturn = {
   formationCategory: FormationCategory
   setFormationCategory: (cat: FormationCategory) => void
   saveStatus: string
+  isDirty: boolean
   snapGrid: boolean
   setSnapGrid: Dispatch<SetStateAction<boolean>>
   showFormationModal: boolean
@@ -111,6 +122,12 @@ export type UseTacticalBoardReturn = {
   lineDashed: boolean
   setLineColor: (color: string) => void
   setLineDashed: (dashed: boolean) => void
+  activePlayers: string[]
+  addPlayers: (ids: string[]) => void
+  addZone: (x: number, y: number) => void
+  moveZone: (id: string, x: number, y: number) => void
+  deleteZone: (id: string) => void
+  updateZoneLabel: (id: string, label: string) => void
   addLine: (line: Line) => void
   deleteLine: (lineId: string) => void
   selectedPlayerIds: Set<string>
@@ -142,6 +159,7 @@ export function useTacticalBoard({
   initialFrames,
   initialDurations,
   initialPitchPortrait = false,
+  initialActivePlayers,
   playId,
   mode = 'saved',
   playTitle = 'rugbymove-move',
@@ -156,6 +174,7 @@ export function useTacticalBoard({
   )
   const [activeFrameIndex, setActiveFrameIndex] = useState(0)
   const [displayPlayers, setDisplayPlayers] = useState<PlayerPosition[] | null>(null)
+  const [displayZones, setDisplayZones] = useState<Zone[] | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [formations, setFormations] = useState<Formation[]>([])
   const [formationName, setFormationName] = useState('')
@@ -173,8 +192,32 @@ export function useTacticalBoard({
   const [lineDashed, setLineDashed] = useState(false)
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set())
   const [isExporting, setIsExporting] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)
+  const initialLoadDone = useRef(false)
+  const [activePlayers, setActivePlayers] = useState<string[]>(
+    mode === 'fresh' ? [] : (initialActivePlayers ?? []),
+  )
 
   const totalDuration = useMemo(() => durations.reduce((a, b) => a + b, 0), [durations])
+
+  // Mark dirty when frames/durations change after initial load
+  useEffect(() => {
+    if (!initialLoadDone.current) {
+      initialLoadDone.current = true
+      return
+    }
+    setIsDirty(true)
+  }, [frames, durations])
+
+  // Warn on browser close/refresh when there are unsaved changes
+  useEffect(() => {
+    if (!isDirty) return
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+    }
+    window.addEventListener('beforeunload', handler)
+    return () => window.removeEventListener('beforeunload', handler)
+  }, [isDirty])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -260,6 +303,7 @@ export function useTacticalBoard({
 
   const activeFrame = frames[activeFrameIndex] ?? frames[0] ?? defaultFrame
   const visiblePlayers = displayPlayers ?? activeFrame.players
+  const visibleZones = displayZones ?? activeFrame.zones
 
   const playerById = useMemo(() => {
     return new Map(visiblePlayers.map((player) => [player.id, player]))
@@ -272,6 +316,7 @@ export function useTacticalBoard({
     }
     setIsPlaying(false)
     setDisplayPlayers(null)
+    setDisplayZones(null)
   }, [])
 
   const movePlayer = useCallback(
@@ -316,6 +361,7 @@ export function useTacticalBoard({
         ...currentFrames.slice(0, activeFrameIndex + 1),
         {
           players: source.players.map((player) => ({ ...player })),
+          zones: source.zones.map((z) => ({ ...z })),
           lines: source.lines.map((line) => ({ ...line })),
         },
         ...currentFrames.slice(activeFrameIndex + 1),
@@ -385,6 +431,9 @@ export function useTacticalBoard({
       setDisplayPlayers(
         interpolatePlayers(playbackFrames[seg].players, playbackFrames[Math.min(seg + 1, playbackFrames.length - 1)].players, progress),
       )
+      setDisplayZones(
+        interpolateZones(playbackFrames[seg].zones, playbackFrames[Math.min(seg + 1, playbackFrames.length - 1)].zones, progress),
+      )
     },
     [frames, durations, isPlaying],
   )
@@ -400,13 +449,17 @@ export function useTacticalBoard({
     const trimmedName = formationName.trim()
     if (!trimmedName || !userId) return
 
+    const playersToSave = activeFrame.players.filter(
+      (p) => p.id === 'ball' || activePlayers.includes(p.id),
+    )
+
     const supabase = createClient()
     supabase
       .from('formations')
       .insert({
         name: trimmedName,
         category: formationCategory,
-        players: activeFrame.players,
+        players: playersToSave,
         user_id: userId,
       })
       .select('id,name,category,players,created_at')
@@ -430,11 +483,25 @@ export function useTacticalBoard({
 
     setFormationName('')
     setShowFormationModal(false)
-  }, [activeFrame.players, formationCategory, formationName, userId])
+  }, [activeFrame.players, activePlayers, formationCategory, formationName, userId])
 
   const loadFormation = useCallback(
     (formation: Formation) => {
       stopPlayback()
+
+      // Add formation's player IDs to the active set
+      const formationIds = formation.players.filter((p) => p.id !== 'ball').map((p) => p.id)
+      if (formationIds.length > 0) {
+        setActivePlayers((prev) => {
+          const current = prev ?? []
+          const next = [...current]
+          for (const id of formationIds) {
+            if (!next.includes(id)) next.push(id)
+          }
+          return next
+        })
+      }
+
       setFrames((currentFrames) =>
         normalizeFrames(
           currentFrames.map((frame, index) => {
@@ -492,7 +559,7 @@ export function useTacticalBoard({
           title,
           description: description.trim() || null,
           category: category ?? 'Other',
-          animation_data: { frames: normalizedFrames, durations, pitchPortrait: pitchPortrait || undefined },
+          animation_data: { frames: normalizedFrames, durations, pitchPortrait: pitchPortrait || undefined, activePlayers },
         })
         const supabase = createClient()
         await supabase
@@ -502,6 +569,7 @@ export function useTacticalBoard({
             { onConflict: 'playbook_id,play_id' },
           )
         setSaveStatus('Saved to playbook.')
+        setIsDirty(false)
       } catch {
         setSaveStatus('Save failed. Please try again.')
       }
@@ -518,7 +586,7 @@ export function useTacticalBoard({
           title,
           description: description.trim() || null,
           category: category ?? 'Other',
-          animation_data: { frames: normalizedFrames, durations, pitchPortrait: pitchPortrait || undefined },
+          animation_data: { frames: normalizedFrames, durations, pitchPortrait: pitchPortrait || undefined, activePlayers },
         })
         const supabase = createClient()
         await supabase
@@ -528,6 +596,7 @@ export function useTacticalBoard({
             { onConflict: 'playbook_id,play_id' },
           )
         setSaveStatus('Saved as new copy.')
+        setIsDirty(false)
       } catch {
         setSaveStatus('Save failed. Please try again.')
       }
@@ -560,6 +629,56 @@ export function useTacticalBoard({
     },
     [activeFrameIndex],
   )
+
+  const addPlayers = useCallback((ids: string[]) => {
+    setActivePlayers((prev) => {
+      const current = prev ?? []
+      const next = [...current]
+      for (const id of ids) {
+        if (!next.includes(id)) next.push(id)
+      }
+      return next
+    })
+    setIsDirty(true)
+  }, [])
+
+  const addZone = useCallback((x: number, y: number) => {
+    const id = crypto.randomUUID()
+    setFrames((currentFrames) =>
+      currentFrames.map((frame) => ({
+        ...frame,
+        zones: [...frame.zones, { id, x, y, r: 8, label: 'Zone' }],
+      })),
+    )
+  }, [])
+
+  const moveZone = useCallback(
+    (id: string, x: number, y: number) => {
+      if (isPlaying) return
+      setFrames((currentFrames) =>
+        currentFrames.map((frame, index) => {
+          if (index !== activeFrameIndex) return frame
+          return { ...frame, zones: frame.zones.map((z) => (z.id === id ? { ...z, x, y } : z)) }
+        }),
+      )
+    },
+    [activeFrameIndex, isPlaying],
+  )
+
+  const deleteZone = useCallback((id: string) => {
+    setFrames((currentFrames) =>
+      currentFrames.map((frame) => ({ ...frame, zones: frame.zones.filter((z) => z.id !== id) })),
+    )
+  }, [])
+
+  const updateZoneLabel = useCallback((id: string, label: string) => {
+    setFrames((currentFrames) =>
+      currentFrames.map((frame) => ({
+        ...frame,
+        zones: frame.zones.map((z) => (z.id === id ? { ...z, label } : z)),
+      })),
+    )
+  }, [])
 
   const playFrames = useCallback(() => {
     const playbackFrames = normalizeFrames(frames).filter((frame) => frame.players.length > 0)
@@ -596,6 +715,9 @@ export function useTacticalBoard({
       setDisplayPlayers(
         interpolatePlayers(playbackFrames[seg].players, playbackFrames[seg + 1].players, progress),
       )
+      setDisplayZones(
+        interpolateZones(playbackFrames[seg].zones, playbackFrames[seg + 1].zones, progress),
+      )
       animationRef.current = requestAnimationFrame(tick)
     }
 
@@ -609,6 +731,7 @@ export function useTacticalBoard({
     activeFrameIndex,
     activeFrame,
     visiblePlayers,
+    visibleZones,
     playerById,
     isPlaying,
     formations,
@@ -617,6 +740,7 @@ export function useTacticalBoard({
     formationCategory,
     setFormationCategory,
     saveStatus,
+    isDirty,
     snapGrid,
     setSnapGrid,
     showFormationModal,
@@ -634,6 +758,12 @@ export function useTacticalBoard({
     lineDashed,
     setLineColor,
     setLineDashed,
+    activePlayers,
+    addPlayers,
+    addZone,
+    moveZone,
+    deleteZone,
+    updateZoneLabel,
     addLine,
     deleteLine,
     selectedPlayerIds,

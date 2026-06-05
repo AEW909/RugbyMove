@@ -5,6 +5,7 @@ import Image from 'next/image'
 import {
   BoxSelect,
   ChevronLeft,
+  Circle,
   Grid3x3,
   MousePointer2,
   Pause,
@@ -18,10 +19,11 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { FormationCategory } from '@/lib/board/storage'
-import { useTacticalBoard, tokens, SCRUM_FORMATION, LINEOUT_FORMATION } from '@/hooks/useTacticalBoard'
+import { useTacticalBoard, tokens } from '@/hooks/useTacticalBoard'
 import type { TacticalBoardProps } from '@/hooks/useTacticalBoard'
 import PanelSlideOver from '@/components/board/PanelSlideOver'
 import FrameTimeline from '@/components/board/FrameTimeline'
+import AddPlayersDialog from '@/components/board/AddPlayersDialog'
 import type { Line } from '@/types/play'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
@@ -108,6 +110,24 @@ export default function TacticalBoard(props: TacticalBoardProps) {
   const handlePointerMove = (id: string) => (e: React.PointerEvent<HTMLButtonElement>) => {
     if (e.buttons !== 1) return
     updatePlayerPosition(id, e.clientX, e.clientY)
+  }
+
+  // ── Zone drag ──
+  const [editingZoneId, setEditingZoneId] = useState<string | null>(null)
+
+  // ── Add players dialog ──
+  const [showAddPlayers, setShowAddPlayers] = useState(false)
+
+  const handleZonePointerDown = (id: string) => (e: React.PointerEvent<HTMLDivElement>) => {
+    if (editingZoneId === id) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    e.stopPropagation()
+  }
+
+  const handleZonePointerMove = (id: string) => (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.buttons !== 1 || editingZoneId === id) return
+    const { x, y } = toBoard(e.clientX, e.clientY)
+    board.moveZone(id, x, y)
   }
 
   // ── Scroll-wheel zoom ──
@@ -362,19 +382,19 @@ export default function TacticalBoard(props: TacticalBoardProps) {
 
             <button
               type="button"
-              onClick={() => board.loadFormation(SCRUM_FORMATION)}
+              onClick={() => board.addZone(50, 50)}
               className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
             >
-              <Users className="h-4 w-4" />
-              Scrum
+              <Circle className="h-4 w-4" />
+              Zone
             </button>
             <button
               type="button"
-              onClick={() => board.loadFormation(LINEOUT_FORMATION)}
+              onClick={() => setShowAddPlayers(true)}
               className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
             >
               <Users className="h-4 w-4" />
-              Lineout
+              Add players
             </button>
 
             <div className="h-5 w-px bg-white/10" />
@@ -497,6 +517,14 @@ export default function TacticalBoard(props: TacticalBoardProps) {
               </>
             )}
           </>
+        )}
+
+        {/* Unsaved changes indicator */}
+        {!viewOnly && board.isDirty && (
+          <span className="ml-auto flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+            Unsaved changes
+          </span>
         )}
       </div>
 
@@ -684,10 +712,67 @@ export default function TacticalBoard(props: TacticalBoardProps) {
               />
             )}
 
+            {/* Zone circles */}
+            {board.visibleZones.map((zone) => {
+              const canEditZone = !viewOnly && board.tool !== 'draw'
+              return (
+                <div
+                  key={zone.id}
+                  data-zone={zone.id}
+                  onPointerDown={canEditZone ? handleZonePointerDown(zone.id) : undefined}
+                  onPointerMove={canEditZone ? handleZonePointerMove(zone.id) : undefined}
+                  className={cn(
+                    'absolute rounded-full border-2 border-dashed border-white/40 bg-white/10',
+                    canEditZone && editingZoneId !== zone.id && 'touch-none cursor-move',
+                  )}
+                  style={{
+                    left: `${zone.x}%`,
+                    top: `${zone.y}%`,
+                    width: `${zone.r * 2}%`,
+                    aspectRatio: '1',
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                >
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    {editingZoneId === zone.id ? (
+                      <input
+                        autoFocus
+                        value={zone.label}
+                        onChange={(e) => board.updateZoneLabel(zone.id, e.target.value)}
+                        onBlur={() => setEditingZoneId(null)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === 'Escape') setEditingZoneId(null)
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-3/4 rounded bg-black/70 px-1 py-0.5 text-center text-xs font-bold text-white outline-none"
+                      />
+                    ) : (
+                      <span
+                        className="select-none text-xs font-bold text-white/80"
+                        onDoubleClick={() => { if (canEditZone) setEditingZoneId(zone.id) }}
+                      >
+                        {zone.label}
+                      </span>
+                    )}
+                  </div>
+                  {canEditZone && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); board.deleteZone(zone.id) }}
+                      className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-400"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+
             {/* Player tokens */}
             {tokens.map((token) => {
               const player = board.playerById.get(token.id)
               if (!player) return null
+              if (token.side !== 'ball' && !board.activePlayers.includes(token.id)) return null
               const canDrag = !viewOnly && board.tool !== 'draw'
 
               return (
@@ -831,6 +916,13 @@ export default function TacticalBoard(props: TacticalBoardProps) {
             </div>
           </div>
         </div>
+      )}
+      {showAddPlayers && (
+        <AddPlayersDialog
+          activePlayers={board.activePlayers}
+          onAdd={(ids) => { board.addPlayers(ids); setShowAddPlayers(false) }}
+          onClose={() => setShowAddPlayers(false)}
+        />
       )}
     </section>
   )
