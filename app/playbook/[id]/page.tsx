@@ -28,6 +28,7 @@ const demoAnimationData: AnimationData = {
         })),
         { id: 'ball', x: 34, y: 46 },
       ],
+      zones: [],
       lines: [],
     },
     {
@@ -44,6 +45,7 @@ const demoAnimationData: AnimationData = {
         })),
         { id: 'ball', x: 49, y: 39 },
       ],
+      zones: [],
       lines: [],
     },
   ],
