@@ -28,6 +28,7 @@ export type Frame = {
 export type AnimationData = {
   frames: Frame[]
   durations?: number[]  // ms per segment, length === frames.length - 1
+  pitchPortrait?: boolean
 }
 
 export type Play = {
@@ -37,7 +38,6 @@ export type Play = {
   description: string | null
   category: PlayCategory
   animation_data: AnimationData
-  is_public: boolean
   updated_at: string
   profiles?: {
     username: string | null

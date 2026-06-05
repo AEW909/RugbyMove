@@ -39,7 +39,7 @@ export default async function AccountPage({ searchParams }: AccountPageProps) {
 
   const playsQuery = supabase
     .from('plays')
-    .select('id,title,category,is_public,updated_at')
+    .select('id,title,category,updated_at')
     .eq('user_id', user.id)
     .order('updated_at', { ascending: false })
     .limit(60)

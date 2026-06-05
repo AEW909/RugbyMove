@@ -54,7 +54,6 @@ export default function TacticalBoard(props: TacticalBoardProps) {
   const isMobile = useIsMobile()
   const { playTitle = 'Untitled move', viewOnly: viewOnlyProp = false } = props
   const [desktopViewOnly, setDesktopViewOnly] = useState(false)
-  const [pitchPortrait, setPitchPortrait] = useState(false)
   const viewOnly = viewOnlyProp || isMobile || desktopViewOnly
 
   // ── Zoom / pan state ──
@@ -441,10 +440,10 @@ export default function TacticalBoard(props: TacticalBoardProps) {
             <button
               type="button"
               title="Rotate pitch"
-              onClick={() => setPitchPortrait((p) => !p)}
+              onClick={board.togglePitchPortrait}
               className={cn(
                 'inline-flex items-center justify-center rounded-xl border p-2 transition',
-                pitchPortrait
+                board.pitchPortrait
                   ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
                   : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
               )}
@@ -571,25 +570,25 @@ export default function TacticalBoard(props: TacticalBoardProps) {
             <svg className="pointer-events-none absolute inset-0 h-full w-full" xmlns="http://www.w3.org/2000/svg">
               {(() => {
                 const mainLine = (pct: string, stroke: string, sw: number, dash?: string) =>
-                  pitchPortrait ? (
+                  board.pitchPortrait ? (
                     <line x1="0" y1={pct} x2="100%" y2={pct} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
                   ) : (
                     <line x1={pct} y1="0" x2={pct} y2="100%" stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
                   )
                 const crossLine = (pct: string, stroke: string, sw: number, dash?: string) =>
-                  pitchPortrait ? (
+                  board.pitchPortrait ? (
                     <line x1={pct} y1="0" x2={pct} y2="100%" stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
                   ) : (
                     <line x1="0" y1={pct} x2="100%" y2={pct} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
                   )
                 const inGoalRect = (near: boolean) =>
-                  pitchPortrait ? (
+                  board.pitchPortrait ? (
                     <rect x="0" y={near ? '0' : '91.67%'} width="100%" height="8.33%" fill="rgba(255,255,255,0.04)" />
                   ) : (
                     <rect x={near ? '0' : '91.67%'} y="0" width="8.33%" height="100%" fill="rgba(255,255,255,0.04)" />
                   )
                 const cross = (mainPct: string, crossPct: string, idx: number) => {
-                  const [xPct, yPct] = pitchPortrait ? [crossPct, mainPct] : [mainPct, crossPct]
+                  const [xPct, yPct] = board.pitchPortrait ? [crossPct, mainPct] : [mainPct, crossPct]
                   const xN = parseFloat(xPct)
                   const yN = parseFloat(yPct)
                   // Arms: ~0.7% of width horizontally, ~1.2% of height vertically

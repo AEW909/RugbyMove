@@ -34,6 +34,7 @@ const animationDataSchema = z.object({
     )
     .min(1),
   durations: z.array(z.number().min(200).max(3000)).optional(),
+  pitchPortrait: z.boolean().optional(),
 })
 
 const savePlaySchema = z.object({
@@ -146,20 +147,6 @@ export async function duplicatePlay(formData: FormData): Promise<void> {
 
   revalidatePath('/')
   revalidatePath(`/playbook/${copy.id}`)
-}
-
-export async function setPlayVisibility(formData: FormData): Promise<void> {
-  const id = z.string().uuid().parse(formData.get('id'))
-  const is_public = formData.get('is_public') === 'true'
-  const { supabase, user } = await requireUser()
-  const { error } = await supabase
-    .from('plays')
-    .update({ is_public })
-    .eq('id', id)
-    .eq('user_id', user.id)
-  if (error) throw new Error(error.message)
-  revalidatePath(`/playbook/${id}`)
-  revalidatePath('/')
 }
 
 export async function deletePlay(formData: FormData): Promise<void> {

@@ -56,7 +56,6 @@ async function getPlay(id: string): Promise<Play | null> {
       title: 'New move',
       description: 'Start from a blank board or load one of your saved formations.',
       category: 'Other' as const,
-      is_public: false,
       animation_data: { frames: [] },
       updated_at: new Date().toISOString(),
       profiles: null,
@@ -71,7 +70,6 @@ async function getPlay(id: string): Promise<Play | null> {
       description:
         'A simple two-frame pattern that shifts the defensive line before releasing the ball wide.',
       category: 'Open Play' as const,
-      is_public: true,
       animation_data: demoAnimationData,
       updated_at: new Date().toISOString(),
       profiles: {
@@ -202,6 +200,7 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
         <TacticalBoard
           initialFrames={play.animation_data.frames}
           initialDurations={play.animation_data.durations}
+          initialPitchPortrait={play.animation_data.pitchPortrait}
           playId={play.id}
           mode={mode}
           playTitle={play.title}

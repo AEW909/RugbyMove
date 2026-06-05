@@ -69,6 +69,7 @@ function interpolatePlayers(from: PlayerPosition[], to: PlayerPosition[], amount
 export type TacticalBoardProps = {
   initialFrames?: Frame[]
   initialDurations?: number[]
+  initialPitchPortrait?: boolean
   playId?: string
   mode?: 'fresh' | 'saved'
   playTitle?: string
@@ -127,13 +128,20 @@ export type UseTacticalBoardReturn = {
   scrubTo: (timeMs: number) => void
   handleSaveToPlaybook: (playbookId: string, title: string, category: PlayCategory, description: string) => Promise<void>
   handleSaveAsCopy: (playbookId: string, title: string, category: PlayCategory, description: string) => Promise<void>
+  pitchPortrait: boolean
+  togglePitchPortrait: () => void
   playFrames: () => void
   stopPlayback: () => void
+}
+
+function rotatePitchCoords<T extends { x: number; y: number }>(p: T): T {
+  return { ...p, x: p.y, y: p.x }
 }
 
 export function useTacticalBoard({
   initialFrames,
   initialDurations,
+  initialPitchPortrait = false,
   playId,
   mode = 'saved',
   playTitle = 'rugbymove-move',
@@ -160,6 +168,7 @@ export function useTacticalBoard({
   const [playbooks, setPlaybooks] = useState<{ id: string; name: string }[]>([])
   const [userId, setUserId] = useState<string | null>(null)
   const [tool, setTool] = useState<'pointer' | 'select' | 'draw'>('pointer')
+  const [pitchPortrait, setPitchPortrait] = useState(initialPitchPortrait)
   const [lineColor, setLineColor] = useState('#f8fafc')
   const [lineDashed, setLineDashed] = useState(false)
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set())
@@ -433,16 +442,33 @@ export function useTacticalBoard({
             return {
               ...frame,
               players: frame.players.map((player) => {
-                const savedPlayer = formation.players.find((item) => item.id === player.id)
-                return savedPlayer ? { ...savedPlayer } : player
+                const saved = formation.players.find((item) => item.id === player.id)
+                if (!saved) return player
+                // Formations are stored in landscape coords; rotate if pitch is portrait
+                return pitchPortrait ? rotatePitchCoords(saved) : saved
               }),
             }
           }),
         ),
       )
     },
-    [activeFrameIndex, stopPlayback],
+    [activeFrameIndex, pitchPortrait, stopPlayback],
   )
+
+  const togglePitchPortrait = useCallback(() => {
+    // Transform all player positions and line endpoints across every frame
+    setFrames((currentFrames) =>
+      currentFrames.map((frame) => ({
+        players: frame.players.map(rotatePitchCoords),
+        lines: frame.lines.map((line) => ({
+          ...line,
+          from: rotatePitchCoords(line.from),
+          to: rotatePitchCoords(line.to),
+        })),
+      })),
+    )
+    setPitchPortrait((p) => !p)
+  }, [])
 
   const exportMove = useCallback(() => {
     if (isExporting) return
@@ -466,7 +492,7 @@ export function useTacticalBoard({
           title,
           description: description.trim() || null,
           category: category ?? 'Other',
-          animation_data: { frames: normalizedFrames, durations },
+          animation_data: { frames: normalizedFrames, durations, pitchPortrait: pitchPortrait || undefined },
         })
         const supabase = createClient()
         await supabase
@@ -480,7 +506,7 @@ export function useTacticalBoard({
         setSaveStatus('Save failed. Please try again.')
       }
     },
-    [playId, frames, durations],
+    [playId, frames, durations, pitchPortrait],
   )
 
   const handleSaveAsCopy = useCallback(
@@ -492,7 +518,7 @@ export function useTacticalBoard({
           title,
           description: description.trim() || null,
           category: category ?? 'Other',
-          animation_data: { frames: normalizedFrames, durations },
+          animation_data: { frames: normalizedFrames, durations, pitchPortrait: pitchPortrait || undefined },
         })
         const supabase = createClient()
         await supabase
@@ -506,7 +532,7 @@ export function useTacticalBoard({
         setSaveStatus('Save failed. Please try again.')
       }
     },
-    [frames, durations],
+    [frames, durations, pitchPortrait],
   )
 
   const addLine = useCallback(
@@ -625,6 +651,8 @@ export function useTacticalBoard({
     scrubTo,
     handleSaveToPlaybook,
     handleSaveAsCopy,
+    pitchPortrait,
+    togglePitchPortrait,
     playFrames,
     stopPlayback,
   }
