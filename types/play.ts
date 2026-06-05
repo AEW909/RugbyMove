@@ -38,6 +38,7 @@ export type AnimationData = {
   frames: Frame[]
   durations?: number[]  // ms per segment, length === frames.length - 1
   pitchPortrait?: boolean
+  activePlayers?: string[]  // undefined = all active (legacy), [] = none added yet
 }
 
 export type Play = {

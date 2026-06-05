@@ -19,10 +19,11 @@ import {
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { FormationCategory } from '@/lib/board/storage'
-import { useTacticalBoard, tokens, SCRUM_FORMATION, LINEOUT_FORMATION } from '@/hooks/useTacticalBoard'
+import { useTacticalBoard, tokens } from '@/hooks/useTacticalBoard'
 import type { TacticalBoardProps } from '@/hooks/useTacticalBoard'
 import PanelSlideOver from '@/components/board/PanelSlideOver'
 import FrameTimeline from '@/components/board/FrameTimeline'
+import AddPlayersDialog from '@/components/board/AddPlayersDialog'
 import type { Line } from '@/types/play'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
@@ -113,6 +114,9 @@ export default function TacticalBoard(props: TacticalBoardProps) {
 
   // ── Zone drag ──
   const [editingZoneId, setEditingZoneId] = useState<string | null>(null)
+
+  // ── Add players dialog ──
+  const [showAddPlayers, setShowAddPlayers] = useState(false)
 
   const handleZonePointerDown = (id: string) => (e: React.PointerEvent<HTMLDivElement>) => {
     if (editingZoneId === id) return
@@ -378,27 +382,19 @@ export default function TacticalBoard(props: TacticalBoardProps) {
 
             <button
               type="button"
-              onClick={() => board.loadFormation(SCRUM_FORMATION)}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-            >
-              <Users className="h-4 w-4" />
-              Scrum
-            </button>
-            <button
-              type="button"
-              onClick={() => board.loadFormation(LINEOUT_FORMATION)}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-            >
-              <Users className="h-4 w-4" />
-              Lineout
-            </button>
-            <button
-              type="button"
               onClick={() => board.addZone(50, 50)}
               className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
             >
               <Circle className="h-4 w-4" />
               Zone
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowAddPlayers(true)}
+              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+            >
+              <Users className="h-4 w-4" />
+              Add players
             </button>
 
             <div className="h-5 w-px bg-white/10" />
@@ -776,6 +772,8 @@ export default function TacticalBoard(props: TacticalBoardProps) {
             {tokens.map((token) => {
               const player = board.playerById.get(token.id)
               if (!player) return null
+              // Hide non-ball tokens that haven't been added yet (activePlayers=[] or specific list)
+              if (token.side !== 'ball' && board.activePlayers !== undefined && !board.activePlayers.includes(token.id)) return null
               const canDrag = !viewOnly && board.tool !== 'draw'
 
               return (
@@ -919,6 +917,13 @@ export default function TacticalBoard(props: TacticalBoardProps) {
             </div>
           </div>
         </div>
+      )}
+      {showAddPlayers && (
+        <AddPlayersDialog
+          activePlayers={board.activePlayers}
+          onAdd={(ids) => { board.addPlayers(ids); setShowAddPlayers(false) }}
+          onClose={() => setShowAddPlayers(false)}
+        />
       )}
     </section>
   )

@@ -78,6 +78,7 @@ export type TacticalBoardProps = {
   initialFrames?: Frame[]
   initialDurations?: number[]
   initialPitchPortrait?: boolean
+  initialActivePlayers?: string[]
   playId?: string
   mode?: 'fresh' | 'saved'
   playTitle?: string
@@ -121,6 +122,8 @@ export type UseTacticalBoardReturn = {
   lineDashed: boolean
   setLineColor: (color: string) => void
   setLineDashed: (dashed: boolean) => void
+  activePlayers: string[] | undefined
+  addPlayers: (ids: string[]) => void
   addZone: (x: number, y: number) => void
   moveZone: (id: string, x: number, y: number) => void
   deleteZone: (id: string) => void
@@ -156,6 +159,7 @@ export function useTacticalBoard({
   initialFrames,
   initialDurations,
   initialPitchPortrait = false,
+  initialActivePlayers,
   playId,
   mode = 'saved',
   playTitle = 'rugbymove-move',
@@ -190,6 +194,10 @@ export function useTacticalBoard({
   const [isExporting, setIsExporting] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
   const initialLoadDone = useRef(false)
+  // undefined = legacy/all-active; [] = fresh empty board; [...] = specific players added
+  const [activePlayers, setActivePlayers] = useState<string[] | undefined>(
+    mode === 'fresh' ? [] : initialActivePlayers,
+  )
 
   const totalDuration = useMemo(() => durations.reduce((a, b) => a + b, 0), [durations])
 
@@ -534,7 +542,7 @@ export function useTacticalBoard({
           title,
           description: description.trim() || null,
           category: category ?? 'Other',
-          animation_data: { frames: normalizedFrames, durations, pitchPortrait: pitchPortrait || undefined },
+          animation_data: { frames: normalizedFrames, durations, pitchPortrait: pitchPortrait || undefined, activePlayers },
         })
         const supabase = createClient()
         await supabase
@@ -561,7 +569,7 @@ export function useTacticalBoard({
           title,
           description: description.trim() || null,
           category: category ?? 'Other',
-          animation_data: { frames: normalizedFrames, durations, pitchPortrait: pitchPortrait || undefined },
+          animation_data: { frames: normalizedFrames, durations, pitchPortrait: pitchPortrait || undefined, activePlayers },
         })
         const supabase = createClient()
         await supabase
@@ -604,6 +612,18 @@ export function useTacticalBoard({
     },
     [activeFrameIndex],
   )
+
+  const addPlayers = useCallback((ids: string[]) => {
+    setActivePlayers((prev) => {
+      const current = prev ?? []
+      const next = [...current]
+      for (const id of ids) {
+        if (!next.includes(id)) next.push(id)
+      }
+      return next
+    })
+    setIsDirty(true)
+  }, [])
 
   const addZone = useCallback((x: number, y: number) => {
     const id = crypto.randomUUID()
@@ -721,6 +741,8 @@ export function useTacticalBoard({
     lineDashed,
     setLineColor,
     setLineDashed,
+    activePlayers,
+    addPlayers,
     addZone,
     moveZone,
     deleteZone,
