@@ -361,7 +361,7 @@ export function useTacticalBoard({
         ...currentFrames.slice(0, activeFrameIndex + 1),
         {
           players: source.players.map((player) => ({ ...player })),
-          zones: (source.zones ?? []).map((z) => ({ ...z })),
+          zones: source.zones.map((z) => ({ ...z })),
           lines: source.lines.map((line) => ({ ...line })),
         },
         ...currentFrames.slice(activeFrameIndex + 1),

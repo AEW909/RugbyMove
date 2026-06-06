@@ -30,7 +30,7 @@ export type Line = {
 
 export type Frame = {
   players: PlayerPosition[]
-  zones?: Zone[]
+  zones: Zone[]
   lines: Line[]
 }
 
@@ -38,7 +38,7 @@ export type AnimationData = {
   frames: Frame[]
   durations?: number[]  // ms per segment, length === frames.length - 1
   pitchPortrait?: boolean
-  activePlayers?: string[]  // undefined = all active (legacy), [] = none added yet
+  activePlayers?: string[]
 }
 
 export type Play = {
