@@ -30,7 +30,7 @@ export type Line = {
 
 export type Frame = {
   players: PlayerPosition[]
-  zones: Zone[]
+  zones?: Zone[]
   lines: Line[]
 }
 

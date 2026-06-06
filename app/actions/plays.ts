@@ -29,7 +29,7 @@ const animationDataSchema = z.object({
             r: z.number().min(1).max(50),
             label: z.string().max(40),
           }),
-        ),
+        ).optional(),
         lines: z.array(
           z.object({
             id: z.string().min(1).max(64),

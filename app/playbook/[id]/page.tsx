@@ -202,8 +202,7 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
           initialFrames={play.animation_data.frames}
           initialDurations={play.animation_data.durations}
           initialPitchPortrait={play.animation_data.pitchPortrait}
-          initialActivePlayers={play.animation_data.activePlayers}
-          playId={play.id}
+playId={play.id}
           mode={mode}
           playTitle={play.title}
           playDescription={play.description}
