@@ -11,7 +11,8 @@
 - Pitch portrait/landscape toggle — orientation saved with move
 - **Formation rework** — abstract slot model (no player IDs); jersey picker on load; select-to-save flow; built-in Scrum + Lineout restored; user formations saved to Supabase
 - Draw lines tool with colour and dashed options
-- Snap-to-grid toggle
+- Zone annotations — per-frame draggable labelled circles, inline rename, delete, playback interpolation
+- Snap-to-grid toggle (aspect-ratio-aware: equal pixel distance on both axes)
 - Save move to Supabase — title, category, description, playbook
 - Save as copy (duplicate/variation)
 - Duplicate move from playbook list

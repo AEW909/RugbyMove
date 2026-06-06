@@ -74,9 +74,10 @@ Main components:
 - The toolbar also has quick-load "Scrum" and "Lineout" buttons that open the jersey picker for the built-in formations.
 
 ### Zones
-- `Frame.zones` exists in `types/play.ts` as an optional field (`Zone[]`) for backwards compatibility with existing saved plays.
-- There is no current UI for adding or editing zones. The field is preserved in the Zod schema as `.optional()`.
-- Do not add UI for zones without discussing it first — this is intentionally dormant.
+- `Frame.zones` is an optional `Zone[]` on each frame (`{ id, x, y, r, label }`).
+- Zones are fully implemented: add via toolbar button, drag on the board, inline rename (double-click), delete with ✕.
+- Zones animate (interpolate position) during playback like players.
+- The Zod schema has `zones` as `.optional()` for backwards compatibility with older saved plays that have no zones field.
 
 ### Frames & playback
 - Frames are captured and deleted via the timeline strip.
