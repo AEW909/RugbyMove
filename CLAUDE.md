@@ -138,6 +138,14 @@ Migrations live in `supabase/migrations/`. Migration 0008 renamed `formations.pl
 
 ---
 
+## Keeping Docs Current
+
+After every session that adds, changes, or removes features:
+- Update **CLAUDE.md** — correct any stale behaviour descriptions, component notes, or data model entries.
+- Update **ROADMAP.md** — move completed items into Done, update In Progress, adjust Up Next priorities.
+
+Do not leave these files lagging. An inaccurate handover doc is worse than no doc.
+
 ## Developer Notes
 
 - Run before committing: `npm run typecheck`
