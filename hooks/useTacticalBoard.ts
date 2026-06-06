@@ -7,6 +7,7 @@ import type { Frame, Line, PlayerPosition, Zone, PlayCategory } from '@/types/pl
 import type { PanelTab } from '@/components/board/PanelSlideOver'
 import { tokens, defaultFrame, inferActivePlayers } from '@/lib/board/defaults'
 import { exportGif } from '@/lib/board/exportGif'
+import { usePlayback } from '@/hooks/usePlayback'
 export { tokens, defaultFrame } from '@/lib/board/defaults'
 export type { Token } from '@/lib/board/defaults'
 export { SCRUM_FORMATION, LINEOUT_FORMATION } from '@/lib/board/defaults'
@@ -21,13 +22,6 @@ function normalizeFrame(frame: Partial<Frame> | undefined): Frame {
     zones: Array.isArray(frame?.zones) ? frame.zones : [],
     lines: Array.isArray(frame?.lines) ? frame.lines : [],
   }
-}
-
-function interpolateZones(from: Zone[], to: Zone[], amount: number): Zone[] {
-  return from.map((zone) => {
-    const next = to.find((z) => z.id === zone.id) ?? zone
-    return { ...zone, x: lerp(zone.x, next.x, amount), y: lerp(zone.y, next.y, amount) }
-  })
 }
 
 function normalizeFrames(nextFrames: Partial<Frame>[] | undefined): Frame[] {
@@ -45,33 +39,8 @@ export function normalizeDurations(raw: number[] | undefined, frameCount: number
   )
 }
 
-function buildCumulative(durations: number[]): number[] {
-  const cum: number[] = []
-  let acc = 0
-  for (const d of durations) {
-    acc += d
-    cum.push(acc)
-  }
-  return cum
-}
-
 function clamp(value: number) {
   return Math.min(100, Math.max(0, value))
-}
-
-function lerp(start: number, end: number, amount: number) {
-  return start + (end - start) * amount
-}
-
-function interpolatePlayers(from: PlayerPosition[], to: PlayerPosition[], amount: number) {
-  return from.map((player) => {
-    const next = to.find((item) => item.id === player.id) ?? player
-    return {
-      id: player.id,
-      x: lerp(player.x, next.x, amount),
-      y: lerp(player.y, next.y, amount),
-    }
-  })
 }
 
 export type TacticalBoardProps = {
@@ -166,16 +135,12 @@ export function useTacticalBoard({
   playDescription,
   playCategory = 'Other',
 }: TacticalBoardProps): UseTacticalBoardReturn {
-  const animationRef = useRef<number | null>(null)
   const originalFramesRef = useRef<Frame[] | null>(null)
   const [frames, setFrames] = useState<Frame[]>(() => normalizeFrames(initialFrames))
   const [durations, setDurations] = useState<number[]>(() =>
     normalizeDurations(initialDurations, normalizeFrames(initialFrames).length),
   )
   const [activeFrameIndex, setActiveFrameIndex] = useState(0)
-  const [displayPlayers, setDisplayPlayers] = useState<PlayerPosition[] | null>(null)
-  const [displayZones, setDisplayZones] = useState<Zone[] | null>(null)
-  const [isPlaying, setIsPlaying] = useState(false)
   const [formations, setFormations] = useState<Formation[]>([])
   const [formationName, setFormationName] = useState('')
   const [formationCategory, setFormationCategory] = useState<FormationCategory>('Open Play')
@@ -305,22 +270,22 @@ export function useTacticalBoard({
   }, [])
 
   const activeFrame = frames[activeFrameIndex] ?? frames[0] ?? defaultFrame
+
+  const {
+    displayPlayers,
+    displayZones,
+    isPlaying,
+    playFrames,
+    stopPlayback,
+    scrubTo,
+  } = usePlayback({ frames, durations, setActiveFrameIndex })
+
   const visiblePlayers = displayPlayers ?? activeFrame.players
   const visibleZones = displayZones ?? activeFrame.zones ?? []
 
   const playerById = useMemo(() => {
     return new Map(visiblePlayers.map((player) => [player.id, player]))
   }, [visiblePlayers])
-
-  const stopPlayback = useCallback(() => {
-    if (animationRef.current !== null) {
-      cancelAnimationFrame(animationRef.current)
-      animationRef.current = null
-    }
-    setIsPlaying(false)
-    setDisplayPlayers(null)
-    setDisplayZones(null)
-  }, [])
 
   const movePlayer = useCallback(
     (id: string, rawX: number, rawY: number) => {
@@ -410,36 +375,6 @@ export function useTacticalBoard({
       return next
     })
   }, [])
-
-  const scrubTo = useCallback(
-    (timeMs: number) => {
-      if (isPlaying) return
-      const playbackFrames = normalizeFrames(frames)
-      if (playbackFrames.length < 2) return
-      const segDurations = normalizeDurations(durations, playbackFrames.length)
-      const cumulative = buildCumulative(segDurations)
-      const total = cumulative[cumulative.length - 1] ?? 0
-      const t0 = Math.min(total, Math.max(0, timeMs))
-
-      let seg = 0
-      for (let i = 0; i < cumulative.length; i++) {
-        if (t0 <= cumulative[i]) { seg = i; break }
-        seg = i
-      }
-      const segStart = seg === 0 ? 0 : cumulative[seg - 1]
-      const segEnd = cumulative[seg]
-      const progress = segEnd > segStart ? (t0 - segStart) / (segEnd - segStart) : 0
-
-      setActiveFrameIndex(seg)
-      setDisplayPlayers(
-        interpolatePlayers(playbackFrames[seg].players, playbackFrames[Math.min(seg + 1, playbackFrames.length - 1)].players, progress),
-      )
-      setDisplayZones(
-        interpolateZones(playbackFrames[seg].zones ?? [], playbackFrames[Math.min(seg + 1, playbackFrames.length - 1)].zones ?? [], progress),
-      )
-    },
-    [frames, durations, isPlaying],
-  )
 
   const resetBoard = useCallback(() => {
     stopPlayback()
@@ -678,50 +613,6 @@ export function useTacticalBoard({
       })),
     )
   }, [])
-
-  const playFrames = useCallback(() => {
-    const playbackFrames = normalizeFrames(frames).filter((frame) => frame.players.length > 0)
-    if (playbackFrames.length < 2 || isPlaying) return
-
-    const segDurations = normalizeDurations(durations, playbackFrames.length)
-    const cumulative = buildCumulative(segDurations)
-    const totalMs = cumulative[cumulative.length - 1] ?? 0
-
-    const startedAt = performance.now()
-    setIsPlaying(true)
-
-    const tick = (now: number) => {
-      const elapsed = now - startedAt
-
-      if (elapsed >= totalMs) {
-        setActiveFrameIndex(playbackFrames.length - 1)
-        setDisplayPlayers(null)
-        setIsPlaying(false)
-        animationRef.current = null
-        return
-      }
-
-      let seg = 0
-      for (let i = 0; i < cumulative.length; i++) {
-        if (elapsed < cumulative[i]) { seg = i; break }
-        seg = i
-      }
-      const segStart = seg === 0 ? 0 : cumulative[seg - 1]
-      const segEnd = cumulative[seg]
-      const progress = Math.min(1, (elapsed - segStart) / (segEnd - segStart))
-
-      setActiveFrameIndex(seg)
-      setDisplayPlayers(
-        interpolatePlayers(playbackFrames[seg].players, playbackFrames[seg + 1].players, progress),
-      )
-      setDisplayZones(
-        interpolateZones(playbackFrames[seg].zones ?? [], playbackFrames[seg + 1].zones ?? [], progress),
-      )
-      animationRef.current = requestAnimationFrame(tick)
-    }
-
-    animationRef.current = requestAnimationFrame(tick)
-  }, [frames, durations, isPlaying])
 
   return {
     frames,
