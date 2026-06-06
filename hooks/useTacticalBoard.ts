@@ -527,6 +527,7 @@ export function useTacticalBoard({
     setFrames((currentFrames) =>
       currentFrames.map((frame) => ({
         players: frame.players.map(rotatePitchCoords),
+        zones: frame.zones.map((z) => ({ ...z, x: z.y, y: z.x })),
         lines: frame.lines.map((line) => ({
           ...line,
           from: rotatePitchCoords(line.from),
