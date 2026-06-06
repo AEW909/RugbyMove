@@ -126,6 +126,7 @@ export type UseTacticalBoardReturn = {
   addPlayers: (ids: string[]) => void
   addZone: (x: number, y: number) => void
   moveZone: (id: string, x: number, y: number) => void
+  resizeZone: (id: string, r: number) => void
   deleteZone: (id: string) => void
   updateZoneLabel: (id: string, label: string) => void
   addLine: (line: Line) => void
@@ -664,6 +665,19 @@ export function useTacticalBoard({
     [activeFrameIndex, isPlaying],
   )
 
+  const resizeZone = useCallback(
+    (id: string, r: number) => {
+      if (isPlaying) return
+      setFrames((currentFrames) =>
+        currentFrames.map((frame, index) => {
+          if (index !== activeFrameIndex) return frame
+          return { ...frame, zones: (frame.zones ?? []).map((z) => (z.id === id ? { ...z, r } : z)) }
+        }),
+      )
+    },
+    [activeFrameIndex, isPlaying],
+  )
+
   const deleteZone = useCallback((id: string) => {
     setFrames((currentFrames) =>
       currentFrames.map((frame) => ({ ...frame, zones: (frame.zones ?? []).filter((z) => z.id !== id) })),
@@ -761,6 +775,7 @@ export function useTacticalBoard({
     addPlayers,
     addZone,
     moveZone,
+    resizeZone,
     deleteZone,
     updateZoneLabel,
     addLine,

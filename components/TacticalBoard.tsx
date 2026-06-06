@@ -119,8 +119,9 @@ export default function TacticalBoard(props: TacticalBoardProps) {
     updatePlayerPosition(id, e.clientX, e.clientY)
   }
 
-  // ── Zone drag ──
+  // ── Zone drag / resize / rename ──
   const [editingZoneId, setEditingZoneId] = useState<string | null>(null)
+  const [resizingZoneId, setResizingZoneId] = useState<string | null>(null)
 
   // ── Add players dialog ──
   const [showAddPlayers, setShowAddPlayers] = useState(false)
@@ -722,15 +723,16 @@ export default function TacticalBoard(props: TacticalBoardProps) {
             {/* Zone circles */}
             {board.visibleZones.map((zone) => {
               const canEditZone = !viewOnly && board.tool !== 'draw'
+              const isEditing = editingZoneId === zone.id
               return (
                 <div
                   key={zone.id}
                   data-zone={zone.id}
-                  onPointerDown={canEditZone ? handleZonePointerDown(zone.id) : undefined}
-                  onPointerMove={canEditZone ? handleZonePointerMove(zone.id) : undefined}
+                  onPointerDown={canEditZone && !isEditing ? handleZonePointerDown(zone.id) : undefined}
+                  onPointerMove={canEditZone && !isEditing ? handleZonePointerMove(zone.id) : undefined}
                   className={cn(
                     'absolute rounded-full border-2 border-dashed border-white/40 bg-white/10',
-                    canEditZone && editingZoneId !== zone.id && 'touch-none cursor-move',
+                    canEditZone && !isEditing && 'touch-none cursor-move',
                   )}
                   style={{
                     left: `${zone.x}%`,
@@ -740,8 +742,9 @@ export default function TacticalBoard(props: TacticalBoardProps) {
                     transform: 'translate(-50%, -50%)',
                   }}
                 >
+                  {/* Label / rename input */}
                   <div className="absolute inset-0 flex items-center justify-center">
-                    {editingZoneId === zone.id ? (
+                    {isEditing ? (
                       <input
                         autoFocus
                         value={zone.label}
@@ -750,26 +753,60 @@ export default function TacticalBoard(props: TacticalBoardProps) {
                         onKeyDown={(e) => {
                           if (e.key === 'Enter' || e.key === 'Escape') setEditingZoneId(null)
                         }}
+                        onPointerDown={(e) => e.stopPropagation()}
                         onClick={(e) => e.stopPropagation()}
                         className="w-3/4 rounded bg-black/70 px-1 py-0.5 text-center text-xs font-bold text-white outline-none"
                       />
                     ) : (
-                      <span
-                        className="select-none text-xs font-bold text-white/80"
-                        onDoubleClick={() => { if (canEditZone) setEditingZoneId(zone.id) }}
-                      >
+                      <span className="select-none text-xs font-bold text-white/80">
                         {zone.label}
                       </span>
                     )}
                   </div>
-                  {canEditZone && (
-                    <button
-                      type="button"
-                      onClick={(e) => { e.stopPropagation(); board.deleteZone(zone.id) }}
-                      className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-400"
-                    >
-                      <X className="h-2.5 w-2.5" />
-                    </button>
+
+                  {canEditZone && !isEditing && (
+                    <>
+                      {/* Delete */}
+                      <button
+                        type="button"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); board.deleteZone(zone.id) }}
+                        className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-400"
+                      >
+                        <X className="h-2.5 w-2.5" />
+                      </button>
+
+                      {/* Rename */}
+                      <button
+                        type="button"
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => { e.stopPropagation(); setEditingZoneId(zone.id) }}
+                        className="absolute -left-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-white/20 text-white transition hover:bg-white/40"
+                      >
+                        <Pencil className="h-2 w-2" />
+                      </button>
+
+                      {/* Resize handle */}
+                      <div
+                        className="absolute -bottom-1.5 -right-1.5 h-3.5 w-3.5 cursor-se-resize touch-none rounded-full border border-white/60 bg-white/30 hover:bg-white/60"
+                        onPointerDown={(e) => {
+                          e.stopPropagation()
+                          e.currentTarget.setPointerCapture(e.pointerId)
+                          setResizingZoneId(zone.id)
+                        }}
+                        onPointerMove={(e) => {
+                          if (e.buttons !== 1 || resizingZoneId !== zone.id) return
+                          const rect = boardRef.current?.getBoundingClientRect()
+                          if (!rect) return
+                          const cx = rect.left + (zone.x / 100) * rect.width
+                          const cy = rect.top + (zone.y / 100) * rect.height
+                          const distPx = Math.hypot(e.clientX - cx, e.clientY - cy)
+                          const newR = Math.min(40, Math.max(3, (distPx / rect.width) * 100))
+                          board.resizeZone(zone.id, newR)
+                        }}
+                        onPointerUp={() => setResizingZoneId(null)}
+                      />
+                    </>
                   )}
                 </div>
               )
