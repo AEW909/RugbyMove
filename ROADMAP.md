@@ -9,7 +9,7 @@
 - Playback interpolation via `requestAnimationFrame`
 - Zoom and pan on the board
 - Pitch portrait/landscape toggle — orientation saved with move
-- Formation presets (scrum, lineout, etc.) — rotate on load to match pitch orientation
+- **Formation rework** — abstract slot model (no player IDs); jersey picker on load; select-to-save flow; built-in Scrum + Lineout restored; user formations saved to Supabase
 - Draw lines tool with colour and dashed options
 - Snap-to-grid toggle
 - Save move to Supabase — title, category, description, playbook

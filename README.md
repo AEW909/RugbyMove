@@ -1,43 +1,65 @@
 # RugbyMove
 
-A production-ready Next.js App Router scaffold for a rugby based tactical playbook app.
+A rugby tactical playbook app — create animated plays, organise them into playbooks, and share with coaches and players.
 
 ## Stack
 
-- Next.js 14 App Router with TypeScript
+- Next.js 14 App Router with TypeScript (strict)
 - Tailwind CSS
 - Supabase Auth, Postgres, RLS, and `@supabase/ssr`
 - Vercel deployment target
 - `lucide-react` icons
-- React state and `requestAnimationFrame` for tactical-board playback
+- Zod for server action validation
+- `requestAnimationFrame` for smooth playback interpolation
 
 ## Getting Started
 
 ```bash
 npm install
-cp .env.example .env.local
+cp .env.example .env.local   # fill in Supabase URL and keys
 npm run dev
 ```
 
-Apply the Supabase schema in `supabase/migrations/0001_rugbyslate_schema.sql`, then set:
+Environment variables required:
 
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
-- `SUPABASE_SECRET_KEY` only for trusted server-only maintenance code
-- `NEXT_PUBLIC_SITE_URL`
+| Variable | Purpose |
+|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Client/SSR access |
+| `SUPABASE_SECRET_KEY` | Admin-only server actions |
+| `NEXT_PUBLIC_SITE_URL` | Used for auth redirects |
 
-## Auth and Master User
+## Database Setup
 
-Apply all migrations in `supabase/migrations`, then create the master user with environment variables:
+Apply all migrations in order:
 
 ```bash
-set NEXT_PUBLIC_SUPABASE_URL=your-url
-set SUPABASE_SECRET_KEY=your-secret-key
+# using Supabase CLI
+supabase db push
+```
+
+Or apply `supabase/migrations/*.sql` manually via the Supabase dashboard (SQL editor). All tables live in the **rugby** schema.
+
+## Master User
+
+```bash
 set SUPABASE_MASTER_EMAIL=awilkinson@lrgs.org.uk
 set SUPABASE_MASTER_PASSWORD=your-password
 npm run seed:master-user
 ```
 
-The password belongs in your local shell or hosting secret manager only. Do not commit it.
+The password belongs in your shell or secret manager only. Do not commit it.
 
-The main tactical page is `app/playbook/[id]/page.tsx`.
+## Key Routes
+
+| Route | Description |
+|---|---|
+| `/` | Home dashboard |
+| `/playbook/[id]` | Tactical editor |
+| `/playbook/new` | Blank board |
+| `/playbooks` | Playbook library |
+| `/org/[id]` | Organisation management |
+| `/login` | Auth entry point |
+
+For architecture details and agent handover notes see [CLAUDE.md](./CLAUDE.md).
+For the feature roadmap see [ROADMAP.md](./ROADMAP.md).
