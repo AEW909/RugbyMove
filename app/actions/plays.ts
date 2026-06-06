@@ -21,6 +21,15 @@ const animationDataSchema = z.object({
             y: z.number().min(0).max(100),
           }),
         ),
+        zones: z.array(
+          z.object({
+            id: z.string().min(1).max(64),
+            x: z.number().min(0).max(100),
+            y: z.number().min(0).max(100),
+            r: z.number().min(1).max(50),
+            label: z.string().max(40),
+          }),
+        ),
         lines: z.array(
           z.object({
             id: z.string().min(1).max(64),
@@ -35,6 +44,7 @@ const animationDataSchema = z.object({
     .min(1),
   durations: z.array(z.number().min(200).max(3000)).optional(),
   pitchPortrait: z.boolean().optional(),
+  activePlayers: z.array(z.string().min(1).max(20)).optional(),
 })
 
 const savePlaySchema = z.object({
