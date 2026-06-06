@@ -795,6 +795,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
                           setResizingZoneId(zone.id)
                         }}
                         onPointerMove={(e) => {
+                          e.stopPropagation()
                           if (e.buttons !== 1 || resizingZoneId !== zone.id) return
                           const rect = boardRef.current?.getBoundingClientRect()
                           if (!rect) return
