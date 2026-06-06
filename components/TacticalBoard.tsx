@@ -6,13 +6,13 @@ import { cn } from '@/lib/utils'
 import { useTacticalBoard } from '@/hooks/useTacticalBoard'
 import type { TacticalBoardProps } from '@/hooks/useTacticalBoard'
 import { useBoardGestures } from '@/hooks/useBoardGestures'
-import PanelSlideOver from '@/components/board/PanelSlideOver'
-import FrameTimeline from '@/components/board/FrameTimeline'
-import AddPlayersDialog from '@/components/board/AddPlayersDialog'
-import TacticalBoardToolbar from '@/components/board/TacticalBoardToolbar'
-import PitchCanvas from '@/components/board/PitchCanvas'
-import SaveFormationModal from '@/components/board/SaveFormationModal'
 import { useIsMobile } from '@/hooks/useIsMobile'
+import TacticalBoardToolbar from '@/components/board/TacticalBoardToolbar'
+import FrameTimeline from '@/components/board/FrameTimeline'
+import PitchCanvas from '@/components/board/PitchCanvas'
+import PanelSlideOver from '@/components/board/PanelSlideOver'
+import SaveFormationModal from '@/components/board/SaveFormationModal'
+import AddPlayersDialog from '@/components/board/AddPlayersDialog'
 
 export default function TacticalBoard(props: TacticalBoardProps) {
   const board = useTacticalBoard(props)
@@ -32,6 +32,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
     lineColor: board.lineColor,
     lineDashed: board.lineDashed,
     onAddLine: board.addLine,
+    onMovePlayer: board.movePlayer,
   })
 
   return (
@@ -44,7 +45,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
         onShowAddPlayers={() => setShowAddPlayers(true)}
       />
 
-      {/* Fixed side tab — opens the save/formations panel */}
+      {/* Side tab — opens the save/formations panel */}
       {!viewOnly && (
         <button
           type="button"
@@ -72,10 +73,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           onScrub={board.scrubTo}
           onDeleteFrame={board.deleteFrame}
         />
-
-        <div className="min-h-0 flex-1 flex items-center justify-center overflow-hidden">
-          <PitchCanvas board={board} gestures={gestures} viewOnly={viewOnly} />
-        </div>
+        <PitchCanvas board={board} gestures={gestures} viewOnly={viewOnly} />
       </div>
 
       {!viewOnly && (
@@ -105,11 +103,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
 
       {!viewOnly && board.showFormationModal && (
         <SaveFormationModal
-          name={board.formationName}
-          onNameChange={board.setFormationName}
-          category={board.formationCategory}
-          onCategoryChange={board.setFormationCategory}
-          onSave={board.saveFormation}
+          board={board}
           onClose={() => board.setShowFormationModal(false)}
         />
       )}

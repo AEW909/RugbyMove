@@ -2,13 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
-import type { Line, PlayerPosition } from '@/types/play'
+import type { PlayerPosition, Line } from '@/types/play'
 
 const MAX_ZOOM = 4
 const ZOOM_FACTOR = 1.15
 const MIN_LINE_LENGTH_PCT = 2
-
-type Point = { x: number; y: number }
 
 export type BoardGestureConfig = {
   tool: 'pointer' | 'select' | 'draw'
@@ -19,39 +17,64 @@ export type BoardGestureConfig = {
   lineColor: string
   lineDashed: boolean
   onAddLine: (line: Line) => void
+  onMovePlayer: (id: string, x: number, y: number) => void
 }
 
-export type BoardGestures = ReturnType<typeof useBoardGestures>
+export type UseBoardGesturesReturn = {
+  boardRef: React.RefObject<HTMLDivElement>
+  zoom: number
+  panX: number
+  panY: number
+  resetZoom: () => void
+  toBoard: (clientX: number, clientY: number) => { x: number; y: number }
+  updatePlayerPosition: (id: string, clientX: number, clientY: number) => void
+  selectionBox: { x1: number; y1: number; x2: number; y2: number } | null
+  pendingLine: { from: { x: number; y: number }; to: { x: number; y: number } } | null
+  boardCursor: string
+  handleBoardPointerDown: (e: React.PointerEvent<HTMLDivElement>) => void
+  handleBoardPointerMove: (e: React.PointerEvent<HTMLDivElement>) => void
+  handleBoardPointerUp: (e: React.PointerEvent<HTMLDivElement>) => void
+  handleBoardPointerCancel: (e: React.PointerEvent<HTMLDivElement>) => void
+}
 
-export function useBoardGestures(config: BoardGestureConfig) {
-  const {
-    tool, viewOnly, snapGrid,
-    activeFramePlayers, setSelectedPlayerIds,
-    lineColor, lineDashed, onAddLine,
-  } = config
-
+export function useBoardGestures({
+  tool,
+  viewOnly,
+  snapGrid,
+  activeFramePlayers,
+  setSelectedPlayerIds,
+  lineColor,
+  lineDashed,
+  onAddLine,
+  onMovePlayer,
+}: BoardGestureConfig): UseBoardGesturesReturn {
   const boardRef = useRef<HTMLDivElement>(null)
+
   const [zoom, setZoom] = useState(1)
   const [panX, setPanX] = useState(0)
   const [panY, setPanY] = useState(0)
 
-  const activePointersRef = useRef<Map<number, Point>>(new Map())
+  const activePointersRef = useRef<Map<number, { x: number; y: number }>>(new Map())
   const panStartRef = useRef<{ x: number; y: number; startPanX: number; startPanY: number } | null>(null)
   const pinchStartRef = useRef<{ dist: number; startZoom: number; startPanX: number; startPanY: number } | null>(null)
-  const selectionStartRef = useRef<Point | null>(null)
-  const drawStartRef = useRef<Point | null>(null)
+  const selectionStartRef = useRef<{ x: number; y: number } | null>(null)
+  const drawStartRef = useRef<{ x: number; y: number } | null>(null)
 
-  const [selectionBox, setSelectionBox] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null)
-  const [pendingLine, setPendingLine] = useState<{ from: Point; to: Point } | null>(null)
+  const [selectionBox, setSelectionBox] = useState<{
+    x1: number; y1: number; x2: number; y2: number
+  } | null>(null)
+  const [pendingLine, setPendingLine] = useState<{
+    from: { x: number; y: number }; to: { x: number; y: number }
+  } | null>(null)
 
   const clampPan = (px: number, py: number, z: number, r: DOMRect) => ({
-    x: Math.min(r.width / 2 * (z - 1) / z, Math.max(-r.width / 2 * (z - 1) / z, px)),
+    x: Math.min(r.width  / 2 * (z - 1) / z, Math.max(-r.width  / 2 * (z - 1) / z, px)),
     y: Math.min(r.height / 2 * (z - 1) / z, Math.max(-r.height / 2 * (z - 1) / z, py)),
   })
 
   const resetZoom = () => { setZoom(1); setPanX(0); setPanY(0) }
 
-  const toBoard = useCallback((clientX: number, clientY: number): Point => {
+  const toBoard = useCallback((clientX: number, clientY: number) => {
     const el = boardRef.current
     if (!el) return { x: 0, y: 0 }
     const r = el.getBoundingClientRect()
@@ -65,16 +88,17 @@ export function useBoardGestures(config: BoardGestureConfig) {
     }
   }, [zoom, panX, panY])
 
-  // Returns board-% coords snapped to a grid with equal pixel steps on both axes
-  const snapToGrid = useCallback((x: number, y: number): Point => {
-    const r = boardRef.current?.getBoundingClientRect()
-    const gridX = 5
-    const gridY = r ? gridX * (r.width / r.height) : gridX
-    return {
-      x: Math.round(x / gridX) * gridX,
-      y: Math.round(y / gridY) * gridY,
+  const updatePlayerPosition = useCallback((id: string, clientX: number, clientY: number) => {
+    let { x, y } = toBoard(clientX, clientY)
+    if (snapGrid) {
+      const r = boardRef.current?.getBoundingClientRect()
+      const gridX = 5
+      const gridY = r ? gridX * (r.width / r.height) : gridX
+      x = Math.round(x / gridX) * gridX
+      y = Math.round(y / gridY) * gridY
     }
-  }, [])
+    onMovePlayer(id, x, y)
+  }, [toBoard, snapGrid, onMovePlayer])
 
   const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault()
@@ -100,7 +124,7 @@ export function useBoardGestures(config: BoardGestureConfig) {
     return () => el.removeEventListener('wheel', handleWheel)
   }, [handleWheel])
 
-  const handleBoardPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handleBoardPointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const target = e.target as Element
     activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
 
@@ -137,9 +161,9 @@ export function useBoardGestures(config: BoardGestureConfig) {
       drawStartRef.current = { x, y }
       setPendingLine({ from: { x, y }, to: { x, y } })
     }
-  }
+  }, [zoom, panX, panY, viewOnly, tool, toBoard, setSelectedPlayerIds])
 
-  const handleBoardPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handleBoardPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     activePointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
 
     if (pinchStartRef.current && activePointersRef.current.size >= 2) {
@@ -185,12 +209,15 @@ export function useBoardGestures(config: BoardGestureConfig) {
       const { x, y } = toBoard(e.clientX, e.clientY)
       setPendingLine({ from: drawStartRef.current, to: { x, y } })
     }
-  }
+  }, [zoom, tool, toBoard])
 
-  const handleBoardPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handleBoardPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     activePointersRef.current.delete(e.pointerId)
 
-    if (panStartRef.current) { panStartRef.current = null; return }
+    if (panStartRef.current) {
+      panStartRef.current = null
+      return
+    }
     if (pinchStartRef.current) {
       if (activePointersRef.current.size < 2) pinchStartRef.current = null
       return
@@ -220,40 +247,41 @@ export function useBoardGestures(config: BoardGestureConfig) {
       const dx = pendingLine.to.x - pendingLine.from.x
       const dy = pendingLine.to.y - pendingLine.from.y
       if (Math.sqrt(dx * dx + dy * dy) >= MIN_LINE_LENGTH_PCT) {
-        onAddLine({
+        const line: Line = {
           id: crypto.randomUUID(),
           from: pendingLine.from,
           to: pendingLine.to,
           color: lineColor,
           dashed: lineDashed,
-        })
+        }
+        onAddLine(line)
       }
       drawStartRef.current = null
       setPendingLine(null)
     }
-  }
+  }, [viewOnly, tool, toBoard, activeFramePlayers, setSelectedPlayerIds, pendingLine, lineColor, lineDashed, onAddLine])
 
-  const handleBoardPointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+  const handleBoardPointerCancel = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     activePointersRef.current.delete(e.pointerId)
     panStartRef.current = null
     if (activePointersRef.current.size < 2) pinchStartRef.current = null
-  }
+  }, [])
 
-  const boardCursor = panStartRef.current
-    ? 'cursor-grabbing'
-    : zoom > 1 && (viewOnly || tool === 'pointer')
-      ? 'cursor-grab'
-      : !viewOnly && (tool === 'select' || tool === 'draw')
-        ? 'cursor-crosshair'
-        : ''
+  const boardCursor = (() => {
+    if (panStartRef.current) return 'cursor-grabbing'
+    if (zoom > 1 && (viewOnly || tool === 'pointer')) return 'cursor-grab'
+    if (!viewOnly && (tool === 'select' || tool === 'draw')) return 'cursor-crosshair'
+    return ''
+  })()
 
   return {
     boardRef,
-    zoom, panX, panY,
+    zoom,
+    panX,
+    panY,
     resetZoom,
     toBoard,
-    snapToGrid,
-    snapGrid,
+    updatePlayerPosition,
     selectionBox,
     pendingLine,
     boardCursor,

@@ -1,19 +1,15 @@
 'use client'
 
 import { X } from 'lucide-react'
-import { FORMATION_CATEGORIES } from '@/lib/board/storage'
 import type { FormationCategory } from '@/lib/board/storage'
+import type { UseTacticalBoardReturn } from '@/hooks/useTacticalBoard'
 
 type Props = {
-  name: string
-  onNameChange: (name: string) => void
-  category: FormationCategory
-  onCategoryChange: (cat: FormationCategory) => void
-  onSave: () => void
+  board: UseTacticalBoardReturn
   onClose: () => void
 }
 
-export default function SaveFormationModal({ name, onNameChange, category, onCategoryChange, onSave, onClose }: Props) {
+export default function SaveFormationModal({ board, onClose }: Props) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
@@ -40,8 +36,8 @@ export default function SaveFormationModal({ name, onNameChange, category, onCat
           <label className="block text-sm font-semibold text-white/80">
             Name
             <input
-              value={name}
-              onChange={(e) => onNameChange(e.target.value)}
+              value={board.formationName}
+              onChange={(e) => board.setFormationName(e.target.value)}
               placeholder="e.g. Tight scrum left"
               autoFocus
               className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 font-normal text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
@@ -50,13 +46,14 @@ export default function SaveFormationModal({ name, onNameChange, category, onCat
           <label className="block text-sm font-semibold text-white/80">
             Category
             <select
-              value={category}
-              onChange={(e) => onCategoryChange(e.target.value as FormationCategory)}
+              value={board.formationCategory}
+              onChange={(e) => board.setFormationCategory(e.target.value as FormationCategory)}
               className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 font-normal text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
             >
-              {FORMATION_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
+              <option value="Scrum">Scrum</option>
+              <option value="Lineout">Lineout</option>
+              <option value="Penalty">Penalty</option>
+              <option value="Open Play">Open Play</option>
             </select>
           </label>
         </div>
@@ -70,8 +67,8 @@ export default function SaveFormationModal({ name, onNameChange, category, onCat
           </button>
           <button
             type="button"
-            onClick={onSave}
-            disabled={!name.trim()}
+            onClick={board.saveFormation}
+            disabled={!board.formationName.trim()}
             className="rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90 disabled:opacity-50"
           >
             Save formation

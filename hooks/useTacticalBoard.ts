@@ -12,13 +12,9 @@ export { tokens, defaultFrame } from '@/lib/board/defaults'
 export type { Token } from '@/lib/board/defaults'
 export { SCRUM_FORMATION, LINEOUT_FORMATION } from '@/lib/board/defaults'
 
-// ── Constants ──────────────────────────────────────────────────────────────────
-
 export const DEFAULT_DURATION = 900
 export const MIN_DURATION = 200
 export const MAX_DURATION = 3000
-
-// ── Pure helpers ───────────────────────────────────────────────────────────────
 
 function normalizeFrame(frame: Partial<Frame> | undefined): Frame {
   return {
@@ -47,12 +43,6 @@ function clamp(value: number) {
   return Math.min(100, Math.max(0, value))
 }
 
-function rotatePitchCoords<T extends { x: number; y: number }>(p: T): T {
-  return { ...p, x: p.y, y: p.x }
-}
-
-// ── Types ──────────────────────────────────────────────────────────────────────
-
 export type TacticalBoardProps = {
   initialFrames?: Frame[]
   initialDurations?: number[]
@@ -73,6 +63,7 @@ export type UseTacticalBoardReturn = {
   totalDuration: number
   activeFrameIndex: number
   activeFrame: Frame
+  visiblePlayers: PlayerPosition[]
   visibleZones: Zone[]
   playerById: Map<string, PlayerPosition>
   isPlaying: boolean
@@ -91,7 +82,9 @@ export type UseTacticalBoardReturn = {
   setPanelOpen: (open: boolean) => void
   panelTab: PanelTab
   setPanelTab: (tab: PanelTab) => void
+  userId: string | null
   playbooks: { id: string; name: string }[]
+  setPlaybooks: Dispatch<SetStateAction<{ id: string; name: string }[]>>
   tool: 'pointer' | 'select' | 'draw'
   setTool: (t: 'pointer' | 'select' | 'draw') => void
   lineColor: string
@@ -102,7 +95,6 @@ export type UseTacticalBoardReturn = {
   addPlayers: (ids: string[]) => void
   addZone: (x: number, y: number) => void
   moveZone: (id: string, x: number, y: number) => void
-  resizeZone: (id: string, r: number) => void
   deleteZone: (id: string) => void
   updateZoneLabel: (id: string, label: string) => void
   addLine: (line: Line) => void
@@ -128,7 +120,9 @@ export type UseTacticalBoardReturn = {
   stopPlayback: () => void
 }
 
-// ── Hook ───────────────────────────────────────────────────────────────────────
+function rotatePitchCoords<T extends { x: number; y: number }>(p: T): T {
+  return { ...p, x: p.y, y: p.x }
+}
 
 export function useTacticalBoard({
   initialFrames,
@@ -138,11 +132,10 @@ export function useTacticalBoard({
   playId,
   mode = 'saved',
   playTitle = 'rugbymove-move',
+  playDescription,
   playCategory = 'Other',
 }: TacticalBoardProps): UseTacticalBoardReturn {
-
-  // ── State ──────────────────────────────────────────────────────────────────
-
+  const originalFramesRef = useRef<Frame[] | null>(null)
   const [frames, setFrames] = useState<Frame[]>(() => normalizeFrames(initialFrames))
   const [durations, setDurations] = useState<number[]>(() =>
     normalizeDurations(initialDurations, normalizeFrames(initialFrames).length),
@@ -165,6 +158,7 @@ export function useTacticalBoard({
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set())
   const [isExporting, setIsExporting] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
+  const initialLoadDone = useRef(false)
   const [activePlayers, setActivePlayers] = useState<string[]>(() => {
     if (mode === 'fresh') return []
     if (initialActivePlayers && initialActivePlayers.length > 0) return initialActivePlayers
@@ -172,39 +166,23 @@ export function useTacticalBoard({
     return []
   })
 
-  // ── Playback ───────────────────────────────────────────────────────────────
-
-  const { displayPlayers, displayZones, isPlaying, playFrames, stopPlayback, scrubTo } =
-    usePlayback({ frames, durations, setActiveFrameIndex })
-
-  // ── Derived values ─────────────────────────────────────────────────────────
-
   const totalDuration = useMemo(() => durations.reduce((a, b) => a + b, 0), [durations])
-  const activeFrame = frames[activeFrameIndex] ?? frames[0] ?? defaultFrame
-  const visiblePlayers = displayPlayers ?? activeFrame.players
-  const visibleZones = displayZones ?? activeFrame.zones ?? []
-  const playerById = useMemo(
-    () => new Map(visiblePlayers.map((p) => [p.id, p])),
-    [visiblePlayers],
-  )
 
-  // ── Effects ────────────────────────────────────────────────────────────────
-
-  // Track dirty state after initial render
-  const initialLoadDone = useRef(false)
+  // Mark dirty when frames/durations change after initial load
   useEffect(() => {
     if (!initialLoadDone.current) {
       initialLoadDone.current = true
       return
     }
     setIsDirty(true)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [frames, durations])
 
-  // Warn on browser close when there are unsaved changes
+  // Warn on browser close/refresh when there are unsaved changes
   useEffect(() => {
     if (!isDirty) return
-    const handler = (e: BeforeUnloadEvent) => { e.preventDefault() }
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+    }
     window.addEventListener('beforeunload', handler)
     return () => window.removeEventListener('beforeunload', handler)
   }, [isDirty])
@@ -222,29 +200,11 @@ export function useTacticalBoard({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Reset to a fresh blank board when mode === 'fresh'
-  useEffect(() => {
-    if (mode === 'fresh') {
-      setFrames([defaultFrame])
-      setDurations([])
-      setActiveFrameIndex(0)
-    }
-  }, [mode])
-
-  // Load user data: playbooks and formations
+  // Load formations from Supabase
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
-      setUserId(user?.id ?? null)
       if (!user) return
-
-      supabase
-        .from('playbooks')
-        .select('id,name')
-        .eq('owner_id', user.id)
-        .order('name')
-        .then(({ data }) => setPlaybooks(data ?? []))
-
       supabase
         .from('formations')
         .select('id,name,category,slots,updated_at')
@@ -264,70 +224,68 @@ export function useTacticalBoard({
     })
   }, [])
 
-  // ── Frame operations ───────────────────────────────────────────────────────
+  // Initialise frames from pending move/formation or mode
+  useEffect(() => {
+    if (mode === 'fresh') {
+      setFrames([defaultFrame])
+      setDurations([])
+      setActiveFrameIndex(0)
+    }
+  }, [mode])
 
-  const captureFrame = useCallback(() => {
-    setFrames((currentFrames) => {
-      const source = currentFrames[activeFrameIndex] ?? defaultFrame
-      const nextFrames = [
-        ...currentFrames.slice(0, activeFrameIndex + 1),
-        {
-          players: source.players.map((p) => ({ ...p })),
-          zones: (source.zones ?? []).map((z) => ({ ...z })),
-          lines: source.lines.map((l) => ({ ...l })),
-        },
-        ...currentFrames.slice(activeFrameIndex + 1),
-      ]
-      return normalizeFrames(nextFrames)
-    })
-    setDurations((prev) => [
-      ...prev.slice(0, activeFrameIndex + 1),
-      DEFAULT_DURATION,
-      ...prev.slice(activeFrameIndex + 1),
-    ])
-    setActiveFrameIndex((i) => i + 1)
-  }, [activeFrameIndex])
+  // Load saved plays and playbooks
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setUserId(user?.id ?? null)
+      if (!user) return
 
-  const deleteFrame = useCallback(
-    (indexToDelete: number) => {
-      stopPlayback()
-      if (frames.length <= 1) {
-        setFrames([defaultFrame])
-        setDurations([])
-        setActiveFrameIndex(0)
-        return
-      }
-      const nextFrames = normalizeFrames(frames.filter((_, i) => i !== indexToDelete))
-      setFrames(nextFrames)
-      setDurations((prev) => {
-        const next = prev.filter((_, i) => i !== indexToDelete)
-        return normalizeDurations(next, nextFrames.length)
-      })
-      setActiveFrameIndex((cur) => {
-        if (cur > indexToDelete) return cur - 1
-        if (cur === indexToDelete) return Math.max(0, cur - 1)
-        return Math.min(cur, nextFrames.length - 1)
-      })
-    },
-    [frames, stopPlayback],
-  )
+      supabase
+        .from('playbooks')
+        .select('id,name')
+        .eq('owner_id', user.id)
+        .order('name')
+        .then(({ data }) => setPlaybooks(data ?? []))
 
-  const setDuration = useCallback((segIndex: number, ms: number) => {
-    setDurations((prev) => {
-      const next = [...prev]
-      next[segIndex] = Math.min(MAX_DURATION, Math.max(MIN_DURATION, ms))
-      return next
+      supabase
+        .from('formations')
+        .select('id,name,category,slots,created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(12)
+        .then(({ data }) => {
+          if (data) {
+            setFormations(
+              data.map((f) => ({
+                id: f.id,
+                name: f.name,
+                category: f.category as FormationCategory,
+                slots: f.slots as FormationSlot[],
+                createdAt: f.created_at,
+              })),
+            )
+          }
+        })
     })
   }, [])
 
-  const resetBoard = useCallback(() => {
-    stopPlayback()
-    setFrames([defaultFrame])
-    setDurations([])
-    setActiveFrameIndex(0)
-  }, [stopPlayback])
+  const activeFrame = frames[activeFrameIndex] ?? frames[0] ?? defaultFrame
 
-  // ── Player operations ──────────────────────────────────────────────────────
+  const {
+    displayPlayers,
+    displayZones,
+    isPlaying,
+    playFrames,
+    stopPlayback,
+    scrubTo,
+  } = usePlayback({ frames, durations, setActiveFrameIndex })
+
+  const visiblePlayers = displayPlayers ?? activeFrame.players
+  const visibleZones = displayZones ?? activeFrame.zones ?? []
+
+  const playerById = useMemo(() => {
+    return new Map(visiblePlayers.map((player) => [player.id, player]))
+  }, [visiblePlayers])
 
   const movePlayer = useCallback(
     (id: string, rawX: number, rawY: number) => {
@@ -353,7 +311,9 @@ export function useTacticalBoard({
             }
             return {
               ...frame,
-              players: frame.players.map((p) => (p.id === id ? { ...p, x: newX, y: newY } : p)),
+              players: frame.players.map((p) =>
+                p.id === id ? { ...p, x: newX, y: newY } : p,
+              ),
             }
           }),
         ),
@@ -362,9 +322,252 @@ export function useTacticalBoard({
     [activeFrameIndex, isPlaying, snapGrid, tool, selectedPlayerIds],
   )
 
+  const captureFrame = useCallback(() => {
+    setFrames((currentFrames) => {
+      const source = currentFrames[activeFrameIndex] ?? defaultFrame
+      const nextFrames = [
+        ...currentFrames.slice(0, activeFrameIndex + 1),
+        {
+          players: source.players.map((player) => ({ ...player })),
+          zones: (source.zones ?? []).map((z) => ({ ...z })),
+          lines: source.lines.map((line) => ({ ...line })),
+        },
+        ...currentFrames.slice(activeFrameIndex + 1),
+      ]
+      return normalizeFrames(nextFrames)
+    })
+    setDurations((prev) => [
+      ...prev.slice(0, activeFrameIndex + 1),
+      DEFAULT_DURATION,
+      ...prev.slice(activeFrameIndex + 1),
+    ])
+    setActiveFrameIndex((i) => i + 1)
+  }, [activeFrameIndex])
+
+  const deleteFrame = useCallback(
+    (indexToDelete: number) => {
+      stopPlayback()
+      if (frames.length <= 1) {
+        setFrames([defaultFrame])
+        setDurations([])
+        setActiveFrameIndex(0)
+        return
+      }
+      const nextFrames = normalizeFrames(frames.filter((_, index) => index !== indexToDelete))
+      setFrames(nextFrames)
+      setDurations((prev) => {
+        const next = prev.filter((_, i) => i !== indexToDelete)
+        return normalizeDurations(next, nextFrames.length)
+      })
+      setActiveFrameIndex((currentIndex) => {
+        if (currentIndex > indexToDelete) return currentIndex - 1
+        if (currentIndex === indexToDelete) return Math.max(0, currentIndex - 1)
+        return Math.min(currentIndex, nextFrames.length - 1)
+      })
+    },
+    [frames, stopPlayback],
+  )
+
+  const setDuration = useCallback((segIndex: number, ms: number) => {
+    setDurations((prev) => {
+      const next = [...prev]
+      next[segIndex] = Math.min(MAX_DURATION, Math.max(MIN_DURATION, ms))
+      return next
+    })
+  }, [])
+
+  const resetBoard = useCallback(() => {
+    stopPlayback()
+    setFrames(originalFramesRef.current ?? [defaultFrame])
+    setDurations(normalizeDurations(undefined, (originalFramesRef.current ?? [defaultFrame]).length))
+    setActiveFrameIndex(0)
+  }, [stopPlayback])
+
+  const saveFormation = useCallback(() => {
+    const trimmedName = formationName.trim()
+    if (!trimmedName || !userId) return
+
+    // Build abstract slots from active players' current positions (no player IDs stored)
+    const slots: FormationSlot[] = activeFrame.players
+      .filter((p) => p.id === 'ball' || activePlayers.includes(p.id))
+      .map((p) => {
+        const side: FormationSlot['side'] = p.id === 'ball' ? 'ball' : p.id.startsWith('attack-') ? 'attack' : 'defend'
+        const pos = pitchPortrait ? rotatePitchCoords(p) : p
+        return { side, x: pos.x, y: pos.y }
+      })
+
+    saveFormationAction({ name: trimmedName, category: formationCategory, slots })
+      .then((data) => {
+        if (data) {
+          setFormations((prev) =>
+            [
+              {
+                id: data.id,
+                name: data.name,
+                category: data.category as FormationCategory,
+                slots: data.slots as FormationSlot[],
+                createdAt: data.updated_at,
+              },
+              ...prev,
+            ].slice(0, 12),
+          )
+        }
+      })
+      .catch(() => setSaveStatus('Formation save failed.'))
+
+    setFormationName('')
+    setShowFormationModal(false)
+  }, [activeFrame.players, activePlayers, formationCategory, formationName, pitchPortrait, userId])
+
+  // Accepts a pre-resolved list of {id, x, y} produced by FormationLoadDialog
+  const loadFormation = useCallback(
+    (players: PlayerPosition[]) => {
+      stopPlayback()
+
+      // Add the loaded player IDs to the active set
+      const incomingIds = players.filter((p) => p.id !== 'ball').map((p) => p.id)
+      if (incomingIds.length > 0) {
+        setActivePlayers((prev) => {
+          const next = [...(prev ?? [])]
+          for (const id of incomingIds) {
+            if (!next.includes(id)) next.push(id)
+          }
+          return next
+        })
+      }
+
+      setFrames((currentFrames) =>
+        normalizeFrames(
+          currentFrames.map((frame, index) => {
+            if (index !== activeFrameIndex) return frame
+            return {
+              ...frame,
+              players: frame.players.map((player) => {
+                const resolved = players.find((p) => p.id === player.id)
+                if (!resolved) return player
+                return pitchPortrait ? rotatePitchCoords(resolved) : resolved
+              }),
+            }
+          }),
+        ),
+      )
+    },
+    [activeFrameIndex, pitchPortrait, stopPlayback],
+  )
+
+  const togglePitchPortrait = useCallback(() => {
+    // Transform all player positions and line endpoints across every frame
+    setFrames((currentFrames) =>
+      currentFrames.map((frame) => ({
+        players: frame.players.map(rotatePitchCoords),
+        zones: (frame.zones ?? []).map((z) => ({ ...z, x: z.y, y: z.x })),
+        lines: frame.lines.map((line) => ({
+          ...line,
+          from: rotatePitchCoords(line.from),
+          to: rotatePitchCoords(line.to),
+        })),
+      })),
+    )
+    setPitchPortrait((p) => !p)
+  }, [])
+
+  const exportMove = useCallback(() => {
+    if (isExporting) return
+    setIsExporting(true)
+    exportGif(normalizeFrames(frames), durations, playTitle)
+      .finally(() => setIsExporting(false))
+  }, [frames, durations, isExporting, playTitle])
+
+  const handleSaveToPlaybook = useCallback(
+    async (playbookId: string, title: string, category: PlayCategory, description: string) => {
+      const normalizedFrames = normalizeFrames(frames)
+      try {
+        const play = await savePlay({
+          id:
+            playId &&
+            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+              playId,
+            )
+              ? playId
+              : undefined,
+          title,
+          description: description.trim() || null,
+          category: category ?? 'Other',
+          animation_data: { frames: normalizedFrames, durations, pitchPortrait: pitchPortrait || undefined, activePlayers },
+        })
+        const supabase = createClient()
+        await supabase
+          .from('playbook_plays')
+          .upsert(
+            { playbook_id: playbookId, play_id: play.id },
+            { onConflict: 'playbook_id,play_id' },
+          )
+        setSaveStatus('Saved to playbook.')
+        setIsDirty(false)
+      } catch {
+        setSaveStatus('Save failed. Please try again.')
+      }
+    },
+    [playId, frames, durations, pitchPortrait],
+  )
+
+  const handleSaveAsCopy = useCallback(
+    async (playbookId: string, title: string, category: PlayCategory, description: string) => {
+      const normalizedFrames = normalizeFrames(frames)
+      try {
+        const play = await savePlay({
+          // No id — always inserts a new play
+          title,
+          description: description.trim() || null,
+          category: category ?? 'Other',
+          animation_data: { frames: normalizedFrames, durations, pitchPortrait: pitchPortrait || undefined, activePlayers },
+        })
+        const supabase = createClient()
+        await supabase
+          .from('playbook_plays')
+          .upsert(
+            { playbook_id: playbookId, play_id: play.id },
+            { onConflict: 'playbook_id,play_id' },
+          )
+        setSaveStatus('Saved as new copy.')
+        setIsDirty(false)
+      } catch {
+        setSaveStatus('Save failed. Please try again.')
+      }
+    },
+    [frames, durations, pitchPortrait],
+  )
+
+  const addLine = useCallback(
+    (line: Line) => {
+      setFrames((currentFrames) =>
+        currentFrames.map((frame, index) =>
+          index !== activeFrameIndex
+            ? frame
+            : { ...frame, lines: [...frame.lines, line] },
+        ),
+      )
+    },
+    [activeFrameIndex],
+  )
+
+  const deleteLine = useCallback(
+    (lineId: string) => {
+      setFrames((currentFrames) =>
+        currentFrames.map((frame, index) =>
+          index !== activeFrameIndex
+            ? frame
+            : { ...frame, lines: frame.lines.filter((l) => l.id !== lineId) },
+        ),
+      )
+    },
+    [activeFrameIndex],
+  )
+
   const addPlayers = useCallback((ids: string[]) => {
     setActivePlayers((prev) => {
-      const next = [...(prev ?? [])]
+      const current = prev ?? []
+      const next = [...current]
       for (const id of ids) {
         if (!next.includes(id)) next.push(id)
       }
@@ -372,8 +575,6 @@ export function useTacticalBoard({
     })
     setIsDirty(true)
   }, [])
-
-  // ── Zone operations ────────────────────────────────────────────────────────
 
   const addZone = useCallback((x: number, y: number) => {
     const id = crypto.randomUUID()
@@ -398,19 +599,6 @@ export function useTacticalBoard({
     [activeFrameIndex, isPlaying],
   )
 
-  const resizeZone = useCallback(
-    (id: string, r: number) => {
-      if (isPlaying) return
-      setFrames((currentFrames) =>
-        currentFrames.map((frame, index) => {
-          if (index !== activeFrameIndex) return frame
-          return { ...frame, zones: (frame.zones ?? []).map((z) => (z.id === id ? { ...z, r } : z)) }
-        }),
-      )
-    },
-    [activeFrameIndex, isPlaying],
-  )
-
   const deleteZone = useCallback((id: string) => {
     setFrames((currentFrames) =>
       currentFrames.map((frame) => ({ ...frame, zones: (frame.zones ?? []).filter((z) => z.id !== id) })),
@@ -426,187 +614,13 @@ export function useTacticalBoard({
     )
   }, [])
 
-  // ── Line operations ────────────────────────────────────────────────────────
-
-  const addLine = useCallback(
-    (line: Line) => {
-      setFrames((currentFrames) =>
-        currentFrames.map((frame, index) =>
-          index !== activeFrameIndex ? frame : { ...frame, lines: [...frame.lines, line] },
-        ),
-      )
-    },
-    [activeFrameIndex],
-  )
-
-  const deleteLine = useCallback(
-    (lineId: string) => {
-      setFrames((currentFrames) =>
-        currentFrames.map((frame, index) =>
-          index !== activeFrameIndex
-            ? frame
-            : { ...frame, lines: frame.lines.filter((l) => l.id !== lineId) },
-        ),
-      )
-    },
-    [activeFrameIndex],
-  )
-
-  // ── Formation operations ───────────────────────────────────────────────────
-
-  const saveFormation = useCallback(() => {
-    const trimmedName = formationName.trim()
-    if (!trimmedName || !userId) return
-
-    const slots: FormationSlot[] = activeFrame.players
-      .filter((p) => p.id === 'ball' || activePlayers.includes(p.id))
-      .map((p) => {
-        const side: FormationSlot['side'] = p.id === 'ball' ? 'ball' : p.id.startsWith('attack-') ? 'attack' : 'defend'
-        const pos = pitchPortrait ? rotatePitchCoords(p) : p
-        return { side, x: pos.x, y: pos.y }
-      })
-
-    saveFormationAction({ name: trimmedName, category: formationCategory, slots })
-      .then((data) => {
-        if (data) {
-          setFormations((prev) =>
-            [
-              {
-                id: data.id,
-                name: data.name,
-                category: data.category as FormationCategory,
-                slots: data.slots as FormationSlot[],
-                createdAt: data.updated_at,
-              },
-              ...prev,
-            ].slice(0, 24),
-          )
-        }
-      })
-      .catch(() => setSaveStatus('Formation save failed.'))
-
-    setFormationName('')
-    setShowFormationModal(false)
-  }, [activeFrame.players, activePlayers, formationCategory, formationName, pitchPortrait, userId])
-
-  const loadFormation = useCallback(
-    (players: PlayerPosition[]) => {
-      stopPlayback()
-      const incomingIds = players.filter((p) => p.id !== 'ball').map((p) => p.id)
-      if (incomingIds.length > 0) {
-        setActivePlayers((prev) => {
-          const next = [...(prev ?? [])]
-          for (const id of incomingIds) {
-            if (!next.includes(id)) next.push(id)
-          }
-          return next
-        })
-      }
-      setFrames((currentFrames) =>
-        normalizeFrames(
-          currentFrames.map((frame, index) => {
-            if (index !== activeFrameIndex) return frame
-            return {
-              ...frame,
-              players: frame.players.map((player) => {
-                const resolved = players.find((p) => p.id === player.id)
-                if (!resolved) return player
-                return pitchPortrait ? rotatePitchCoords(resolved) : resolved
-              }),
-            }
-          }),
-        ),
-      )
-    },
-    [activeFrameIndex, pitchPortrait, stopPlayback],
-  )
-
-  // ── Pitch orientation ──────────────────────────────────────────────────────
-
-  const togglePitchPortrait = useCallback(() => {
-    setFrames((currentFrames) =>
-      currentFrames.map((frame) => ({
-        players: frame.players.map(rotatePitchCoords),
-        zones: (frame.zones ?? []).map((z) => ({ ...z, x: z.y, y: z.x })),
-        lines: frame.lines.map((line) => ({
-          ...line,
-          from: rotatePitchCoords(line.from),
-          to: rotatePitchCoords(line.to),
-        })),
-      })),
-    )
-    setPitchPortrait((p) => !p)
-  }, [])
-
-  // ── Export ─────────────────────────────────────────────────────────────────
-
-  const exportMove = useCallback(() => {
-    if (isExporting) return
-    setIsExporting(true)
-    exportGif(normalizeFrames(frames), durations, playTitle).finally(() => setIsExporting(false))
-  }, [frames, durations, isExporting, playTitle])
-
-  // ── Save to playbook ───────────────────────────────────────────────────────
-
-  const handleSaveToPlaybook = useCallback(
-    async (playbookId: string, title: string, category: PlayCategory, description: string) => {
-      const normalizedFrames = normalizeFrames(frames)
-      try {
-        const play = await savePlay({
-          id:
-            playId &&
-            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(playId)
-              ? playId
-              : undefined,
-          title,
-          description: description.trim() || null,
-          category: category ?? 'Other',
-          animation_data: { frames: normalizedFrames, durations, pitchPortrait: pitchPortrait || undefined, activePlayers },
-        })
-        const supabase = createClient()
-        await supabase
-          .from('playbook_plays')
-          .upsert({ playbook_id: playbookId, play_id: play.id }, { onConflict: 'playbook_id,play_id' })
-        setSaveStatus('Saved to playbook.')
-        setIsDirty(false)
-      } catch {
-        setSaveStatus('Save failed. Please try again.')
-      }
-    },
-    [playId, frames, durations, pitchPortrait, activePlayers],
-  )
-
-  const handleSaveAsCopy = useCallback(
-    async (playbookId: string, title: string, category: PlayCategory, description: string) => {
-      const normalizedFrames = normalizeFrames(frames)
-      try {
-        const play = await savePlay({
-          title,
-          description: description.trim() || null,
-          category: category ?? 'Other',
-          animation_data: { frames: normalizedFrames, durations, pitchPortrait: pitchPortrait || undefined, activePlayers },
-        })
-        const supabase = createClient()
-        await supabase
-          .from('playbook_plays')
-          .upsert({ playbook_id: playbookId, play_id: play.id }, { onConflict: 'playbook_id,play_id' })
-        setSaveStatus('Saved as new copy.')
-        setIsDirty(false)
-      } catch {
-        setSaveStatus('Save failed. Please try again.')
-      }
-    },
-    [frames, durations, pitchPortrait, activePlayers],
-  )
-
-  // ── Return ─────────────────────────────────────────────────────────────────
-
   return {
     frames,
     durations,
     totalDuration,
     activeFrameIndex,
     activeFrame,
+    visiblePlayers,
     visibleZones,
     playerById,
     isPlaying,
@@ -625,7 +639,9 @@ export function useTacticalBoard({
     setPanelOpen,
     panelTab,
     setPanelTab,
+    userId,
     playbooks,
+    setPlaybooks,
     tool,
     setTool,
     lineColor,
@@ -636,7 +652,6 @@ export function useTacticalBoard({
     addPlayers,
     addZone,
     moveZone,
-    resizeZone,
     deleteZone,
     updateZoneLabel,
     addLine,

@@ -4,7 +4,6 @@ import { useCallback, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { Frame, PlayerPosition, Zone } from '@/types/play'
 import { normalizeDurations } from '@/hooks/useTacticalBoard'
-import { buildCumulative } from '@/lib/board/math'
 
 function lerp(start: number, end: number, amount: number) {
   return start + (end - start) * amount
@@ -12,8 +11,12 @@ function lerp(start: number, end: number, amount: number) {
 
 function interpolatePlayers(from: PlayerPosition[], to: PlayerPosition[], amount: number): PlayerPosition[] {
   return from.map((player) => {
-    const next = to.find((p) => p.id === player.id) ?? player
-    return { id: player.id, x: lerp(player.x, next.x, amount), y: lerp(player.y, next.y, amount) }
+    const next = to.find((item) => item.id === player.id) ?? player
+    return {
+      id: player.id,
+      x: lerp(player.x, next.x, amount),
+      y: lerp(player.y, next.y, amount),
+    }
   })
 }
 
@@ -24,13 +27,49 @@ function interpolateZones(from: Zone[], to: Zone[], amount: number): Zone[] {
   })
 }
 
-type Params = {
+function buildCumulative(durations: number[]): number[] {
+  const cum: number[] = []
+  let acc = 0
+  for (const d of durations) {
+    acc += d
+    cum.push(acc)
+  }
+  return cum
+}
+
+function normalizeFrame(frame: Partial<Frame>): Frame {
+  return {
+    players: Array.isArray(frame?.players) ? frame.players : [],
+    zones: Array.isArray(frame?.zones) ? frame.zones : [],
+    lines: Array.isArray(frame?.lines) ? frame.lines : [],
+  }
+}
+
+function normalizeFrames(nextFrames: Partial<Frame>[] | undefined): Frame[] {
+  if (!Array.isArray(nextFrames) || nextFrames.length === 0) return []
+  return nextFrames.map(normalizeFrame)
+}
+
+export type UsePlaybackParams = {
   frames: Frame[]
   durations: number[]
   setActiveFrameIndex: Dispatch<SetStateAction<number>>
 }
 
-export function usePlayback({ frames, durations, setActiveFrameIndex }: Params) {
+export type UsePlaybackReturn = {
+  displayPlayers: PlayerPosition[] | null
+  displayZones: Zone[] | null
+  isPlaying: boolean
+  playFrames: () => void
+  stopPlayback: () => void
+  scrubTo: (timeMs: number) => void
+}
+
+export function usePlayback({
+  frames,
+  durations,
+  setActiveFrameIndex,
+}: UsePlaybackParams): UsePlaybackReturn {
   const animationRef = useRef<number | null>(null)
   const [displayPlayers, setDisplayPlayers] = useState<PlayerPosition[] | null>(null)
   const [displayZones, setDisplayZones] = useState<Zone[] | null>(null)
@@ -47,19 +86,21 @@ export function usePlayback({ frames, durations, setActiveFrameIndex }: Params) 
   }, [])
 
   const playFrames = useCallback(() => {
-    const validFrames = frames.filter((f) => f.players.length > 0)
-    if (validFrames.length < 2 || isPlaying) return
+    const playbackFrames = normalizeFrames(frames).filter((frame) => frame.players.length > 0)
+    if (playbackFrames.length < 2 || isPlaying) return
 
-    const segDurations = normalizeDurations(durations, validFrames.length)
+    const segDurations = normalizeDurations(durations, playbackFrames.length)
     const cumulative = buildCumulative(segDurations)
     const totalMs = cumulative[cumulative.length - 1] ?? 0
+
     const startedAt = performance.now()
     setIsPlaying(true)
 
     const tick = (now: number) => {
       const elapsed = now - startedAt
+
       if (elapsed >= totalMs) {
-        setActiveFrameIndex(validFrames.length - 1)
+        setActiveFrameIndex(playbackFrames.length - 1)
         setDisplayPlayers(null)
         setIsPlaying(false)
         animationRef.current = null
@@ -76,8 +117,12 @@ export function usePlayback({ frames, durations, setActiveFrameIndex }: Params) 
       const progress = Math.min(1, (elapsed - segStart) / (segEnd - segStart))
 
       setActiveFrameIndex(seg)
-      setDisplayPlayers(interpolatePlayers(validFrames[seg].players, validFrames[seg + 1].players, progress))
-      setDisplayZones(interpolateZones(validFrames[seg].zones ?? [], validFrames[seg + 1].zones ?? [], progress))
+      setDisplayPlayers(
+        interpolatePlayers(playbackFrames[seg].players, playbackFrames[seg + 1].players, progress),
+      )
+      setDisplayZones(
+        interpolateZones(playbackFrames[seg].zones ?? [], playbackFrames[seg + 1].zones ?? [], progress),
+      )
       animationRef.current = requestAnimationFrame(tick)
     }
 
@@ -87,8 +132,9 @@ export function usePlayback({ frames, durations, setActiveFrameIndex }: Params) 
   const scrubTo = useCallback(
     (timeMs: number) => {
       if (isPlaying) return
-      if (frames.length < 2) return
-      const segDurations = normalizeDurations(durations, frames.length)
+      const playbackFrames = normalizeFrames(frames)
+      if (playbackFrames.length < 2) return
+      const segDurations = normalizeDurations(durations, playbackFrames.length)
       const cumulative = buildCumulative(segDurations)
       const total = cumulative[cumulative.length - 1] ?? 0
       const t0 = Math.min(total, Math.max(0, timeMs))
@@ -101,14 +147,24 @@ export function usePlayback({ frames, durations, setActiveFrameIndex }: Params) 
       const segStart = seg === 0 ? 0 : cumulative[seg - 1]
       const segEnd = cumulative[seg]
       const progress = segEnd > segStart ? (t0 - segStart) / (segEnd - segStart) : 0
-      const next = Math.min(seg + 1, frames.length - 1)
 
       setActiveFrameIndex(seg)
-      setDisplayPlayers(interpolatePlayers(frames[seg].players, frames[next].players, progress))
-      setDisplayZones(interpolateZones(frames[seg].zones ?? [], frames[next].zones ?? [], progress))
+      setDisplayPlayers(
+        interpolatePlayers(playbackFrames[seg].players, playbackFrames[Math.min(seg + 1, playbackFrames.length - 1)].players, progress),
+      )
+      setDisplayZones(
+        interpolateZones(playbackFrames[seg].zones ?? [], playbackFrames[Math.min(seg + 1, playbackFrames.length - 1)].zones ?? [], progress),
+      )
     },
     [frames, durations, isPlaying, setActiveFrameIndex],
   )
 
-  return { displayPlayers, displayZones, isPlaying, playFrames, stopPlayback, scrubTo }
+  return {
+    displayPlayers,
+    displayZones,
+    isPlaying,
+    playFrames,
+    stopPlayback,
+    scrubTo,
+  }
 }

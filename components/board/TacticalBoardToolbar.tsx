@@ -16,26 +16,30 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { useTacticalBoard } from '@/hooks/useTacticalBoard'
+import type { UseTacticalBoardReturn } from '@/hooks/useTacticalBoard'
 
-const LINE_COLORS = [
+export const LINE_COLORS = [
   { value: '#f8fafc', label: 'White' },
   { value: '#ef4444', label: 'Red' },
   { value: '#facc15', label: 'Yellow' },
   { value: '#60a5fa', label: 'Blue' },
 ]
 
-type Board = ReturnType<typeof useTacticalBoard>
-
 type Props = {
-  board: Board
+  board: UseTacticalBoardReturn
   viewOnly: boolean
   desktopViewOnly: boolean
   onToggleViewOnly: () => void
   onShowAddPlayers: () => void
 }
 
-export default function TacticalBoardToolbar({ board, viewOnly, desktopViewOnly, onToggleViewOnly, onShowAddPlayers }: Props) {
+export default function TacticalBoardToolbar({
+  board,
+  viewOnly,
+  desktopViewOnly,
+  onToggleViewOnly,
+  onShowAddPlayers,
+}: Props) {
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-3 py-2.5 sm:px-4 sm:py-3">
       {!viewOnly && (
@@ -215,7 +219,10 @@ export default function TacticalBoardToolbar({ board, viewOnly, desktopViewOnly,
               {board.activeFrame.lines.length > 0 && (
                 <button
                   type="button"
-                  onClick={() => board.activeFrame.lines.forEach((l) => board.deleteLine(l.id))}
+                  onClick={() => {
+                    const ids = board.activeFrame.lines.map((l) => l.id)
+                    ids.forEach((id) => board.deleteLine(id))
+                  }}
                   className="inline-flex items-center gap-1 rounded-xl border border-red-500/20 bg-red-500/10 px-2 py-1.5 text-xs font-semibold text-red-400 transition hover:bg-red-500/20"
                 >
                   <X className="h-3 w-3" />
