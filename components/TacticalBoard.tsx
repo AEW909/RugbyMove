@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import {
+  BookmarkPlus,
   BoxSelect,
   ChevronLeft,
   Grid3x3,
@@ -17,12 +18,13 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { FormationCategory } from '@/lib/board/storage'
+import type { Formation, FormationCategory } from '@/lib/board/storage'
 import { useTacticalBoard, tokens, SCRUM_FORMATION, LINEOUT_FORMATION } from '@/hooks/useTacticalBoard'
 import type { TacticalBoardProps } from '@/hooks/useTacticalBoard'
 import PanelSlideOver from '@/components/board/PanelSlideOver'
+import FormationLoadDialog from '@/components/board/FormationLoadDialog'
 import FrameTimeline from '@/components/board/FrameTimeline'
-import type { Line } from '@/types/play'
+import type { Line, PlayerPosition } from '@/types/play'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
 const LINE_COLORS = [
@@ -55,6 +57,12 @@ export default function TacticalBoard(props: TacticalBoardProps) {
   const { playTitle = 'Untitled move', viewOnly: viewOnlyProp = false } = props
   const [desktopViewOnly, setDesktopViewOnly] = useState(false)
   const viewOnly = viewOnlyProp || isMobile || desktopViewOnly
+
+  // ── Formation state ──
+  const [loadingFormation, setLoadingFormation] = useState<Formation | null>(null)
+  const [showSaveFormation, setShowSaveFormation] = useState(false)
+  const [formationName, setFormationName] = useState('')
+  const [formationCategory, setFormationCategory] = useState<FormationCategory>('Open Play')
 
   // ── Zoom / pan state ──
   const [zoom, setZoom] = useState(1)
@@ -362,7 +370,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
 
             <button
               type="button"
-              onClick={() => board.loadFormation(SCRUM_FORMATION)}
+              onClick={() => setLoadingFormation(SCRUM_FORMATION)}
               className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
             >
               <Users className="h-4 w-4" />
@@ -370,12 +378,23 @@ export default function TacticalBoard(props: TacticalBoardProps) {
             </button>
             <button
               type="button"
-              onClick={() => board.loadFormation(LINEOUT_FORMATION)}
+              onClick={() => setLoadingFormation(LINEOUT_FORMATION)}
               className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
             >
               <Users className="h-4 w-4" />
               Lineout
             </button>
+
+            {board.selectedPlayerIds.size > 0 && (
+              <button
+                type="button"
+                onClick={() => { setFormationName(''); setShowSaveFormation(true) }}
+                className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/25"
+              >
+                <BookmarkPlus className="h-4 w-4" />
+                Save Formation
+              </button>
+            )}
 
             <div className="h-5 w-px bg-white/10" />
 
@@ -749,10 +768,6 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           formations={board.formations}
           playbooks={board.playbooks}
           onLoadFormation={board.loadFormation}
-          onOpenSaveFormation={() => {
-            board.setPanelOpen(false)
-            board.setShowFormationModal(true)
-          }}
           playCategory={props.playCategory}
           onSaveToPlaybook={board.handleSaveToPlaybook}
           onSaveAsCopy={board.handleSaveAsCopy}
@@ -765,10 +780,18 @@ export default function TacticalBoard(props: TacticalBoardProps) {
         />
       )}
 
-      {!viewOnly && board.showFormationModal && (
+      {loadingFormation && (
+        <FormationLoadDialog
+          formation={loadingFormation}
+          onLoad={(players: PlayerPosition[]) => { board.loadFormation(players); setLoadingFormation(null) }}
+          onClose={() => setLoadingFormation(null)}
+        />
+      )}
+
+      {!viewOnly && showSaveFormation && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => board.setShowFormationModal(false)}
+          onClick={() => setShowSaveFormation(false)}
         >
           <div
             className="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-6 shadow-xl backdrop-blur-sm"
@@ -778,22 +801,22 @@ export default function TacticalBoard(props: TacticalBoardProps) {
               <h2 className="text-lg font-semibold text-white">Save formation</h2>
               <button
                 type="button"
-                onClick={() => board.setShowFormationModal(false)}
+                onClick={() => setShowSaveFormation(false)}
                 className="rounded-lg p-1 text-white/40 transition hover:bg-white/10 hover:text-white"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
             <p className="mt-1 text-sm text-white/50">
-              Saves this frame&apos;s player positions as a starting point for new moves.
+              Saves the selected players&apos; positions as a reusable shape.
             </p>
             <div className="mt-4 space-y-3">
               <label className="block text-sm font-semibold text-white/80">
                 Name
                 <input
-                  value={board.formationName}
-                  onChange={(e) => board.setFormationName(e.target.value)}
-                  placeholder="e.g. Tight scrum left"
+                  value={formationName}
+                  onChange={(e) => setFormationName(e.target.value)}
+                  placeholder="e.g. Pod double-up"
                   autoFocus
                   className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 font-normal text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
                 />
@@ -801,8 +824,8 @@ export default function TacticalBoard(props: TacticalBoardProps) {
               <label className="block text-sm font-semibold text-white/80">
                 Category
                 <select
-                  value={board.formationCategory}
-                  onChange={(e) => board.setFormationCategory(e.target.value as FormationCategory)}
+                  value={formationCategory}
+                  onChange={(e) => setFormationCategory(e.target.value as FormationCategory)}
                   className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 font-normal text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
                 >
                   <option value="Scrum">Scrum</option>
@@ -815,15 +838,18 @@ export default function TacticalBoard(props: TacticalBoardProps) {
             <div className="mt-5 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => board.setShowFormationModal(false)}
+                onClick={() => setShowSaveFormation(false)}
                 className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={board.saveFormation}
-                disabled={!board.formationName.trim()}
+                onClick={async () => {
+                  await board.saveFormationFromSelection(formationName, formationCategory)
+                  setShowSaveFormation(false)
+                }}
+                disabled={!formationName.trim() || board.selectedPlayerIds.size === 0}
                 className="rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90 disabled:opacity-50"
               >
                 Save formation

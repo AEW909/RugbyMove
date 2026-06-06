@@ -1,4 +1,4 @@
-import type { Formation } from '@/lib/board/storage'
+import type { Formation, FormationSlot } from '@/lib/board/storage'
 import type { Frame, PlayerPosition } from '@/types/play'
 
 export type Token = {
@@ -41,43 +41,35 @@ export const defaultFrame: Frame = {
   lines: [],
 }
 
+function slot(side: FormationSlot['side'], x: number, y: number): FormationSlot {
+  return { side, x, y }
+}
+
 export const SCRUM_FORMATION: Formation = {
   id: 'builtin-scrum',
   name: 'Scrum',
   category: 'Scrum',
   createdAt: '',
-  players: [
-    { id: 'ball',      x: 50.04, y: 12.09 },
-    { id: 'attack-1',  x: 48.76, y: 15.30 },
-    { id: 'attack-2',  x: 48.84, y: 18.51 },
-    { id: 'attack-3',  x: 48.84, y: 21.72 },
-    { id: 'attack-4',  x: 46.99, y: 16.69 },
-    { id: 'attack-5',  x: 46.99, y: 20.01 },
-    { id: 'attack-6',  x: 47.07, y: 13.70 },
-    { id: 'attack-7',  x: 47.07, y: 22.79 },
-    { id: 'attack-8',  x: 45.06, y: 18.19 },
-    { id: 'attack-9',  x: 50.04, y: 9.74  },
-    { id: 'attack-10', x: 4,     y: 62.5  },
-    { id: 'attack-11', x: 4,     y: 69    },
-    { id: 'attack-12', x: 4,     y: 75.5  },
-    { id: 'attack-13', x: 4,     y: 82    },
-    { id: 'attack-14', x: 4,     y: 88.5  },
-    { id: 'attack-15', x: 4,     y: 95    },
-    { id: 'defend-1',  x: 50.92, y: 21.83 },
-    { id: 'defend-2',  x: 50.84, y: 18.83 },
-    { id: 'defend-3',  x: 50.84, y: 15.73 },
-    { id: 'defend-4',  x: 52.77, y: 20.44 },
-    { id: 'defend-5',  x: 52.85, y: 17.23 },
-    { id: 'defend-6',  x: 52.69, y: 14.23 },
-    { id: 'defend-7',  x: 52.77, y: 23.33 },
-    { id: 'defend-8',  x: 54.61, y: 18.62 },
-    { id: 'defend-9',  x: 53.65, y: 9.84  },
-    { id: 'defend-10', x: 96,    y: 62.5  },
-    { id: 'defend-11', x: 96,    y: 69    },
-    { id: 'defend-12', x: 96,    y: 75.5  },
-    { id: 'defend-13', x: 96,    y: 82    },
-    { id: 'defend-14', x: 96,    y: 88.5  },
-    { id: 'defend-15', x: 96,    y: 95    },
+  slots: [
+    slot('ball',    50.04, 12.09),
+    slot('attack',  48.76, 15.30), // 1 hooker
+    slot('attack',  48.84, 18.51), // 2 prop
+    slot('attack',  48.84, 21.72), // 3 prop
+    slot('attack',  46.99, 16.69), // 4 lock
+    slot('attack',  46.99, 20.01), // 5 lock
+    slot('attack',  47.07, 13.70), // 6 flanker
+    slot('attack',  47.07, 22.79), // 7 flanker
+    slot('attack',  45.06, 18.19), // 8 no. 8
+    slot('attack',  50.04,  9.74), // 9 scrum-half
+    slot('defend',  50.92, 21.83),
+    slot('defend',  50.84, 18.83),
+    slot('defend',  50.84, 15.73),
+    slot('defend',  52.77, 20.44),
+    slot('defend',  52.85, 17.23),
+    slot('defend',  52.69, 14.23),
+    slot('defend',  52.77, 23.33),
+    slot('defend',  54.61, 18.62),
+    slot('defend',  53.65,  9.84),
   ],
 }
 
@@ -86,24 +78,24 @@ export const LINEOUT_FORMATION: Formation = {
   name: 'Lineout',
   category: 'Lineout',
   createdAt: '',
-  players: [
-    { id: 'ball',      x: 31, y: 7 },
-    { id: 'attack-2',  x: 28, y: 4 },
-    { id: 'defend-2',  x: 44, y: 4 },
-    { id: 'attack-9',  x: 9,  y: 26 },
-    { id: 'attack-1',  x: 30, y: 21 },
-    { id: 'attack-4',  x: 30, y: 26 },
-    { id: 'attack-3',  x: 30, y: 31 },
-    { id: 'attack-5',  x: 30, y: 36 },
-    { id: 'attack-6',  x: 30, y: 41 },
-    { id: 'attack-7',  x: 30, y: 46 },
-    { id: 'attack-8',  x: 30, y: 51 },
-    { id: 'defend-1',  x: 36, y: 21 },
-    { id: 'defend-4',  x: 36, y: 26 },
-    { id: 'defend-3',  x: 36, y: 31 },
-    { id: 'defend-5',  x: 36, y: 36 },
-    { id: 'defend-6',  x: 36, y: 41 },
-    { id: 'defend-7',  x: 36, y: 46 },
-    { id: 'defend-8',  x: 36, y: 51 },
+  slots: [
+    slot('ball',    31,  7),
+    slot('attack',  28,  4), // 2 thrower
+    slot('attack',   9, 26), // 9 scrum-half
+    slot('attack',  30, 21),
+    slot('attack',  30, 26),
+    slot('attack',  30, 31),
+    slot('attack',  30, 36),
+    slot('attack',  30, 41),
+    slot('attack',  30, 46),
+    slot('attack',  30, 51),
+    slot('defend',  44,  4),
+    slot('defend',  36, 21),
+    slot('defend',  36, 26),
+    slot('defend',  36, 31),
+    slot('defend',  36, 36),
+    slot('defend',  36, 41),
+    slot('defend',  36, 46),
+    slot('defend',  36, 51),
   ],
 }

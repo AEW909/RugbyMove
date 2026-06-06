@@ -1,12 +1,18 @@
-import type { PlayerPosition, Frame } from '@/types/play'
+import type { Frame } from '@/types/play'
 
 export type FormationCategory = 'Scrum' | 'Lineout' | 'Penalty' | 'Open Play'
+
+export type FormationSlot = {
+  side: 'attack' | 'defend' | 'ball'
+  x: number
+  y: number
+}
 
 export type Formation = {
   id: string
   name: string
   category: FormationCategory
-  players: PlayerPosition[]
+  slots: FormationSlot[]
   createdAt: string
 }
 
@@ -24,4 +30,3 @@ export const FORMATION_CATEGORIES: FormationCategory[] = [
   'Penalty',
   'Open Play',
 ]
-
