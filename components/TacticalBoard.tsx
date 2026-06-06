@@ -98,7 +98,14 @@ export default function TacticalBoard(props: TacticalBoardProps) {
 
   // ── Player drag ──
   const updatePlayerPosition = (id: string, clientX: number, clientY: number) => {
-    const { x, y } = toBoard(clientX, clientY)
+    let { x, y } = toBoard(clientX, clientY)
+    if (board.snapGrid) {
+      const r = boardRef.current?.getBoundingClientRect()
+      const gridX = 5
+      const gridY = r ? gridX * (r.width / r.height) : gridX
+      x = Math.round(x / gridX) * gridX
+      y = Math.round(y / gridY) * gridY
+    }
     board.movePlayer(id, x, y)
   }
 

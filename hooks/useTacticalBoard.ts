@@ -322,8 +322,8 @@ export function useTacticalBoard({
   const movePlayer = useCallback(
     (id: string, rawX: number, rawY: number) => {
       if (isPlaying) return
-      const newX = snapGrid ? Math.round(clamp(rawX) / 5) * 5 : clamp(rawX)
-      const newY = snapGrid ? Math.round(clamp(rawY) / 5) * 5 : clamp(rawY)
+      const newX = clamp(rawX)
+      const newY = clamp(rawY)
       setFrames((currentFrames) =>
         normalizeFrames(
           currentFrames.map((frame, index) => {
