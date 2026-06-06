@@ -565,11 +565,19 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           onDeleteFrame={board.deleteFrame}
         />
 
-        {/* Board canvas — overflow-hidden clips the zoomed inner content */}
+        {/* Centering wrapper — gives the pitch room while keeping aspect ratio */}
+        <div className="min-h-0 flex-1 flex items-center justify-center overflow-hidden">
+
+        {/* Board canvas — fixed aspect ratio prevents stretch/squash */}
         <div
           ref={boardRef}
+          style={{
+            aspectRatio: board.pitchPortrait ? '7 / 12' : '12 / 7',
+            maxHeight: '100%',
+            maxWidth: '100%',
+          }}
           className={cn(
-            'relative min-h-0 flex-1 overflow-hidden rounded-xl border border-white/10 bg-emerald-700 shadow-inner',
+            'relative w-full overflow-hidden rounded-xl border border-white/10 bg-emerald-700 shadow-inner',
             boardCursor,
           )}
           aria-label="Rugby tactical board"
@@ -829,7 +837,8 @@ export default function TacticalBoard(props: TacticalBoardProps) {
               )
             })}
           </div>{/* end zoomed inner div */}
-        </div>
+        </div>{/* end board canvas */}
+        </div>{/* end centering wrapper */}
       </div>
 
       {!viewOnly && (

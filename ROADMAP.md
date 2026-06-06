@@ -2,28 +2,41 @@
 
 ## Done
 
+### Board / editor
 - Draggable attack/defence tokens with tray staging
 - Ball token animates between frames
 - Frame capture, delete, reorder (drag timeline)
-- Variable frame durations
+- Variable frame durations with scrub bar
 - Playback interpolation via `requestAnimationFrame`
-- Zoom and pan on the board
-- Pitch portrait/landscape toggle — orientation saved with move
+- Zoom and pan (scroll wheel / pinch; drag when zoomed)
+- Pitch portrait/landscape toggle — coordinates transform across all frames
 - **Formation rework** — abstract slot model (no player IDs); jersey picker on load; select-to-save flow; built-in Scrum + Lineout restored; user formations saved to Supabase
-- Draw lines tool with colour and dashed options
-- Snap-to-grid toggle
+- Draw lines tool with colour picker and dashed toggle
+- Snap-to-grid toggle (equal physical pixel steps on both axes)
+- Pointer / Group-Select (rubber-band) / Draw-line tools; keyboard shortcuts P/G/D/Escape
+- Zone overlays — add circular zones, drag, resize handle, rename, delete
+- Add players dialog — choose which attack/defence tokens appear on the pitch
+- Pitch aspect ratio fixed at 12:7 (landscape) / 7:12 (portrait) — no squash or overflow
+- GIF export (client-side, via `gifenc`)
+
+### Save & playbooks
 - Save move to Supabase — title, category, description, playbook
 - Save as copy (duplicate/variation)
 - Duplicate move from playbook list
 - Playbooks — create, list, add/remove moves, reorder, organise view
 - Playbook access control — invite by username, editor/viewer roles
+
+### Organisations
 - Organisations — create, member management (head_coach / coach / player)
 - Per-playbook access management from org page — grant/revoke, role toggle
 - Join via invite code — joins playbook and parent org
+
+### Platform
 - Viewport-fit editor — toolbar + timeline + pitch all on screen without scrolling
+- Auto view-only on mobile; view/edit toggle on desktop
 - RLS policies — non-recursive org_members, SECURITY DEFINER helpers
 - Master user / admin account
-- Auth flows — login, signup, recover, account settings
+- Auth flows — login, signup, recover, account settings, change password
 
 ---
 
@@ -55,7 +68,6 @@ _(nothing currently active)_
 ## Backlog
 
 ### Board / editor
-- Selection box (drag to select multiple tokens)
 - Arrow/movement trail overlays per token
 - Undo/redo stack
 - Lock a token in place for a frame range
