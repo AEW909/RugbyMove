@@ -1,4 +1,4 @@
-import type { Formation, FormationSlot } from '@/lib/board/storage'
+import type { Formation } from '@/lib/board/storage'
 import type { Frame, PlayerPosition } from '@/types/play'
 
 export type Token = {
@@ -38,12 +38,21 @@ function createDefaultPlayers(): PlayerPosition[] {
 
 export const defaultFrame: Frame = {
   players: createDefaultPlayers(),
-  zones: [],
   lines: [],
 }
 
-function slot(side: FormationSlot['side'], x: number, y: number): FormationSlot {
-  return { side, x, y }
+const defaultPlayerMap = new Map(createDefaultPlayers().map((p) => [p.id, p]))
+
+/** Infer which players are "active" (not in the default tray) from a saved frame. */
+export function inferActivePlayers(frame: Frame): string[] {
+  return frame.players
+    .filter((p) => {
+      if (p.id === 'ball') return false
+      const def = defaultPlayerMap.get(p.id)
+      if (!def) return true
+      return Math.abs(p.x - def.x) > 1 || Math.abs(p.y - def.y) > 1
+    })
+    .map((p) => p.id)
 }
 
 export const SCRUM_FORMATION: Formation = {
@@ -52,25 +61,25 @@ export const SCRUM_FORMATION: Formation = {
   category: 'Scrum',
   createdAt: '',
   slots: [
-    slot('ball',    50.04, 12.09),
-    slot('attack',  48.76, 15.30), // 1 hooker
-    slot('attack',  48.84, 18.51), // 2 prop
-    slot('attack',  48.84, 21.72), // 3 prop
-    slot('attack',  46.99, 16.69), // 4 lock
-    slot('attack',  46.99, 20.01), // 5 lock
-    slot('attack',  47.07, 13.70), // 6 flanker
-    slot('attack',  47.07, 22.79), // 7 flanker
-    slot('attack',  45.06, 18.19), // 8 no. 8
-    slot('attack',  50.04,  9.74), // 9 scrum-half
-    slot('defend',  50.92, 21.83),
-    slot('defend',  50.84, 18.83),
-    slot('defend',  50.84, 15.73),
-    slot('defend',  52.77, 20.44),
-    slot('defend',  52.85, 17.23),
-    slot('defend',  52.69, 14.23),
-    slot('defend',  52.77, 23.33),
-    slot('defend',  54.61, 18.62),
-    slot('defend',  53.65,  9.84),
+    { side: 'ball',    x: 50.04, y: 12.09 },
+    { side: 'attack',  x: 48.76, y: 15.30 },
+    { side: 'attack',  x: 48.84, y: 18.51 },
+    { side: 'attack',  x: 48.84, y: 21.72 },
+    { side: 'attack',  x: 46.99, y: 16.69 },
+    { side: 'attack',  x: 46.99, y: 20.01 },
+    { side: 'attack',  x: 47.07, y: 13.70 },
+    { side: 'attack',  x: 47.07, y: 22.79 },
+    { side: 'attack',  x: 45.06, y: 18.19 },
+    { side: 'attack',  x: 50.04, y:  9.74 },
+    { side: 'defend',  x: 50.92, y: 21.83 },
+    { side: 'defend',  x: 50.84, y: 18.83 },
+    { side: 'defend',  x: 50.84, y: 15.73 },
+    { side: 'defend',  x: 52.77, y: 20.44 },
+    { side: 'defend',  x: 52.85, y: 17.23 },
+    { side: 'defend',  x: 52.69, y: 14.23 },
+    { side: 'defend',  x: 52.77, y: 23.33 },
+    { side: 'defend',  x: 54.61, y: 18.62 },
+    { side: 'defend',  x: 53.65, y:  9.84 },
   ],
 }
 
@@ -80,23 +89,23 @@ export const LINEOUT_FORMATION: Formation = {
   category: 'Lineout',
   createdAt: '',
   slots: [
-    slot('ball',    31,  7),
-    slot('attack',  28,  4), // 2 thrower
-    slot('attack',   9, 26), // 9 scrum-half
-    slot('attack',  30, 21),
-    slot('attack',  30, 26),
-    slot('attack',  30, 31),
-    slot('attack',  30, 36),
-    slot('attack',  30, 41),
-    slot('attack',  30, 46),
-    slot('attack',  30, 51),
-    slot('defend',  44,  4),
-    slot('defend',  36, 21),
-    slot('defend',  36, 26),
-    slot('defend',  36, 31),
-    slot('defend',  36, 36),
-    slot('defend',  36, 41),
-    slot('defend',  36, 46),
-    slot('defend',  36, 51),
+    { side: 'ball',    x: 31, y:  7 },
+    { side: 'attack',  x: 28, y:  4 },
+    { side: 'attack',  x:  9, y: 26 },
+    { side: 'attack',  x: 30, y: 21 },
+    { side: 'attack',  x: 30, y: 26 },
+    { side: 'attack',  x: 30, y: 31 },
+    { side: 'attack',  x: 30, y: 36 },
+    { side: 'attack',  x: 30, y: 41 },
+    { side: 'attack',  x: 30, y: 46 },
+    { side: 'attack',  x: 30, y: 51 },
+    { side: 'defend',  x: 44, y:  4 },
+    { side: 'defend',  x: 36, y: 21 },
+    { side: 'defend',  x: 36, y: 26 },
+    { side: 'defend',  x: 36, y: 31 },
+    { side: 'defend',  x: 36, y: 36 },
+    { side: 'defend',  x: 36, y: 41 },
+    { side: 'defend',  x: 36, y: 46 },
+    { side: 'defend',  x: 36, y: 51 },
   ],
 }

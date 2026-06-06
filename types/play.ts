@@ -38,7 +38,6 @@ export type AnimationData = {
   frames: Frame[]
   durations?: number[]  // ms per segment, length === frames.length - 1
   pitchPortrait?: boolean
-  activePlayers?: string[]
 }
 
 export type Play = {

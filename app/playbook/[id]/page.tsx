@@ -11,13 +11,7 @@ type PageProps = {
   searchParams: { from?: string }
 }
 
-const ALL_PLAYERS = [
-  ...Array.from({ length: 15 }, (_, i) => `attack-${i + 1}`),
-  ...Array.from({ length: 15 }, (_, i) => `defend-${i + 1}`),
-]
-
 const demoAnimationData: AnimationData = {
-  activePlayers: ALL_PLAYERS,
   frames: [
     {
       players: [

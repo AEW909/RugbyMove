@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import type { Formation, FormationCategory, FormationSlot } from '@/lib/board/storage'
 import type { Frame, Line, PlayerPosition, Zone, PlayCategory } from '@/types/play'
 import type { PanelTab } from '@/components/board/PanelSlideOver'
-import { tokens, defaultFrame } from '@/lib/board/defaults'
+import { tokens, defaultFrame, inferActivePlayers } from '@/lib/board/defaults'
 import { exportGif } from '@/lib/board/exportGif'
 export { tokens, defaultFrame } from '@/lib/board/defaults'
 export type { Token } from '@/lib/board/defaults'
@@ -194,9 +194,12 @@ export function useTacticalBoard({
   const [isExporting, setIsExporting] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
   const initialLoadDone = useRef(false)
-  const [activePlayers, setActivePlayers] = useState<string[]>(
-    mode === 'fresh' ? [] : (initialActivePlayers ?? []),
-  )
+  const [activePlayers, setActivePlayers] = useState<string[]>(() => {
+    if (mode === 'fresh') return []
+    if (initialActivePlayers && initialActivePlayers.length > 0) return initialActivePlayers
+    if (initialFrames && initialFrames.length > 0) return inferActivePlayers(normalizeFrame(initialFrames[0]))
+    return []
+  })
 
   const totalDuration = useMemo(() => durations.reduce((a, b) => a + b, 0), [durations])
 
@@ -322,8 +325,8 @@ export function useTacticalBoard({
   const movePlayer = useCallback(
     (id: string, rawX: number, rawY: number) => {
       if (isPlaying) return
-      const newX = snapGrid ? Math.round(clamp(rawX) / 5) * 5 : clamp(rawX)
-      const newY = snapGrid ? Math.round(clamp(rawY) / 5) * 5 : clamp(rawY)
+      const newX = clamp(rawX)
+      const newY = clamp(rawY)
       setFrames((currentFrames) =>
         normalizeFrames(
           currentFrames.map((frame, index) => {
