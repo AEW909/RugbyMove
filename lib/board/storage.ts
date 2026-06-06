@@ -1,6 +1,6 @@
-import type { Frame } from '@/types/play'
+import type { Frame, PlayCategory } from '@/types/play'
 
-export type FormationCategory = 'Scrum' | 'Lineout' | 'Penalty' | 'Open Play'
+export type FormationCategory = Extract<PlayCategory, 'Scrum' | 'Lineout' | 'Penalty' | 'Open Play'>
 
 export type FormationSlot = {
   side: 'attack' | 'defend' | 'ball'

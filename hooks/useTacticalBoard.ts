@@ -7,6 +7,7 @@ import type { Frame, Line, PlayerPosition, Zone, PlayCategory } from '@/types/pl
 import type { PanelTab } from '@/components/board/PanelSlideOver'
 import { tokens, defaultFrame, inferActivePlayers } from '@/lib/board/defaults'
 import { exportGif } from '@/lib/board/exportGif'
+import { buildCumulative } from '@/lib/board/math'
 export { tokens, defaultFrame } from '@/lib/board/defaults'
 export type { Token } from '@/lib/board/defaults'
 export { SCRUM_FORMATION, LINEOUT_FORMATION } from '@/lib/board/defaults'
@@ -45,15 +46,6 @@ export function normalizeDurations(raw: number[] | undefined, frameCount: number
   )
 }
 
-function buildCumulative(durations: number[]): number[] {
-  const cum: number[] = []
-  let acc = 0
-  for (const d of durations) {
-    acc += d
-    cum.push(acc)
-  }
-  return cum
-}
 
 function clamp(value: number) {
   return Math.min(100, Math.max(0, value))
@@ -94,7 +86,6 @@ export type UseTacticalBoardReturn = {
   totalDuration: number
   activeFrameIndex: number
   activeFrame: Frame
-  visiblePlayers: PlayerPosition[]
   visibleZones: Zone[]
   playerById: Map<string, PlayerPosition>
   isPlaying: boolean
@@ -113,9 +104,7 @@ export type UseTacticalBoardReturn = {
   setPanelOpen: (open: boolean) => void
   panelTab: PanelTab
   setPanelTab: (tab: PanelTab) => void
-  userId: string | null
   playbooks: { id: string; name: string }[]
-  setPlaybooks: Dispatch<SetStateAction<{ id: string; name: string }[]>>
   tool: 'pointer' | 'select' | 'draw'
   setTool: (t: 'pointer' | 'select' | 'draw') => void
   lineColor: string
@@ -743,7 +732,6 @@ export function useTacticalBoard({
     totalDuration,
     activeFrameIndex,
     activeFrame,
-    visiblePlayers,
     visibleZones,
     playerById,
     isPlaying,
@@ -762,9 +750,7 @@ export function useTacticalBoard({
     setPanelOpen,
     panelTab,
     setPanelTab,
-    userId,
     playbooks,
-    setPlaybooks,
     tool,
     setTool,
     lineColor,

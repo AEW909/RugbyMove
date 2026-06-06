@@ -11,13 +11,13 @@ import {
 import DeletePlaybookButton from '@/components/playbooks/DeletePlaybookButton'
 import PlaybookMovesSection from '@/components/playbooks/PlaybookMovesSection'
 import type { PlayCategory } from '@/types/play'
+import { PLAY_CATEGORIES } from '@/types/play'
 
 type PageProps = {
   params: { id: string }
   searchParams: { message?: string; error?: string; category?: string }
 }
 
-const CATEGORIES: PlayCategory[] = ['Scrum', 'Lineout', 'Open Play', 'Penalty', 'Kick Off', 'Other']
 const CATEGORY_LABEL: Record<PlayCategory, string> = {
   Scrum: 'Scrum',
   Lineout: 'Lineout',
@@ -41,7 +41,7 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
 
   if (!user) redirect('/login')
 
-  const activeCategory = CATEGORIES.includes(searchParams.category as PlayCategory)
+  const activeCategory = PLAY_CATEGORIES.includes(searchParams.category as PlayCategory)
     ? (searchParams.category as PlayCategory)
     : null
 
@@ -139,7 +139,7 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
             canManage={canManage}
             availablePlays={availablePlays.map((p) => ({ id: p.id, title: p.title, category: p.category as string }))}
             activeCategory={activeCategory}
-            categories={CATEGORIES}
+            categories={PLAY_CATEGORIES}
             categoryLabel={CATEGORY_LABEL}
           />
 

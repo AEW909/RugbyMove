@@ -7,10 +7,9 @@ import { FORMATION_CATEGORIES } from '@/lib/board/storage'
 import type { Formation, FormationSlot } from '@/lib/board/storage'
 import { createClient } from '@/lib/supabase/client'
 import type { PlayCategory, PlayerPosition } from '@/types/play'
+import { PLAY_CATEGORIES } from '@/types/play'
 import FormationLoadDialog from '@/components/board/FormationLoadDialog'
 import { SCRUM_FORMATION, LINEOUT_FORMATION } from '@/lib/board/defaults'
-
-const PLAY_CATEGORIES: PlayCategory[] = ['Scrum', 'Lineout', 'Open Play', 'Penalty', 'Kick Off', 'Other']
 
 function formationSummary(slots: FormationSlot[]): string {
   const attackCount = slots.filter((s) => s.side === 'attack').length

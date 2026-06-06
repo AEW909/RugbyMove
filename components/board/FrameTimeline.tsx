@@ -4,6 +4,7 @@ import { useRef, useState, useCallback } from 'react'
 import { Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { MIN_DURATION, MAX_DURATION } from '@/hooks/useTacticalBoard'
+import { buildFrameStarts } from '@/lib/board/math'
 import type { Frame } from '@/types/play'
 
 type Props = {
@@ -19,12 +20,6 @@ type Props = {
   onDeleteFrame: (index: number) => void
 }
 
-// Cumulative ms at the START of each frame (frame 0 = 0, frame 1 = durations[0], etc.)
-function buildCumulative(durations: number[]): number[] {
-  const cum = [0]
-  for (const d of durations) cum.push(cum[cum.length - 1] + d)
-  return cum
-}
 
 export default function FrameTimeline({
   frames,
@@ -43,7 +38,7 @@ export default function FrameTimeline({
   const [scrubbing, setScrubbing] = useState(false)
   const [hoveredSeg, setHoveredSeg] = useState<number | null>(null)
 
-  const cumulative = buildCumulative(durations)
+  const cumulative = buildFrameStarts(durations)
   const safeTotal = totalDuration > 0 ? totalDuration : 1
 
   const markerXPct = (frameIndex: number) =>

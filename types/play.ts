@@ -6,6 +6,8 @@ export type PlayCategory =
   | 'Kick Off'
   | 'Other'
 
+export const PLAY_CATEGORIES: PlayCategory[] = ['Scrum', 'Lineout', 'Open Play', 'Penalty', 'Kick Off', 'Other']
+
 export type PlayerPosition = {
   id: string
   x: number
