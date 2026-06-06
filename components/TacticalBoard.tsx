@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import {
-  BookmarkPlus,
   BoxSelect,
   ChevronLeft,
+  Circle,
   Grid3x3,
   MousePointer2,
   Pause,
@@ -18,13 +18,13 @@ import {
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import type { Formation, FormationCategory } from '@/lib/board/storage'
-import { useTacticalBoard, tokens, SCRUM_FORMATION, LINEOUT_FORMATION } from '@/hooks/useTacticalBoard'
+import type { FormationCategory } from '@/lib/board/storage'
+import { useTacticalBoard, tokens } from '@/hooks/useTacticalBoard'
 import type { TacticalBoardProps } from '@/hooks/useTacticalBoard'
 import PanelSlideOver from '@/components/board/PanelSlideOver'
-import FormationLoadDialog from '@/components/board/FormationLoadDialog'
 import FrameTimeline from '@/components/board/FrameTimeline'
-import type { Line, PlayerPosition } from '@/types/play'
+import AddPlayersDialog from '@/components/board/AddPlayersDialog'
+import type { Line } from '@/types/play'
 import { useIsMobile } from '@/hooks/useIsMobile'
 
 const LINE_COLORS = [
@@ -57,12 +57,6 @@ export default function TacticalBoard(props: TacticalBoardProps) {
   const { playTitle = 'Untitled move', viewOnly: viewOnlyProp = false } = props
   const [desktopViewOnly, setDesktopViewOnly] = useState(false)
   const viewOnly = viewOnlyProp || isMobile || desktopViewOnly
-
-  // ── Formation state ──
-  const [loadingFormation, setLoadingFormation] = useState<Formation | null>(null)
-  const [showSaveFormation, setShowSaveFormation] = useState(false)
-  const [formationName, setFormationName] = useState('')
-  const [formationCategory, setFormationCategory] = useState<FormationCategory>('Open Play')
 
   // ── Zoom / pan state ──
   const [zoom, setZoom] = useState(1)
@@ -116,6 +110,24 @@ export default function TacticalBoard(props: TacticalBoardProps) {
   const handlePointerMove = (id: string) => (e: React.PointerEvent<HTMLButtonElement>) => {
     if (e.buttons !== 1) return
     updatePlayerPosition(id, e.clientX, e.clientY)
+  }
+
+  // ── Zone drag ──
+  const [editingZoneId, setEditingZoneId] = useState<string | null>(null)
+
+  // ── Add players dialog ──
+  const [showAddPlayers, setShowAddPlayers] = useState(false)
+
+  const handleZonePointerDown = (id: string) => (e: React.PointerEvent<HTMLDivElement>) => {
+    if (editingZoneId === id) return
+    e.currentTarget.setPointerCapture(e.pointerId)
+    e.stopPropagation()
+  }
+
+  const handleZonePointerMove = (id: string) => (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.buttons !== 1 || editingZoneId === id) return
+    const { x, y } = toBoard(e.clientX, e.clientY)
+    board.moveZone(id, x, y)
   }
 
   // ── Scroll-wheel zoom ──
@@ -370,31 +382,20 @@ export default function TacticalBoard(props: TacticalBoardProps) {
 
             <button
               type="button"
-              onClick={() => setLoadingFormation(SCRUM_FORMATION)}
+              onClick={() => board.addZone(50, 50)}
               className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
             >
-              <Users className="h-4 w-4" />
-              Scrum
+              <Circle className="h-4 w-4" />
+              Zone
             </button>
             <button
               type="button"
-              onClick={() => setLoadingFormation(LINEOUT_FORMATION)}
+              onClick={() => setShowAddPlayers(true)}
               className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
             >
               <Users className="h-4 w-4" />
-              Lineout
+              Add players
             </button>
-
-            {board.selectedPlayerIds.size > 0 && (
-              <button
-                type="button"
-                onClick={() => { setFormationName(''); setShowSaveFormation(true) }}
-                className="inline-flex items-center gap-2 rounded-xl border border-emerald-500/40 bg-emerald-500/15 px-3 py-2 text-sm font-semibold text-emerald-300 transition hover:bg-emerald-500/25"
-              >
-                <BookmarkPlus className="h-4 w-4" />
-                Save Formation
-              </button>
-            )}
 
             <div className="h-5 w-px bg-white/10" />
 
@@ -516,6 +517,14 @@ export default function TacticalBoard(props: TacticalBoardProps) {
               </>
             )}
           </>
+        )}
+
+        {/* Unsaved changes indicator */}
+        {!viewOnly && board.isDirty && (
+          <span className="ml-auto flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-300">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+            Unsaved changes
+          </span>
         )}
       </div>
 
@@ -703,10 +712,67 @@ export default function TacticalBoard(props: TacticalBoardProps) {
               />
             )}
 
+            {/* Zone circles */}
+            {board.visibleZones.map((zone) => {
+              const canEditZone = !viewOnly && board.tool !== 'draw'
+              return (
+                <div
+                  key={zone.id}
+                  data-zone={zone.id}
+                  onPointerDown={canEditZone ? handleZonePointerDown(zone.id) : undefined}
+                  onPointerMove={canEditZone ? handleZonePointerMove(zone.id) : undefined}
+                  className={cn(
+                    'absolute rounded-full border-2 border-dashed border-white/40 bg-white/10',
+                    canEditZone && editingZoneId !== zone.id && 'touch-none cursor-move',
+                  )}
+                  style={{
+                    left: `${zone.x}%`,
+                    top: `${zone.y}%`,
+                    width: `${zone.r * 2}%`,
+                    aspectRatio: '1',
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                >
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    {editingZoneId === zone.id ? (
+                      <input
+                        autoFocus
+                        value={zone.label}
+                        onChange={(e) => board.updateZoneLabel(zone.id, e.target.value)}
+                        onBlur={() => setEditingZoneId(null)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === 'Escape') setEditingZoneId(null)
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-3/4 rounded bg-black/70 px-1 py-0.5 text-center text-xs font-bold text-white outline-none"
+                      />
+                    ) : (
+                      <span
+                        className="select-none text-xs font-bold text-white/80"
+                        onDoubleClick={() => { if (canEditZone) setEditingZoneId(zone.id) }}
+                      >
+                        {zone.label}
+                      </span>
+                    )}
+                  </div>
+                  {canEditZone && (
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); board.deleteZone(zone.id) }}
+                      className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-400"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                  )}
+                </div>
+              )
+            })}
+
             {/* Player tokens */}
             {tokens.map((token) => {
               const player = board.playerById.get(token.id)
               if (!player) return null
+              if (token.side !== 'ball' && !board.activePlayers.includes(token.id)) return null
               const canDrag = !viewOnly && board.tool !== 'draw'
 
               return (
@@ -768,6 +834,10 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           formations={board.formations}
           playbooks={board.playbooks}
           onLoadFormation={board.loadFormation}
+          onOpenSaveFormation={() => {
+            board.setPanelOpen(false)
+            board.setShowFormationModal(true)
+          }}
           playCategory={props.playCategory}
           onSaveToPlaybook={board.handleSaveToPlaybook}
           onSaveAsCopy={board.handleSaveAsCopy}
@@ -780,18 +850,10 @@ export default function TacticalBoard(props: TacticalBoardProps) {
         />
       )}
 
-      {loadingFormation && (
-        <FormationLoadDialog
-          formation={loadingFormation}
-          onLoad={(players: PlayerPosition[]) => { board.loadFormation(players); setLoadingFormation(null) }}
-          onClose={() => setLoadingFormation(null)}
-        />
-      )}
-
-      {!viewOnly && showSaveFormation && (
+      {!viewOnly && board.showFormationModal && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          onClick={() => setShowSaveFormation(false)}
+          onClick={() => board.setShowFormationModal(false)}
         >
           <div
             className="w-full max-w-sm rounded-2xl border border-white/10 bg-zinc-900 p-6 shadow-xl backdrop-blur-sm"
@@ -801,22 +863,22 @@ export default function TacticalBoard(props: TacticalBoardProps) {
               <h2 className="text-lg font-semibold text-white">Save formation</h2>
               <button
                 type="button"
-                onClick={() => setShowSaveFormation(false)}
+                onClick={() => board.setShowFormationModal(false)}
                 className="rounded-lg p-1 text-white/40 transition hover:bg-white/10 hover:text-white"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
             <p className="mt-1 text-sm text-white/50">
-              Saves the selected players&apos; positions as a reusable shape.
+              Saves this frame&apos;s player positions as a starting point for new moves.
             </p>
             <div className="mt-4 space-y-3">
               <label className="block text-sm font-semibold text-white/80">
                 Name
                 <input
-                  value={formationName}
-                  onChange={(e) => setFormationName(e.target.value)}
-                  placeholder="e.g. Pod double-up"
+                  value={board.formationName}
+                  onChange={(e) => board.setFormationName(e.target.value)}
+                  placeholder="e.g. Tight scrum left"
                   autoFocus
                   className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 font-normal text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
                 />
@@ -824,8 +886,8 @@ export default function TacticalBoard(props: TacticalBoardProps) {
               <label className="block text-sm font-semibold text-white/80">
                 Category
                 <select
-                  value={formationCategory}
-                  onChange={(e) => setFormationCategory(e.target.value as FormationCategory)}
+                  value={board.formationCategory}
+                  onChange={(e) => board.setFormationCategory(e.target.value as FormationCategory)}
                   className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 font-normal text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
                 >
                   <option value="Scrum">Scrum</option>
@@ -838,18 +900,15 @@ export default function TacticalBoard(props: TacticalBoardProps) {
             <div className="mt-5 flex justify-end gap-3">
               <button
                 type="button"
-                onClick={() => setShowSaveFormation(false)}
+                onClick={() => board.setShowFormationModal(false)}
                 className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={async () => {
-                  await board.saveFormationFromSelection(formationName, formationCategory)
-                  setShowSaveFormation(false)
-                }}
-                disabled={!formationName.trim() || board.selectedPlayerIds.size === 0}
+                onClick={board.saveFormation}
+                disabled={!board.formationName.trim()}
                 className="rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90 disabled:opacity-50"
               >
                 Save formation
@@ -857,6 +916,13 @@ export default function TacticalBoard(props: TacticalBoardProps) {
             </div>
           </div>
         </div>
+      )}
+      {showAddPlayers && (
+        <AddPlayersDialog
+          activePlayers={board.activePlayers}
+          onAdd={(ids) => { board.addPlayers(ids); setShowAddPlayers(false) }}
+          onClose={() => setShowAddPlayers(false)}
+        />
       )}
     </section>
   )
