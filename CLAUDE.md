@@ -1,152 +1,132 @@
 # RugbyMove - Claude guidance
 
-This file is a handover note so a future agent can regain context after a local Codex reinstall/reset.
+This file is a handover note so a future agent can regain context quickly.
 
 ## Supabase
 
-- Project: **funprojects**
-- Schema: **rugby** - all queries and migrations MUST be scoped to this schema.
+- Project: **funprojects** (project ID: `ejjfumclyftxdpblkgfy`)
+- Schema: **rugby** — all queries and migrations MUST be scoped to this schema.
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` is for client/SSR access.
 - `SUPABASE_SECRET_KEY` is for admin-only actions.
-- **Do NOT touch any other schema**. The Supabase instance may also contain unrelated schemas such as `minidnd`.
-- If a correct fix requires a manual Supabase change that cannot safely go through migrations or `apply_migration`, stop and tell the user exactly what to do. Do not work around it in code.
+- **Do NOT touch any other schema.** The instance also contains `minidnd` and `PhysioNote` schemas.
+- If a correct fix requires a manual Supabase change that cannot safely go through migrations, stop and tell the user exactly what to do.
 
 ## Git
 
 - Repo: `https://github.com/AEW909/RugbyMove`
-- **Always develop on `master`.** Do not create or switch to a feature branch unless the user explicitly asks.
+- **Always develop on `master`.** Do not create feature branches unless the user explicitly asks.
 - Do not force push.
-- Do not run destructive commands such as `git reset`, `git clean`, `git checkout --`, or `git restore` unless explicitly instructed.
+- Do not run destructive git commands (`reset`, `clean`, `checkout --`, `restore`) unless explicitly instructed.
 
 ## Stack
 
 - Next.js 14 App Router
-- TypeScript
+- TypeScript (strict)
 - Tailwind CSS
 - Supabase SSR (`@supabase/ssr`) for auth and data
-- Vercel deployment target
+- Vercel deployment target (production branch: `master`)
 - `lucide-react` icons
+- Zod for server action input validation
 
 ## Current App Shape
 
 - Home dashboard: `app/page.tsx`
 - Tactical editor: `app/playbook/[id]/page.tsx`
 - Main board UI: `components/TacticalBoard.tsx`
-- Auth/account:
-  - `/login`
-  - `/recover`
-  - `/signup`
-  - `/account`
-  - `/account/password`
-- Playbooks:
-  - `/playbooks`
-  - `/playbooks/new`
-  - `/playbooks/[id]`
-- Organization/team paths may exist in the current remote branch; inspect before editing.
+- Board logic hook: `hooks/useTacticalBoard.ts`
+- Auth/account: `/login`, `/recover`, `/signup`, `/account`, `/account/password`
+- Playbooks: `/playbooks`, `/playbooks/new`, `/playbooks/[id]`
+- Organisations: `/orgs`, `/orgs/new`, `/org/[id]`
 - Demo route: `/playbook/demo`
 - Fresh blank board: `/playbook/new`
-- Local saved move handoff: `/playbook/local`
 
-## Tactical Board Behavior
+## Tactical Board — Current Behavior
 
-`components/TacticalBoard.tsx` is a client component.
+`components/TacticalBoard.tsx` is a large client component (~930 lines). Its state logic lives in `hooks/useTacticalBoard.ts` (~800 lines). Both are candidates for a refactor into smaller focused files.
 
-Implemented behavior from the design iterations:
+### Player model
+- The board starts **empty** (just the ball). Players are added explicitly via "Add players" button → `AddPlayersDialog`.
+- Attack players are blue tokens, defence are red. Ball is a white oval.
+- Players are staged in off-pitch tray positions (`x=4` for attack, `x=96` for defence) until dragged onto the pitch.
+- `activePlayers: string[]` in state tracks which player IDs have been added. Stored in `animation_data.activePlayers`.
+- All 30 player positions are always present in frame data; rendering filters by `activePlayers`.
 
-- Attack and defence players are draggable tokens.
-- Ball starts on the centre spot.
-- Attack and defence players start in narrow side trays.
-- Attack tray is left, defence tray is right.
-- Players are staged in tray columns.
-- Tray labels should sit at the outer edges.
-- Frames can be added and deleted.
-- Playback interpolates token positions between frames with `requestAnimationFrame`.
-- Dotted pass lines were removed because the ball itself animates.
-- Export currently downloads an animated SVG, not GIF/video.
+### Zones
+- Zones are draggable labelled circles added via "Zone" toolbar button.
+- Stored per-frame in `Frame.zones` — they animate between frames like players.
+- Adding a zone inserts it into **all** frames at the same position; moving it only updates the active frame.
+- Double-click label to rename inline. × button to delete from all frames.
 
-Important implementation detail:
+### Frames & playback
+- Frames can be added (capture) and deleted.
+- Playback interpolates player and zone positions between frames using `requestAnimationFrame`.
+- Draw tool adds lines per-frame. Lines are not interpolated.
+- Pitch can be rotated portrait/landscape — all coordinates are transformed on toggle.
 
-- Board positions use pitch-relative coordinates where `x = 0..100` maps to the pitch.
-- Off-pitch staging is represented by values outside that pitch range.
-- The visual stage reserves internal tray space and maps pitch coordinates into the central pitch rectangle via `pitchLeft` and `pitchWidth`.
+### Dirty state
+- `isDirty` in the hook tracks unsaved changes since last save.
+- An amber "Unsaved changes" pill appears in the toolbar.
+- `beforeunload` warns the user if they try to close the tab with unsaved edits.
+- `isDirty` resets to false after a successful save.
 
-## Database Model
+### Save flow
+- Manual save only (no autosave). User opens the slide-over panel → Save tab → picks a playbook → clicks "Save to playbook" (updates existing) or "Save as copy" (new play).
+- `animation_data` stores: `frames`, `durations`, `pitchPortrait`, `activePlayers`.
+
+### Formations
+- A formation is a **sparse** group of players at specific positions — only active players are saved, not all 30.
+- Loading a formation adds its player IDs to `activePlayers` AND positions them in the current frame.
+- The panel shows a compact summary (e.g. `Att 1–8 · Def 1–8`) under each formation name.
+- Old formation data was deleted from the DB when the model changed. There is no legacy compatibility.
+
+## Data Model
+
+### Key types (`types/play.ts`)
+```ts
+Frame = { players: PlayerPosition[], zones: Zone[], lines: Line[] }
+Zone  = { id, x, y, r, label }  // r = radius as % of board width
+AnimationData = { frames, durations?, pitchPortrait?, activePlayers? }
+```
+`Frame.zones` is **required** (not optional). `AnimationData.activePlayers` is optional (absence means no players added yet for fresh plays; legacy plays with undefined will open with an empty board).
+
+### Zod validation
+`app/actions/plays.ts` contains `animationDataSchema` which must stay in sync with the TypeScript types. This has been a source of build failures — if you add fields to `Frame` or `AnimationData`, update the schema too.
+
+### Database tables (rugby schema)
+- `profiles` — user profile (username, display_name)
+- `plays` — saved tactical moves with JSONB `animation_data`
+- `formations` — sparse player groups (reusable starting positions)
+- `playbooks` — named collections of moves; visibility: `private | team | public`
+- `playbook_members` — roles: `editor | viewer`
+- `playbook_plays` — ordered join table between playbooks and plays
+- `organisations` — team/club level grouping
+- `org_members` — roles: `head_coach | coach | player`
 
 Migrations live in `supabase/migrations`.
 
-Known migration intent:
+## Auth
 
-- `profiles`: user profile data, including master-user/admin status.
-- `plays`: saved tactical moves with JSON animation data.
-- `formations`: reusable starting positions.
-- `playbooks`: collections of moves.
-- `playbook_members`: access roles for coaches/players.
-- `playbook_plays`: ordered moves inside playbooks.
-- Later migrations in the remote branch add team/organization concepts; inspect `supabase/migrations` before editing policies.
-
-Long-term structure:
-
-- Moves belong to playbooks.
-- Coaches can be granted access to specific playbooks.
-- Players can receive shared/read-only access to selected moves/playbooks.
-- Master user can see all saved moves across accounts.
-- Users can save a move, save a variation, and organize variations into playbooks.
-
-## Auth / Master User
-
-The requested master user email is:
-
-- `awilkinson@lrgs.org.uk`
-
-The password was shared in chat but must never be committed.
-
-Use env vars or Supabase dashboard/admin tooling to create or update the user. If using the repo script, it reads:
-
-- `NEXT_PUBLIC_SUPABASE_URL`
-- `SUPABASE_SECRET_KEY`
-- `SUPABASE_MASTER_EMAIL`
-- `SUPABASE_MASTER_PASSWORD`
-
-Never hardcode secrets into source files or documentation.
-
-## Local Persistence
-
-localStorage has been removed entirely. All data (plays, formations, playbooks, organisations) lives in Supabase. Guest/unauthenticated access is not supported — users are redirected to `/login`.
+- Master user: `awilkinson@lrgs.org.uk` (password never committed)
+- No guest/unauthenticated access — all routes redirect to `/login`
+- localStorage is not used; all data lives in Supabase
 
 ## Recommended Next Steps
 
-1. Confirm the correct Supabase project/schema before applying any migrations.
-2. Apply pending migrations only to the `rugby` schema.
-3. Finish Supabase-backed playbook UI:
-   - create playbook
-   - list user playbooks
-   - add/remove moves from playbooks
-   - invite/add coach/player members
-4. Replace remaining local saved moves/formations with Supabase queries.
-5. Add a proper editor metadata panel:
-   - title
-   - category
-   - description
-   - playbook selector
-   - public/private/share state
-6. Upgrade export:
-   - client-side WebM/GIF renderer or server-side rendering pipeline
-   - include pitch, token movement, and ball movement
-7. Add tests around:
-   - frame deletion
-   - playback interpolation
-   - save-as variation behavior
-   - playbook access/RLS assumptions
+1. **Full refactor** (agreed as next priority):
+   - Split `useTacticalBoard.ts` into focused hooks (`usePlayback`, `useZones`, `usePlayers`, `useSave`)
+   - Split `TacticalBoard.tsx` into focused components (`BoardCanvas`, `BoardToolbar`)
+   - Derive `SavePlayInput` from `AnimationData` type rather than maintaining a parallel Zod schema
+   - Remove dead code: `SCRUM_FORMATION`, `LINEOUT_FORMATION` in `lib/board/defaults.ts` (no longer used), unused `saveFormationAction` import in hook
+
+2. **Public share page** — playbooks have a `visibility` flag but no public read-only URL yet
+
+3. **Export upgrade** — current export is an animated SVG; upgrade to WebM/GIF
+
+4. **Tests** — frame deletion, playback interpolation, save flow, RLS assumptions
 
 ## Developer Notes
 
-- On Windows, use `cmd /c npm.cmd ...` if PowerShell blocks npm scripts.
-- Run before committing code changes:
-
-```bash
-cmd /c npm.cmd run typecheck
-cmd /c npm.cmd run lint
-```
-
-- Do not commit `.env.local`, build outputs, logs, caches, `node_modules`, `.next`, or secrets.
-- Prefer the correct fix over clever workarounds; robust and correct beats "it works somehow".
+- Before committing: `npm run typecheck` (lint binary not available in this environment)
+- Do not commit `.env.local`, build outputs, `node_modules`, `.next`, or secrets
+- The Vercel build runs `tsc --noEmit` — type errors that pass locally can still fail on Vercel if the local tsconfig differs. Always run typecheck before pushing.
+- Build has previously failed due to: missing `zones` on `Frame` literals, Zod schema out of sync with types, `normalizeFrame` not included in call sites. Check all three if the build breaks again.
