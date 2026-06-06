@@ -49,9 +49,9 @@ const formationSchema = z.object({
   id: z.string().uuid().optional(),
   name: z.string().trim().min(1).max(80),
   category: z.enum(['Scrum', 'Lineout', 'Penalty', 'Open Play']),
-  players: z.array(
+  slots: z.array(
     z.object({
-      id: z.string().min(1).max(12),
+      side: z.enum(['attack', 'defend', 'ball']),
       x: z.number().min(0).max(100),
       y: z.number().min(0).max(100),
     }),
@@ -172,7 +172,7 @@ export async function saveFormation(input: SaveFormationInput) {
       },
       { onConflict: 'id' },
     )
-    .select('id,name,category,players,updated_at')
+    .select('id,name,category,slots,updated_at')
     .single()
 
   if (error) {

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import { savePlay, saveFormation as saveFormationAction } from '@/app/actions/plays'
 import { createClient } from '@/lib/supabase/client'
-import type { Formation, FormationCategory } from '@/lib/board/storage'
+import type { Formation, FormationCategory, FormationSlot } from '@/lib/board/storage'
 import type { Frame, Line, PlayerPosition, PlayCategory } from '@/types/play'
 import type { PanelTab } from '@/components/board/PanelSlideOver'
 import { tokens, defaultFrame } from '@/lib/board/defaults'
@@ -89,15 +89,9 @@ export type UseTacticalBoardReturn = {
   playerById: Map<string, PlayerPosition>
   isPlaying: boolean
   formations: Formation[]
-  formationName: string
-  setFormationName: (name: string) => void
-  formationCategory: FormationCategory
-  setFormationCategory: (cat: FormationCategory) => void
   saveStatus: string
   snapGrid: boolean
   setSnapGrid: Dispatch<SetStateAction<boolean>>
-  showFormationModal: boolean
-  setShowFormationModal: (show: boolean) => void
   panelOpen: boolean
   setPanelOpen: (open: boolean) => void
   panelTab: PanelTab
@@ -120,8 +114,8 @@ export type UseTacticalBoardReturn = {
   captureFrame: () => void
   deleteFrame: (index: number) => void
   resetBoard: () => void
-  saveFormation: () => void
-  loadFormation: (formation: Formation) => void
+  saveFormationFromSelection: (name: string, category: FormationCategory) => Promise<void>
+  loadFormation: (players: PlayerPosition[]) => void
   exportMove: () => void
   isExporting: boolean
   setDuration: (segIndex: number, ms: number) => void
@@ -158,11 +152,8 @@ export function useTacticalBoard({
   const [displayPlayers, setDisplayPlayers] = useState<PlayerPosition[] | null>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [formations, setFormations] = useState<Formation[]>([])
-  const [formationName, setFormationName] = useState('')
-  const [formationCategory, setFormationCategory] = useState<FormationCategory>('Open Play')
   const [saveStatus, setSaveStatus] = useState('')
   const [snapGrid, setSnapGrid] = useState(false)
-  const [showFormationModal, setShowFormationModal] = useState(false)
   const [panelOpen, setPanelOpen] = useState(false)
   const [panelTab, setPanelTab] = useState<PanelTab>('formations')
   const [playbooks, setPlaybooks] = useState<{ id: string; name: string }[]>([])
@@ -189,40 +180,7 @@ export function useTacticalBoard({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Load formations from Supabase
-  useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return
-      supabase
-        .from('formations')
-        .select('id,name,category,players,updated_at')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false })
-        .limit(24)
-        .then(({ data }) => {
-          if (!data) return
-          setFormations(data.map((f) => ({
-            id: f.id,
-            name: f.name,
-            category: f.category as FormationCategory,
-            players: f.players as PlayerPosition[],
-            createdAt: f.updated_at,
-          })))
-        })
-    })
-  }, [])
-
-  // Initialise frames from pending move/formation or mode
-  useEffect(() => {
-    if (mode === 'fresh') {
-      setFrames([defaultFrame])
-      setDurations([])
-      setActiveFrameIndex(0)
-    }
-  }, [mode])
-
-  // Load saved plays and playbooks
+  // Load user data (formations + playbooks) in a single effect
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -238,18 +196,18 @@ export function useTacticalBoard({
 
       supabase
         .from('formations')
-        .select('id,name,category,players,created_at')
+        .select('id,name,category,slots,created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
-        .limit(12)
+        .limit(24)
         .then(({ data }) => {
           if (data) {
             setFormations(
               data.map((f) => ({
                 id: f.id,
                 name: f.name,
-                category: f.category as FormationCategory,
-                players: f.players as PlayerPosition[],
+                category: f.category as Formation['category'],
+                slots: f.slots as FormationSlot[],
                 createdAt: f.created_at,
               })),
             )
@@ -257,6 +215,15 @@ export function useTacticalBoard({
         })
     })
   }, [])
+
+  // Initialise frames for a fresh board
+  useEffect(() => {
+    if (mode === 'fresh') {
+      setFrames([defaultFrame])
+      setDurations([])
+      setActiveFrameIndex(0)
+    }
+  }, [mode])
 
   const activeFrame = frames[activeFrameIndex] ?? frames[0] ?? defaultFrame
   const visiblePlayers = displayPlayers ?? activeFrame.players
@@ -396,44 +363,47 @@ export function useTacticalBoard({
     setActiveFrameIndex(0)
   }, [stopPlayback])
 
-  const saveFormation = useCallback(() => {
-    const trimmedName = formationName.trim()
-    if (!trimmedName || !userId) return
+  const saveFormationFromSelection = useCallback(
+    async (name: string, category: FormationCategory) => {
+      if (!userId || selectedPlayerIds.size === 0) return
 
-    const supabase = createClient()
-    supabase
-      .from('formations')
-      .insert({
-        name: trimmedName,
-        category: formationCategory,
-        players: activeFrame.players,
-        user_id: userId,
-      })
-      .select('id,name,category,players,created_at')
-      .single()
-      .then(({ data }) => {
+      const slots: FormationSlot[] = activeFrame.players
+        .filter((p) => selectedPlayerIds.has(p.id) || p.id === 'ball')
+        .map((p) => {
+          const side: FormationSlot['side'] = p.id === 'ball'
+            ? 'ball'
+            : p.id.startsWith('attack-') ? 'attack' : 'defend'
+          const pos = pitchPortrait ? rotatePitchCoords(p) : p
+          return { side, x: pos.x, y: pos.y }
+        })
+
+      try {
+        const data = await saveFormationAction({ name, category, slots })
         if (data) {
           setFormations((prev) =>
             [
               {
                 id: data.id,
                 name: data.name,
-                category: data.category as FormationCategory,
-                players: data.players as PlayerPosition[],
-                createdAt: data.created_at,
+                category: data.category as Formation['category'],
+                slots: data.slots as FormationSlot[],
+                createdAt: data.updated_at,
               },
               ...prev,
-            ].slice(0, 12),
+            ].slice(0, 24),
           )
         }
-      })
+        setSelectedPlayerIds(new Set())
+      } catch {
+        setSaveStatus('Formation save failed.')
+      }
+    },
+    [userId, selectedPlayerIds, activeFrame.players, pitchPortrait],
+  )
 
-    setFormationName('')
-    setShowFormationModal(false)
-  }, [activeFrame.players, formationCategory, formationName, userId])
-
+  // Accepts a pre-resolved list of {id, x, y} produced by FormationLoadDialog
   const loadFormation = useCallback(
-    (formation: Formation) => {
+    (players: PlayerPosition[]) => {
       stopPlayback()
       setFrames((currentFrames) =>
         normalizeFrames(
@@ -442,10 +412,9 @@ export function useTacticalBoard({
             return {
               ...frame,
               players: frame.players.map((player) => {
-                const saved = formation.players.find((item) => item.id === player.id)
-                if (!saved) return player
-                // Formations are stored in landscape coords; rotate if pitch is portrait
-                return pitchPortrait ? rotatePitchCoords(saved) : saved
+                const resolved = players.find((p) => p.id === player.id)
+                if (!resolved) return player
+                return pitchPortrait ? rotatePitchCoords(resolved) : resolved
               }),
             }
           }),
@@ -456,7 +425,6 @@ export function useTacticalBoard({
   )
 
   const togglePitchPortrait = useCallback(() => {
-    // Transform all player positions and line endpoints across every frame
     setFrames((currentFrames) =>
       currentFrames.map((frame) => ({
         players: frame.players.map(rotatePitchCoords),
@@ -514,7 +482,6 @@ export function useTacticalBoard({
       const normalizedFrames = normalizeFrames(frames)
       try {
         const play = await savePlay({
-          // No id — always inserts a new play
           title,
           description: description.trim() || null,
           category: category ?? 'Other',
@@ -612,15 +579,9 @@ export function useTacticalBoard({
     playerById,
     isPlaying,
     formations,
-    formationName,
-    setFormationName,
-    formationCategory,
-    setFormationCategory,
     saveStatus,
     snapGrid,
     setSnapGrid,
-    showFormationModal,
-    setShowFormationModal,
     panelOpen,
     setPanelOpen,
     panelTab,
@@ -643,7 +604,7 @@ export function useTacticalBoard({
     captureFrame,
     deleteFrame,
     resetBoard,
-    saveFormation,
+    saveFormationFromSelection,
     loadFormation,
     exportMove,
     isExporting,
