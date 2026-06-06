@@ -38,7 +38,6 @@ function createDefaultPlayers(): PlayerPosition[] {
 
 export const defaultFrame: Frame = {
   players: createDefaultPlayers(),
-  zones: [],
   lines: [],
 }
 
