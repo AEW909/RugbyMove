@@ -2,6 +2,8 @@
 
 This file is a handover note so a future agent can regain context quickly.
 
+See **[ROADMAP.md](./ROADMAP.md)** for the current feature backlog and priorities.
+
 ## Supabase
 
 - Project: **funprojects** (project ID: `ejjfumclyftxdpblkgfy`)
@@ -109,20 +111,6 @@ Migrations live in `supabase/migrations`.
 - Master user: `awilkinson@lrgs.org.uk` (password never committed)
 - No guest/unauthenticated access — all routes redirect to `/login`
 - localStorage is not used; all data lives in Supabase
-
-## Recommended Next Steps
-
-1. **Full refactor** (agreed as next priority):
-   - Split `useTacticalBoard.ts` into focused hooks (`usePlayback`, `useZones`, `usePlayers`, `useSave`)
-   - Split `TacticalBoard.tsx` into focused components (`BoardCanvas`, `BoardToolbar`)
-   - Derive `SavePlayInput` from `AnimationData` type rather than maintaining a parallel Zod schema
-   - Remove dead code: `SCRUM_FORMATION`, `LINEOUT_FORMATION` in `lib/board/defaults.ts` (no longer used), unused `saveFormationAction` import in hook
-
-2. **Public share page** — playbooks have a `visibility` flag but no public read-only URL yet
-
-3. **Export upgrade** — current export is an animated SVG; upgrade to WebM/GIF
-
-4. **Tests** — frame deletion, playback interpolation, save flow, RLS assumptions
 
 ## Developer Notes
 
