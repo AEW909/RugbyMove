@@ -118,6 +118,8 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
           boardCursor,
         )}
         aria-label="Rugby tactical board"
+        draggable={false}
+        onDragStart={(e) => e.preventDefault()}
         onPointerDown={handleBoardPointerDown}
         onPointerMove={handleBoardPointerMove}
         onPointerUp={handleBoardPointerUp}
@@ -254,6 +256,8 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
               <div
                 key={zone.id}
                 data-zone={zone.id}
+                draggable={false}
+                onDragStart={(e) => e.preventDefault()}
                 onPointerDown={canEdit ? handleZonePointerDown(zone.id, zone) : undefined}
                 onPointerMove={canEdit ? handleZonePointerMove(zone.id) : undefined}
                 className={cn(
@@ -325,6 +329,8 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
                 type="button"
                 key={token.id}
                 data-player={token.id}
+                draggable={false}
+                onDragStart={(e) => e.preventDefault()}
                 onPointerDown={canDrag ? handlePlayerPointerDown(token.id) : undefined}
                 onPointerMove={canDrag ? handlePlayerPointerMove(token.id) : undefined}
                 className={cn(
