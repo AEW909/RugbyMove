@@ -2,9 +2,9 @@
 
 import { useRef, useState, useTransition } from 'react'
 import Link from 'next/link'
-import { GripVertical, LayoutList, Trash2, X } from 'lucide-react'
+import { GripVertical, LayoutList, Plus, Trash2, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { removePlayFromPlaybook, reorderPlaybookPlays } from '@/app/actions/playbooks'
+import { addPlayToPlaybook, removePlayFromPlaybook, reorderPlaybookPlays } from '@/app/actions/playbooks'
 import DuplicateMoveButton from '@/components/plays/DuplicateMoveButton'
 import type { PlayCategory } from '@/types/play'
 
@@ -24,13 +24,15 @@ export default function PlaybookMovesSection({
   playbookId,
   plays: initialPlays,
   canManage,
-  availablePlays: _availablePlays,
+  availablePlays,
   activeCategory,
   categories,
   categoryLabel,
 }: Props) {
   const [plays, setPlays] = useState<Play[]>(initialPlays)
   const [reordering, setReordering] = useState(false)
+  const [showAddPicker, setShowAddPicker] = useState(false)
+  const [addSearch, setAddSearch] = useState('')
   const [, startTransition] = useTransition()
 
   // DnD state
@@ -82,31 +84,92 @@ export default function PlaybookMovesSection({
     <section className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-lg font-bold text-white">Moves</h2>
-        {canManage && plays.length > 1 && (
-          <button
-            type="button"
-            onClick={() => setReordering((r) => !r)}
-            className={cn(
-              'inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition',
-              reordering
-                ? 'border-white/20 bg-white/10 text-white'
-                : 'border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/80',
+        {canManage && (
+          <div className="flex items-center gap-2">
+            {plays.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setReordering((r) => !r)}
+                className={cn(
+                  'inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition',
+                  reordering
+                    ? 'border-white/20 bg-white/10 text-white'
+                    : 'border-white/10 bg-white/5 text-white/50 hover:bg-white/10 hover:text-white/80',
+                )}
+              >
+                {reordering ? (
+                  <>
+                    <X className="h-3.5 w-3.5" />
+                    Done
+                  </>
+                ) : (
+                  <>
+                    <LayoutList className="h-3.5 w-3.5" />
+                    Organise
+                  </>
+                )}
+              </button>
             )}
-          >
-            {reordering ? (
-              <>
-                <X className="h-3.5 w-3.5" />
-                Done
-              </>
-            ) : (
-              <>
-                <LayoutList className="h-3.5 w-3.5" />
-                Organise
-              </>
+            {availablePlays.length > 0 && !reordering && (
+              <button
+                type="button"
+                onClick={() => { setShowAddPicker((v) => !v); setAddSearch('') }}
+                className="inline-flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/60 transition hover:bg-white/10 hover:text-white/80"
+                aria-label="Add move to playbook"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add move
+              </button>
             )}
-          </button>
+          </div>
         )}
       </div>
+
+      {/* Add-move picker */}
+      {showAddPicker && (
+        <div className="mt-3 rounded-xl border border-white/10 bg-white/5 p-3">
+          <input
+            type="text"
+            value={addSearch}
+            onChange={(e) => setAddSearch(e.target.value)}
+            placeholder="Search moves…"
+            autoFocus
+            className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-blue-400"
+          />
+          <ul className="mt-2 max-h-52 space-y-1 overflow-y-auto">
+            {availablePlays
+              .filter((p) =>
+                !addSearch.trim() || p.title.toLowerCase().includes(addSearch.toLowerCase()),
+              )
+              .map((play) => (
+                <li key={play.id}>
+                  <form
+                    action={async (fd) => {
+                      await addPlayToPlaybook(fd)
+                      setPlays((prev) => [...prev, play])
+                      setShowAddPicker(false)
+                    }}
+                  >
+                    <input type="hidden" name="playbook_id" value={playbookId} />
+                    <input type="hidden" name="play_id" value={play.id} />
+                    <button
+                      type="submit"
+                      className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition hover:bg-white/10"
+                    >
+                      <span className="flex-1 truncate font-medium text-white">{play.title}</span>
+                      <span className="shrink-0 text-xs text-white/40">{play.category}</span>
+                    </button>
+                  </form>
+                </li>
+              ))}
+            {availablePlays.filter((p) =>
+              !addSearch.trim() || p.title.toLowerCase().includes(addSearch.toLowerCase()),
+            ).length === 0 && (
+              <li className="px-2 py-1.5 text-sm text-white/40">No matches.</li>
+            )}
+          </ul>
+        </div>
+      )}
 
       {/* Category filter — hidden while reordering */}
       {!reordering && plays.length > 0 && (
