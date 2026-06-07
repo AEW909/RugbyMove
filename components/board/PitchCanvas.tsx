@@ -67,7 +67,11 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
     >
       <div
         ref={boardRef}
-        style={{ aspectRatio: ratio, width: pitchWidth }}
+        style={{
+          aspectRatio: ratio,
+          width: pitchWidth,
+          transform: panX !== 0 || panY !== 0 ? `translate(${panX}px, ${panY}px)` : undefined,
+        }}
         className={cn(
           'relative overflow-hidden rounded-xl border border-white/10 bg-emerald-700 shadow-inner',
           boardCursor,
@@ -88,17 +92,8 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
           </button>
         )}
 
-        {/* Zoomed inner content */}
-        <div
-          className="absolute inset-0"
-          style={{
-            transform: zoom !== 1 || panX !== 0 || panY !== 0
-              ? `scale(${zoom}) translate(${panX}px, ${panY}px)`
-              : undefined,
-            transformOrigin: 'center',
-            willChange: zoom !== 1 ? 'transform' : undefined,
-          }}
-        >
+        {/* Inner content — no transform; zoom/pan applied to outer pitch div */}
+        <div className="absolute inset-0">
           {/* Pitch markings SVG */}
           <svg className="pointer-events-none absolute inset-0 h-full w-full" xmlns="http://www.w3.org/2000/svg">
             {(() => {

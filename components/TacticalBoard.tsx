@@ -34,6 +34,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
     lineDashed: board.lineDashed,
     onAddLine: board.addLine,
     onMovePlayer: board.movePlayer,
+    pitchPortrait: board.pitchPortrait,
   })
 
   return (
