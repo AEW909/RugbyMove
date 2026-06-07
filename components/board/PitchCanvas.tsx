@@ -53,10 +53,13 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
   }
 
   const ratio = board.pitchPortrait ? '7 / 12' : '12 / 7'
-  // Width = min(container width, container height × ratio) — replicates object-fit: contain
-  const pitchWidth = board.pitchPortrait
-    ? 'min(100cqw, calc(100cqh * 7 / 12))'
-    : 'min(100cqw, calc(100cqh * 12 / 7))'
+  // At zoom=1: object-fit:contain — width bounded by both container width and height×ratio.
+  // When zoomed: fill full container width so the CSS-scaled content has more room.
+  const pitchWidth = zoom <= 1
+    ? (board.pitchPortrait
+        ? 'min(100cqw, calc(100cqh * 7 / 12))'
+        : 'min(100cqw, calc(100cqh * 12 / 7))')
+    : '100cqw'
 
   return (
     <div
