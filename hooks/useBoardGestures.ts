@@ -39,10 +39,11 @@ export type UseBoardGesturesReturn = {
 }
 
 // Compute expected pitch pixel dimensions for a given zoom level.
+// pitchW can exceed cW — the outer container clips the overflow.
 function computePitchSize(zoom: number, cW: number, cH: number, portrait: boolean) {
   const ratio = portrait ? 7 / 12 : 12 / 7
   const containedW = Math.min(cW, cH * ratio)
-  const pitchW = Math.min(cW, containedW * zoom)
+  const pitchW = containedW * zoom
   const pitchH = pitchW / ratio
   return { pitchW, pitchH }
 }
@@ -175,7 +176,7 @@ export function useBoardGestures({
     setPanX(clamped.x)
     setPanY(clamped.y)
 
-    void panX; void panY // suppress unused-var lint
+    void panX; void panY; void zoom // suppress unused-var lint (read via refs)
   }, [])
 
   useEffect(() => {

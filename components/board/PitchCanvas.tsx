@@ -78,16 +78,17 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
   }
 
   const ratio = board.pitchPortrait ? '7 / 12' : '12 / 7'
-  // Contained width at zoom=1 (object-fit: contain logic).
+  // Contained width at zoom=1 — aspect-ratio contain relative to the container.
   const containedW = board.pitchPortrait
     ? 'min(100cqw, calc(100cqh * 7 / 12))'
     : 'min(100cqw, calc(100cqh * 12 / 7))'
-  // Pitch div grows with zoom, capped at full container width — no binary jump.
-  const pitchWidth = zoom === 1 ? containedW : `min(100cqw, calc((${containedW}) * ${zoom}))`
+  // Pitch div grows freely with zoom — NO cqw cap so it can overflow and clip.
+  // The outer container's overflow:hidden is the clipping boundary.
+  const pitchWidth = zoom === 1 ? containedW : `calc((${containedW}) * ${zoom})`
 
   return (
     <div
-      className="min-h-0 flex-1 overflow-hidden"
+      className="min-h-0 flex-1 overflow-hidden ring-1 ring-yellow-400/40"
       style={{ display: 'grid', placeItems: 'center', containerType: 'size' }}
     >
       <div
@@ -297,14 +298,13 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
             )
           })}
 
-          {/* Player tokens — counter-scale so they stay the same visual size when zoomed */}
+          {/* Player tokens — fixed px size; % position scales with pitch div */}
           {tokens.map((token) => {
             const player = board.playerById.get(token.id)
             if (!player) return null
             if (token.side !== 'ball' && !board.activePlayers.includes(token.id)) return null
             const canDrag = !viewOnly && board.tool !== 'draw'
             const isBall = token.side === 'ball'
-            const counterScale = zoom !== 1 ? `scale(${1 / zoom})` : ''
             return (
               <button
                 type="button"
@@ -323,7 +323,7 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
                 style={{
                   left: `${player.x}%`,
                   top: `${player.y}%`,
-                  transform: `translate(-50%, -50%) ${counterScale}`,
+                  transform: 'translate(-50%, -50%)',
                   pointerEvents: canDrag ? undefined : 'none',
                   width: isBall ? sizes.ball.w : sizes.player,
                   height: isBall ? sizes.ball.h : sizes.player,
