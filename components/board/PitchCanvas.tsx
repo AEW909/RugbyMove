@@ -62,7 +62,7 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
           maxWidth: '100%',
         }}
         className={cn(
-          'relative overflow-hidden rounded-xl border border-white/10 bg-emerald-700 shadow-inner',
+          'relative w-full overflow-hidden rounded-xl border border-white/10 bg-emerald-700 shadow-inner',
           boardCursor,
         )}
         aria-label="Rugby tactical board"
