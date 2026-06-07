@@ -10,8 +10,10 @@ import {
   Pencil,
   Play,
   Plus,
+  Redo2,
   RotateCcw,
   RotateCw,
+  Undo2,
   Users,
   X,
 } from 'lucide-react'
@@ -86,6 +88,24 @@ export default function TacticalBoardToolbar({
           >
             <RotateCcw className="h-4 w-4" />
             Reset
+          </button>
+          <button
+            type="button"
+            title="Undo (Ctrl+Z)"
+            onClick={board.undo}
+            disabled={!board.canUndo}
+            className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 p-2 text-white/80 transition hover:bg-white/10 disabled:opacity-30"
+          >
+            <Undo2 className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            title="Redo (Ctrl+Y)"
+            onClick={board.redo}
+            disabled={!board.canRedo}
+            className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 p-2 text-white/80 transition hover:bg-white/10 disabled:opacity-30"
+          >
+            <Redo2 className="h-4 w-4" />
           </button>
           <button
             type="button"

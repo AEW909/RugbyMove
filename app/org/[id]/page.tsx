@@ -1,11 +1,14 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { BookOpen, ChevronDown, Key, Trash2, Users } from 'lucide-react'
+import { BookOpen, ChevronDown, Key, Settings, Trash2, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import {
   setPlaybookJoinCode,
   addOrgMember,
   removeOrgMember,
+  updateOrg,
+  updateOrgMemberRole,
+  setCoachInviteCode,
 } from '@/app/actions/orgs'
 import {
   addPlaybookMemberById,
@@ -41,7 +44,7 @@ export default async function OrgDetailPage({ params, searchParams }: PageProps)
 
   const { data: org } = await supabase
     .from('organisations')
-    .select('id, name, description, owner_id')
+    .select('id, name, description, owner_id, coach_invite_code')
     .eq('id', params.id)
     .single()
 
@@ -359,9 +362,24 @@ export default async function OrgDetailPage({ params, searchParams }: PageProps)
                         {isMe && <span className="ml-1.5 text-xs text-white/30">(you)</span>}
                       </span>
                       <div className="flex shrink-0 items-center gap-1">
-                        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-semibold text-white/60">
-                          {orgRoleLabel[m.role] ?? m.role}
-                        </span>
+                        {isHeadCoach && !isMe && m.role !== 'head_coach' ? (
+                          <form action={updateOrgMemberRole}>
+                            <input type="hidden" name="org_id" value={params.id} />
+                            <input type="hidden" name="user_id" value={m.user_id} />
+                            <input type="hidden" name="role" value={m.role === 'coach' ? 'player' : 'coach'} />
+                            <button
+                              type="submit"
+                              title={`Change to ${m.role === 'coach' ? 'player' : 'coach'}`}
+                              className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-semibold text-white/60 transition hover:border-blue-500/40 hover:bg-blue-500/10 hover:text-blue-300"
+                            >
+                              {orgRoleLabel[m.role] ?? m.role}
+                            </button>
+                          </form>
+                        ) : (
+                          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-semibold text-white/60">
+                            {orgRoleLabel[m.role] ?? m.role}
+                          </span>
+                        )}
                         {isHeadCoach && !isMe && (
                           <form action={removeOrgMember}>
                             <input type="hidden" name="org_id" value={params.id} />
@@ -423,10 +441,93 @@ export default async function OrgDetailPage({ params, searchParams }: PageProps)
 
               {!isHeadCoach && (
                 <p className="mt-4 text-xs text-white/40">
-                  Ask your head coach for a playbook join code to add players.
+                  Ask your head coach for a join code to add members.
                 </p>
               )}
             </section>
+
+            {/* Coach invite code */}
+            {isHeadCoach && (
+              <section className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+                <h2 className="text-sm font-bold text-white/80">Coach invite code</h2>
+                <p className="mt-1 text-xs text-white/40">Share this code so coaches can join the organisation directly.</p>
+                <div className="mt-3">
+                  {(org as { coach_invite_code?: string | null }).coach_invite_code ? (
+                    <div className="space-y-2">
+                      <code className="block w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-center text-sm font-mono font-bold tracking-widest text-white/80">
+                        {(org as { coach_invite_code?: string | null }).coach_invite_code}
+                      </code>
+                      <form action={setCoachInviteCode}>
+                        <input type="hidden" name="org_id" value={params.id} />
+                        <button type="submit" className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-white/50 transition hover:bg-white/10">
+                          Regenerate
+                        </button>
+                      </form>
+                    </div>
+                  ) : (
+                    <form action={setCoachInviteCode}>
+                      <input type="hidden" name="org_id" value={params.id} />
+                      <button
+                        type="submit"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-semibold text-white/70 transition hover:bg-white/10"
+                      >
+                        <Key className="h-4 w-4" />
+                        Generate coach invite code
+                      </button>
+                    </form>
+                  )}
+                </div>
+              </section>
+            )}
+
+            {/* Org settings */}
+            {isHeadCoach && (
+              <details className="group mt-4 rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 select-none">
+                  <span className="flex items-center gap-2 text-sm font-bold text-white/80">
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </span>
+                  <ChevronDown className="h-4 w-4 shrink-0 text-white/40 transition-transform duration-200 group-open:rotate-180" />
+                </summary>
+                <div className="px-5 pb-5">
+                  <form action={updateOrg} className="space-y-4">
+                    <input type="hidden" name="org_id" value={params.id} />
+                    <div>
+                      <label htmlFor="org-name" className="block text-xs font-semibold text-white/60">Name</label>
+                      <input
+                        id="org-name"
+                        name="name"
+                        type="text"
+                        required
+                        maxLength={120}
+                        defaultValue={org.name}
+                        className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+                      />
+                    </div>
+                    <div>
+                      <label htmlFor="org-desc" className="block text-xs font-semibold text-white/60">
+                        Description <span className="font-normal text-white/30">(optional)</span>
+                      </label>
+                      <textarea
+                        id="org-desc"
+                        name="description"
+                        rows={2}
+                        maxLength={2000}
+                        defaultValue={org.description ?? ''}
+                        className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90"
+                    >
+                      Save
+                    </button>
+                  </form>
+                </div>
+              </details>
+            )}
           </aside>
         </div>
       </div>

@@ -35,6 +35,7 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
   const handleZonePointerDown = (id: string, zone: { x: number; y: number }) =>
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (editingZoneId === id) return
+      board.markUndoCheckpoint()
       e.currentTarget.setPointerCapture(e.pointerId)
       e.stopPropagation()
       const el = boardRef.current
@@ -81,6 +82,7 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
     }
 
   const handlePlayerPointerDown = (id: string) => (e: React.PointerEvent<HTMLButtonElement>) => {
+    board.markUndoCheckpoint()
     e.currentTarget.setPointerCapture(e.pointerId)
     updatePlayerPosition(id, e.clientX, e.clientY)
   }

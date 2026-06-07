@@ -58,11 +58,28 @@ export async function createOrg(formData: FormData): Promise<void> {
 
 export async function joinViaCode(formData: FormData): Promise<void> {
   let errorMessage: string | null = null
-  let playbookId: string | null = null
 
   try {
     const code = z.string().trim().min(1).parse(formData.get('code'))
     const { admin, user } = await requireUser()
+
+    // Check coach invite code first
+    const { data: orgByCoachCode } = await admin
+      .from('organisations')
+      .select('id')
+      .eq('coach_invite_code', code)
+      .single()
+
+    if (orgByCoachCode) {
+      await admin
+        .from('org_members')
+        .upsert(
+          { org_id: orgByCoachCode.id, user_id: user.id, role: 'coach' },
+          { onConflict: 'org_id,user_id' },
+        )
+      revalidatePath(`/org/${orgByCoachCode.id}`)
+      redirect(`/org/${orgByCoachCode.id}?message=Joined+as+coach`)
+    }
 
     const { data: playbook, error } = await admin
       .from('playbooks')
@@ -71,9 +88,8 @@ export async function joinViaCode(formData: FormData): Promise<void> {
       .single()
 
     if (error || !playbook) {
-      errorMessage = 'No playbook found with that code.'
+      errorMessage = 'No playbook or organisation found with that code.'
     } else {
-      playbookId = playbook.id
       const { error: memberError } = await admin
         .from('playbook_members')
         .upsert(
@@ -227,4 +243,92 @@ export async function setPlaybookJoinCode(formData: FormData): Promise<void> {
   if (error) redirect(`/org/${orgId}?error=${encodeURIComponent(error.message)}`)
   revalidatePath(`/org/${orgId}`)
   redirect(`/org/${orgId}?message=Join+code+generated`)
+}
+
+export async function updateOrg(formData: FormData): Promise<void> {
+  const orgId = z.string().uuid().parse(formData.get('org_id'))
+  const name = z.string().trim().min(1).max(120).parse(formData.get('name'))
+  const description = z.string().trim().max(2000).optional().nullable().parse(
+    formData.get('description') || null,
+  ) ?? null
+  const { admin, user } = await requireUser()
+
+  const { data: member } = await admin
+    .from('org_members')
+    .select('role')
+    .eq('org_id', orgId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member || member.role !== 'head_coach') {
+    redirect(`/org/${orgId}?error=Not+authorized`)
+  }
+
+  const { error } = await admin
+    .from('organisations')
+    .update({ name, description })
+    .eq('id', orgId)
+
+  if (error) redirect(`/org/${orgId}?error=${encodeURIComponent(error.message)}`)
+  revalidatePath(`/org/${orgId}`)
+  redirect(`/org/${orgId}?message=Settings+saved`)
+}
+
+export async function updateOrgMemberRole(formData: FormData): Promise<void> {
+  const orgId = z.string().uuid().parse(formData.get('org_id'))
+  const targetUserId = z.string().uuid().parse(formData.get('user_id'))
+  const role = z.enum(['coach', 'player']).parse(formData.get('role'))
+  const { admin, user } = await requireUser()
+
+  const { data: myMembership } = await admin
+    .from('org_members')
+    .select('role')
+    .eq('org_id', orgId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!myMembership || myMembership.role !== 'head_coach') {
+    redirect(`/org/${orgId}?error=Not+authorized`)
+  }
+
+  if (targetUserId === user.id) {
+    redirect(`/org/${orgId}?error=Cannot+change+your+own+role`)
+  }
+
+  const { error } = await admin
+    .from('org_members')
+    .update({ role })
+    .eq('org_id', orgId)
+    .eq('user_id', targetUserId)
+
+  if (error) redirect(`/org/${orgId}?error=${encodeURIComponent(error.message)}`)
+  revalidatePath(`/org/${orgId}`)
+  redirect(`/org/${orgId}?message=Role+updated`)
+}
+
+export async function setCoachInviteCode(formData: FormData): Promise<void> {
+  const orgId = z.string().uuid().parse(formData.get('org_id'))
+  const { admin, user } = await requireUser()
+
+  const { data: member } = await admin
+    .from('org_members')
+    .select('role')
+    .eq('org_id', orgId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member || member.role !== 'head_coach') {
+    redirect(`/org/${orgId}?error=Not+authorized`)
+  }
+
+  const code = randomBytes(4).toString('hex').toUpperCase()
+
+  const { error } = await admin
+    .from('organisations')
+    .update({ coach_invite_code: code })
+    .eq('id', orgId)
+
+  if (error) redirect(`/org/${orgId}?error=${encodeURIComponent(error.message)}`)
+  revalidatePath(`/org/${orgId}`)
+  redirect(`/org/${orgId}?message=Coach+invite+code+generated`)
 }
