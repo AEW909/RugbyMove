@@ -52,17 +52,22 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
     updatePlayerPosition(id, e.clientX, e.clientY)
   }
 
+  const ratio = board.pitchPortrait ? '7 / 12' : '12 / 7'
+  // Width = min(container width, container height × ratio) — replicates object-fit: contain
+  const pitchWidth = board.pitchPortrait
+    ? 'min(100cqw, calc(100cqh * 7 / 12))'
+    : 'min(100cqw, calc(100cqh * 12 / 7))'
+
   return (
-    <div className="min-h-0 flex-1 overflow-hidden" style={{ display: 'grid', placeItems: 'center' }}>
+    <div
+      className="min-h-0 flex-1 overflow-hidden"
+      style={{ display: 'grid', placeItems: 'center', containerType: 'size' }}
+    >
       <div
         ref={boardRef}
-        style={{
-          aspectRatio: board.pitchPortrait ? '7 / 12' : '12 / 7',
-          maxHeight: '100%',
-          maxWidth: '100%',
-        }}
+        style={{ aspectRatio: ratio, width: pitchWidth }}
         className={cn(
-          'relative w-full overflow-hidden rounded-xl border border-white/10 bg-emerald-700 shadow-inner',
+          'relative overflow-hidden rounded-xl border border-white/10 bg-emerald-700 shadow-inner',
           boardCursor,
         )}
         aria-label="Rugby tactical board"
