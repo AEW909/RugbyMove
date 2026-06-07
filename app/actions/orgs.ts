@@ -58,12 +58,30 @@ export async function createOrg(formData: FormData): Promise<void> {
 
 export async function joinViaCode(formData: FormData): Promise<void> {
   let errorMessage: string | null = null
-  let playbookId: string | null = null
 
   try {
     const code = z.string().trim().min(1).parse(formData.get('code'))
     const { admin, user } = await requireUser()
 
+    // Check if this is a coach invite code for an org
+    const { data: orgMatch } = await admin
+      .from('organisations')
+      .select('id')
+      .eq('coach_invite_code', code)
+      .single()
+
+    if (orgMatch) {
+      await admin
+        .from('org_members')
+        .upsert(
+          { org_id: orgMatch.id, user_id: user.id, role: 'coach' },
+          { onConflict: 'org_id,user_id' },
+        )
+      revalidatePath(`/org/${orgMatch.id}`)
+      redirect(`/org/${orgMatch.id}?message=Joined+as+coach`)
+    }
+
+    // Otherwise check playbook join codes
     const { data: playbook, error } = await admin
       .from('playbooks')
       .select('id, org_id')
@@ -71,9 +89,8 @@ export async function joinViaCode(formData: FormData): Promise<void> {
       .single()
 
     if (error || !playbook) {
-      errorMessage = 'No playbook found with that code.'
+      errorMessage = 'No playbook or organisation found with that code.'
     } else {
-      playbookId = playbook.id
       const { error: memberError } = await admin
         .from('playbook_members')
         .upsert(
@@ -227,4 +244,131 @@ export async function setPlaybookJoinCode(formData: FormData): Promise<void> {
   if (error) redirect(`/org/${orgId}?error=${encodeURIComponent(error.message)}`)
   revalidatePath(`/org/${orgId}`)
   redirect(`/org/${orgId}?message=Join+code+generated`)
+}
+
+export async function updateOrg(formData: FormData): Promise<void> {
+  const orgId = z.string().uuid().parse(formData.get('org_id'))
+  const name = z.string().trim().min(1).max(120).parse(formData.get('name'))
+  const description =
+    z.string().trim().max(2000).optional().nullable().parse(
+      formData.get('description') || null,
+    ) ?? null
+  const { admin, user } = await requireUser()
+
+  const { data: member } = await admin
+    .from('org_members')
+    .select('role')
+    .eq('org_id', orgId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member || member.role !== 'head_coach') {
+    redirect(`/org/${orgId}?error=Not+authorized`)
+  }
+
+  const { error } = await admin
+    .from('organisations')
+    .update({ name, description, updated_at: new Date().toISOString() })
+    .eq('id', orgId)
+
+  if (error) redirect(`/org/${orgId}?error=${encodeURIComponent(error.message)}`)
+  revalidatePath(`/org/${orgId}`)
+  redirect(`/org/${orgId}?message=Organisation+updated`)
+}
+
+export async function updateOrgMemberRole(formData: FormData): Promise<void> {
+  const orgId = z.string().uuid().parse(formData.get('org_id'))
+  const userId = z.string().uuid().parse(formData.get('user_id'))
+  const role = z.enum(['coach', 'player']).parse(formData.get('role'))
+  const { admin, user } = await requireUser()
+
+  const { data: member } = await admin
+    .from('org_members')
+    .select('role')
+    .eq('org_id', orgId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member || member.role !== 'head_coach') {
+    redirect(`/org/${orgId}?error=Not+authorized`)
+  }
+
+  if (userId === user.id) {
+    redirect(`/org/${orgId}?error=Cannot+change+your+own+role`)
+  }
+
+  const { error } = await admin
+    .from('org_members')
+    .update({ role })
+    .eq('org_id', orgId)
+    .eq('user_id', userId)
+
+  if (error) redirect(`/org/${orgId}?error=${encodeURIComponent(error.message)}`)
+  revalidatePath(`/org/${orgId}`)
+  redirect(`/org/${orgId}?message=Role+updated`)
+}
+
+export async function bulkGrantPlaybookAccess(formData: FormData): Promise<void> {
+  const orgId = z.string().uuid().parse(formData.get('org_id'))
+  const playbookId = z.string().uuid().parse(formData.get('playbook_id'))
+  const role = z.enum(['viewer', 'editor']).parse(formData.get('role') ?? 'viewer')
+  const { admin, user } = await requireUser()
+
+  const { data: member } = await admin
+    .from('org_members')
+    .select('role')
+    .eq('org_id', orgId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member || member.role !== 'head_coach') {
+    redirect(`/org/${orgId}?error=Not+authorized`)
+  }
+
+  const { data: orgMembers } = await admin
+    .from('org_members')
+    .select('user_id')
+    .eq('org_id', orgId)
+
+  if (orgMembers && orgMembers.length > 0) {
+    const rows = orgMembers.map((m) => ({
+      playbook_id: playbookId,
+      user_id: m.user_id,
+      role,
+    }))
+    const { error } = await admin
+      .from('playbook_members')
+      .upsert(rows, { onConflict: 'playbook_id,user_id' })
+    if (error) redirect(`/org/${orgId}?error=${encodeURIComponent(error.message)}`)
+  }
+
+  revalidatePath(`/org/${orgId}`)
+  redirect(`/org/${orgId}?message=Access+granted+to+all+members`)
+}
+
+export async function setCoachInviteCode(formData: FormData): Promise<void> {
+  const orgId = z.string().uuid().parse(formData.get('org_id'))
+  const { admin, user } = await requireUser()
+
+  const { data: member } = await admin
+    .from('org_members')
+    .select('role')
+    .eq('org_id', orgId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member || member.role !== 'head_coach') {
+    redirect(`/org/${orgId}?error=Not+authorized`)
+  }
+
+  const code = randomBytes(4).toString('hex').toUpperCase()
+
+  const { error } = await admin
+    .from('organisations')
+    .update({ coach_invite_code: code })
+    .eq('id', orgId)
+
+  if (error) redirect(`/org/${orgId}?error=${encodeURIComponent(error.message)}`)
+  revalidatePath(`/org/${orgId}`)
+  redirect(`/org/${orgId}?message=Coach+invite+code+generated`)
 }

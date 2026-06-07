@@ -105,14 +105,22 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
               )}
             </div>
           </div>
-          {isOwner && (
+          <div className="flex shrink-0 items-center gap-2">
             <Link
-              href={`/playbooks/${params.id}/organise`}
-              className="shrink-0 rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+              href={`/portal/${params.id}`}
+              className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
             >
-              Organise
+              Player view
             </Link>
-          )}
+            {isOwner && (
+              <Link
+                href={`/playbooks/${params.id}/organise`}
+                className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
+              >
+                Organise
+              </Link>
+            )}
+          </div>
         </div>
 
         {searchParams.message && (

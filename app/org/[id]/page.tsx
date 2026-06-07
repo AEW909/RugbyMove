@@ -1,11 +1,15 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { BookOpen, ChevronDown, Key, Trash2, Users } from 'lucide-react'
+import { BookOpen, ChevronDown, Key, Settings, Trash2, Users, Users2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import {
   setPlaybookJoinCode,
   addOrgMember,
   removeOrgMember,
+  updateOrg,
+  updateOrgMemberRole,
+  bulkGrantPlaybookAccess,
+  setCoachInviteCode,
 } from '@/app/actions/orgs'
 import {
   addPlaybookMemberById,
@@ -41,7 +45,7 @@ export default async function OrgDetailPage({ params, searchParams }: PageProps)
 
   const { data: org } = await supabase
     .from('organisations')
-    .select('id, name, description, owner_id')
+    .select('id, name, description, owner_id, coach_invite_code')
     .eq('id', params.id)
     .single()
 
@@ -322,6 +326,27 @@ export default async function OrgDetailPage({ params, searchParams }: PageProps)
                               </button>
                             </form>
                           )}
+
+                          {/* Bulk-grant all org members */}
+                          {isHeadCoach && (members?.length ?? 0) > 0 && (
+                            <form action={bulkGrantPlaybookAccess} className="flex items-center gap-2 pt-1 border-t border-white/5">
+                              <input type="hidden" name="org_id" value={params.id} />
+                              <input type="hidden" name="playbook_id" value={pb.id} />
+                              <select
+                                name="role"
+                                className="shrink-0 rounded-lg border border-white/10 bg-zinc-800 px-2 py-1.5 text-xs text-white outline-none transition focus:border-blue-400 [&>option]:bg-zinc-900"
+                              >
+                                <option value="viewer">View only</option>
+                                <option value="editor">Can edit</option>
+                              </select>
+                              <button
+                                type="submit"
+                                className="shrink-0 rounded-lg bg-purple-500/20 px-2.5 py-1.5 text-xs font-semibold text-purple-300 transition hover:bg-purple-500/30"
+                              >
+                                Grant all members
+                              </button>
+                            </form>
+                          )}
                         </div>
                       </details>
                     </li>
@@ -343,8 +368,8 @@ export default async function OrgDetailPage({ params, searchParams }: PageProps)
             )}
           </section>
 
-          {/* ── Right: members ── */}
-          <aside>
+          {/* ── Right: members + settings ── */}
+          <aside className="space-y-6">
             <section className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
               <h2 className="text-lg font-bold text-white">Members</h2>
 
@@ -352,6 +377,7 @@ export default async function OrgDetailPage({ params, searchParams }: PageProps)
                 {members?.map((m) => {
                   const profile = m.profiles as unknown as { username: string | null } | null
                   const isMe = m.user_id === user.id
+                  const canPromote = isHeadCoach && !isMe && m.role !== 'head_coach'
                   return (
                     <li key={m.user_id} className="flex items-center justify-between gap-2 text-sm">
                       <span className="truncate font-medium text-white/80">
@@ -359,9 +385,24 @@ export default async function OrgDetailPage({ params, searchParams }: PageProps)
                         {isMe && <span className="ml-1.5 text-xs text-white/30">(you)</span>}
                       </span>
                       <div className="flex shrink-0 items-center gap-1">
-                        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-semibold text-white/60">
-                          {orgRoleLabel[m.role] ?? m.role}
-                        </span>
+                        {canPromote ? (
+                          <form action={updateOrgMemberRole}>
+                            <input type="hidden" name="org_id" value={params.id} />
+                            <input type="hidden" name="user_id" value={m.user_id} />
+                            <input type="hidden" name="role" value={m.role === 'coach' ? 'player' : 'coach'} />
+                            <button
+                              type="submit"
+                              title={`Change to ${m.role === 'coach' ? 'Player' : 'Coach'}`}
+                              className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-semibold text-white/60 transition hover:border-blue-400/30 hover:bg-blue-500/10 hover:text-blue-300"
+                            >
+                              {orgRoleLabel[m.role] ?? m.role}
+                            </button>
+                          </form>
+                        ) : (
+                          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-semibold text-white/60">
+                            {orgRoleLabel[m.role] ?? m.role}
+                          </span>
+                        )}
                         {isHeadCoach && !isMe && (
                           <form action={removeOrgMember}>
                             <input type="hidden" name="org_id" value={params.id} />
@@ -394,24 +435,20 @@ export default async function OrgDetailPage({ params, searchParams }: PageProps)
                   <p className="text-xs font-semibold uppercase tracking-wide text-white/30">
                     Add member
                   </p>
-                  <div>
-                    <input
-                      name="username"
-                      type="text"
-                      required
-                      placeholder="Username"
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
-                    />
-                  </div>
-                  <div>
-                    <select
-                      name="role"
-                      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-400 [&>option]:bg-zinc-900"
-                    >
-                      <option value="coach">Coach</option>
-                      <option value="player">Player</option>
-                    </select>
-                  </div>
+                  <input
+                    name="username"
+                    type="text"
+                    required
+                    placeholder="Username"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+                  />
+                  <select
+                    name="role"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-400 [&>option]:bg-zinc-900"
+                  >
+                    <option value="coach">Coach</option>
+                    <option value="player">Player</option>
+                  </select>
                   <button
                     type="submit"
                     className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90"
@@ -421,12 +458,83 @@ export default async function OrgDetailPage({ params, searchParams }: PageProps)
                 </form>
               )}
 
+              {/* Coach invite code */}
+              {isHeadCoach && (
+                <div className="mt-4 border-t border-white/10 pt-4">
+                  <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-white/30 flex items-center gap-1">
+                    <Users2 className="h-3 w-3" />
+                    Coach invite code
+                  </p>
+                  {org.coach_invite_code ? (
+                    <div className="flex items-center gap-2">
+                      <code className="flex-1 rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-xs font-mono font-bold tracking-widest text-white/70">
+                        {org.coach_invite_code}
+                      </code>
+                      <form action={setCoachInviteCode}>
+                        <input type="hidden" name="org_id" value={params.id} />
+                        <button type="submit" className="text-xs text-white/40 transition hover:text-white/70">
+                          Regenerate
+                        </button>
+                      </form>
+                    </div>
+                  ) : (
+                    <form action={setCoachInviteCode}>
+                      <input type="hidden" name="org_id" value={params.id} />
+                      <button
+                        type="submit"
+                        className="inline-flex items-center gap-1 text-xs font-semibold text-blue-400 transition hover:text-blue-300"
+                      >
+                        <Key className="h-3 w-3" />
+                        Generate coach invite code
+                      </button>
+                    </form>
+                  )}
+                  <p className="mt-1.5 text-xs text-white/30">
+                    Share this code — anyone who enters it joins as a coach.
+                  </p>
+                </div>
+              )}
+
               {!isHeadCoach && (
                 <p className="mt-4 text-xs text-white/40">
                   Ask your head coach for a playbook join code to add players.
                 </p>
               )}
             </section>
+
+            {/* ── Org settings (head coach only) ── */}
+            {isHeadCoach && (
+              <section className="rounded-2xl border border-white/10 bg-white/5 p-5 backdrop-blur-sm">
+                <h2 className="flex items-center gap-2 text-base font-bold text-white">
+                  <Settings className="h-4 w-4 text-white/40" />
+                  Settings
+                </h2>
+                <form action={updateOrg} className="mt-4 space-y-3">
+                  <input type="hidden" name="org_id" value={params.id} />
+                  <input
+                    name="name"
+                    type="text"
+                    required
+                    defaultValue={org.name}
+                    placeholder="Organisation name"
+                    className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+                  />
+                  <textarea
+                    name="description"
+                    rows={3}
+                    defaultValue={org.description ?? ''}
+                    placeholder="Description (optional)"
+                    className="w-full resize-none rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+                  />
+                  <button
+                    type="submit"
+                    className="w-full rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/15"
+                  >
+                    Save changes
+                  </button>
+                </form>
+              </section>
+            )}
           </aside>
         </div>
       </div>
