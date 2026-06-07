@@ -187,6 +187,10 @@ export function useTacticalBoard({
     return () => window.removeEventListener('beforeunload', handler)
   }, [isDirty])
 
+  // Stable refs so the keyboard handler can read latest values without re-registering
+  const framesLenRef = useRef(0)
+  useEffect(() => { framesLenRef.current = frames.length }, [frames])
+
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -195,6 +199,14 @@ export function useTacticalBoard({
       if (e.key === 'd' || e.key === 'D') setTool('draw')
       if (e.key === 'p' || e.key === 'P') { setTool('pointer'); setSelectedPlayerIds(new Set()) }
       if (e.key === 'Escape') { setTool('pointer'); setSelectedPlayerIds(new Set()) }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault()
+        setActiveFrameIndex((i) => Math.max(0, i - 1))
+      }
+      if (e.key === 'ArrowRight') {
+        e.preventDefault()
+        setActiveFrameIndex((i) => Math.min(framesLenRef.current - 1, i + 1))
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -292,32 +304,61 @@ export function useTacticalBoard({
       if (isPlaying) return
       const newX = clamp(rawX)
       const newY = clamp(rawY)
-      setFrames((currentFrames) =>
-        normalizeFrames(
+      setFrames((currentFrames) => {
+        // Record the player's position on the active frame before the move so we
+        // know which subsequent frames still have the "inherited" position.
+        const prev = currentFrames[activeFrameIndex]?.players.find((p) => p.id === id)
+        const oldX = prev?.x ?? newX
+        const oldY = prev?.y ?? newY
+
+        const isGroupMove =
+          tool === 'select' && selectedPlayerIds.has(id) && selectedPlayerIds.size > 1
+
+        let hitBarrier = false
+
+        return normalizeFrames(
           currentFrames.map((frame, index) => {
-            if (index !== activeFrameIndex) return frame
-            const dragged = frame.players.find((p) => p.id === id)
-            if (tool === 'select' && selectedPlayerIds.has(id) && selectedPlayerIds.size > 1 && dragged) {
-              const dx = newX - dragged.x
-              const dy = newY - dragged.y
+            // Active frame — apply the move
+            if (index === activeFrameIndex) {
+              if (isGroupMove && prev) {
+                const dx = newX - prev.x
+                const dy = newY - prev.y
+                return {
+                  ...frame,
+                  players: frame.players.map((p) =>
+                    selectedPlayerIds.has(p.id)
+                      ? { ...p, x: clamp(p.x + dx), y: clamp(p.y + dy) }
+                      : p,
+                  ),
+                }
+              }
               return {
                 ...frame,
                 players: frame.players.map((p) =>
-                  selectedPlayerIds.has(p.id)
-                    ? { ...p, x: clamp(p.x + dx), y: clamp(p.y + dy) }
-                    : p,
+                  p.id === id ? { ...p, x: newX, y: newY } : p,
                 ),
               }
             }
-            return {
-              ...frame,
-              players: frame.players.map((p) =>
-                p.id === id ? { ...p, x: newX, y: newY } : p,
-              ),
+
+            // Subsequent frames — propagate only while the player's position
+            // matches the pre-move position (i.e. no explicit animation stored).
+            if (index > activeFrameIndex && !isGroupMove && !hitBarrier) {
+              const fp = frame.players.find((p) => p.id === id)
+              if (fp && fp.x === oldX && fp.y === oldY) {
+                return {
+                  ...frame,
+                  players: frame.players.map((p) =>
+                    p.id === id ? { ...p, x: newX, y: newY } : p,
+                  ),
+                }
+              }
+              hitBarrier = true
             }
+
+            return frame
           }),
-        ),
-      )
+        )
+      })
     },
     [activeFrameIndex, isPlaying, snapGrid, tool, selectedPlayerIds],
   )
