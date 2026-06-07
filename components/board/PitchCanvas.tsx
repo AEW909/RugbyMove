@@ -7,13 +7,22 @@ import type { UseTacticalBoardReturn } from '@/hooks/useTacticalBoard'
 import { tokens } from '@/hooks/useTacticalBoard'
 import type { UseBoardGesturesReturn } from '@/hooks/useBoardGestures'
 
+// Pixel dimensions for each size tier (applied as inline styles to counter zoom-scale)
+const TOKEN_PX = {
+  sm: { player: 20, fontSize: 8,  ball: { w: 30, h: 14 } },
+  md: { player: 28, fontSize: 10, ball: { w: 38, h: 18 } },
+  lg: { player: 36, fontSize: 13, ball: { w: 48, h: 22 } },
+}
+
 type Props = {
   board: UseTacticalBoardReturn
   gestures: UseBoardGesturesReturn
   viewOnly: boolean
+  tokenSize?: 'sm' | 'md' | 'lg'
 }
 
-export default function PitchCanvas({ board, gestures, viewOnly }: Props) {
+export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md' }: Props) {
+  const sizes = TOKEN_PX[tokenSize]
   const [editingZoneId, setEditingZoneId] = useState<string | null>(null)
 
   const { boardRef, zoom, panX, panY, resetZoom, toBoard, updatePlayerPosition,
@@ -44,7 +53,7 @@ export default function PitchCanvas({ board, gestures, viewOnly }: Props) {
   }
 
   return (
-    <div className="min-h-0 flex-1 flex items-center justify-center overflow-hidden">
+    <div className="min-h-0 flex-1 overflow-hidden" style={{ display: 'grid', placeItems: 'center' }}>
       <div
         ref={boardRef}
         style={{
@@ -53,7 +62,7 @@ export default function PitchCanvas({ board, gestures, viewOnly }: Props) {
           maxWidth: '100%',
         }}
         className={cn(
-          'relative w-full overflow-hidden rounded-xl border border-white/10 bg-emerald-700 shadow-inner',
+          'relative overflow-hidden rounded-xl border border-white/10 bg-emerald-700 shadow-inner',
           boardCursor,
         )}
         aria-label="Rugby tactical board"
@@ -111,8 +120,8 @@ export default function PitchCanvas({ board, gestures, viewOnly }: Props) {
                 const yN = parseFloat(yPct)
                 return (
                   <g key={idx}>
-                    <line x1={`${xN - 0.7}%`} y1={yPct} x2={`${xN + 0.7}%`} y2={yPct} stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
-                    <line x1={xPct} y1={`${yN - 1.2}%`} x2={xPct} y2={`${yN + 1.2}%`} stroke="rgba(255,255,255,0.55)" strokeWidth="1.5" />
+                    <line x1={`${xN - 0.7}%`} y1={yPct} x2={`${xN + 0.7}%`} y2={yPct} stroke="rgba(255,255,255,0.65)" strokeWidth="2" />
+                    <line x1={xPct} y1={`${yN - 1.2}%`} x2={xPct} y2={`${yN + 1.2}%`} stroke="rgba(255,255,255,0.65)" strokeWidth="2" />
                   </g>
                 )
               }
@@ -122,23 +131,23 @@ export default function PitchCanvas({ board, gestures, viewOnly }: Props) {
                 <>
                   {inGoalRect(true)}
                   {inGoalRect(false)}
-                  <line x1="0" y1="0" x2="0" y2="100%" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-                  <line x1="100%" y1="0" x2="100%" y2="100%" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-                  <line x1="0" y1="0" x2="100%" y2="0" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-                  <line x1="0" y1="100%" x2="100%" y2="100%" stroke="rgba(255,255,255,0.7)" strokeWidth="2" />
-                  {mainLine('8.33%', 'rgba(255,255,255,0.85)', 2)}
-                  {mainLine('91.67%', 'rgba(255,255,255,0.85)', 2)}
-                  {mainLine('26.67%', 'rgba(255,255,255,0.65)', 1)}
-                  {mainLine('73.33%', 'rgba(255,255,255,0.65)', 1)}
-                  {mainLine('41.67%', 'rgba(255,255,255,0.45)', 1, '8 6')}
-                  {mainLine('58.33%', 'rgba(255,255,255,0.45)', 1, '8 6')}
-                  {mainLine('50%', 'rgba(255,255,255,0.75)', 1.5)}
-                  {crossLine('7.14%', 'rgba(255,255,255,0.35)', 1, '6 8')}
-                  {crossLine('92.86%', 'rgba(255,255,255,0.35)', 1, '6 8')}
-                  {crossLine('21.43%', 'rgba(255,255,255,0.25)', 1, '6 8')}
-                  {crossLine('78.57%', 'rgba(255,255,255,0.25)', 1, '6 8')}
+                  <line x1="0" y1="0" x2="0" y2="100%" stroke="rgba(255,255,255,0.8)" strokeWidth="3" />
+                  <line x1="100%" y1="0" x2="100%" y2="100%" stroke="rgba(255,255,255,0.8)" strokeWidth="3" />
+                  <line x1="0" y1="0" x2="100%" y2="0" stroke="rgba(255,255,255,0.8)" strokeWidth="3" />
+                  <line x1="0" y1="100%" x2="100%" y2="100%" stroke="rgba(255,255,255,0.8)" strokeWidth="3" />
+                  {mainLine('8.33%', 'rgba(255,255,255,0.9)', 3)}
+                  {mainLine('91.67%', 'rgba(255,255,255,0.9)', 3)}
+                  {mainLine('26.67%', 'rgba(255,255,255,0.75)', 2)}
+                  {mainLine('73.33%', 'rgba(255,255,255,0.75)', 2)}
+                  {mainLine('41.67%', 'rgba(255,255,255,0.55)', 1.5, '8 6')}
+                  {mainLine('58.33%', 'rgba(255,255,255,0.55)', 1.5, '8 6')}
+                  {mainLine('50%', 'rgba(255,255,255,0.85)', 2.5)}
+                  {crossLine('7.14%', 'rgba(255,255,255,0.45)', 1.5, '6 8')}
+                  {crossLine('92.86%', 'rgba(255,255,255,0.45)', 1.5, '6 8')}
+                  {crossLine('21.43%', 'rgba(255,255,255,0.35)', 1.5, '6 8')}
+                  {crossLine('78.57%', 'rgba(255,255,255,0.35)', 1.5, '6 8')}
                   {mainLines.flatMap((m, mi) => crossLines.map((c, ci) => cross(m, c, mi * 4 + ci)))}
-                  <circle cx="50%" cy="50%" r="3" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="1.5" />
+                  <circle cx="50%" cy="50%" r="4" fill="none" stroke="rgba(255,255,255,0.6)" strokeWidth="2" />
                 </>
               )
             })()}
@@ -252,12 +261,14 @@ export default function PitchCanvas({ board, gestures, viewOnly }: Props) {
             )
           })}
 
-          {/* Player tokens */}
+          {/* Player tokens — counter-scale so they stay the same visual size when zoomed */}
           {tokens.map((token) => {
             const player = board.playerById.get(token.id)
             if (!player) return null
             if (token.side !== 'ball' && !board.activePlayers.includes(token.id)) return null
             const canDrag = !viewOnly && board.tool !== 'draw'
+            const isBall = token.side === 'ball'
+            const counterScale = zoom !== 1 ? `scale(${1 / zoom})` : ''
             return (
               <button
                 type="button"
@@ -266,33 +277,31 @@ export default function PitchCanvas({ board, gestures, viewOnly }: Props) {
                 onPointerDown={canDrag ? handlePlayerPointerDown(token.id) : undefined}
                 onPointerMove={canDrag ? handlePlayerPointerMove(token.id) : undefined}
                 className={cn(
-                  'absolute flex select-none items-center justify-center border-2 text-[10px] font-bold shadow-lg focus:outline-none',
-                  canDrag && 'touch-none transition-transform hover:scale-110 focus:ring-2 focus:ring-yellow-300',
-                  token.side === 'attack' && 'border-blue-100 bg-blue-600 text-white',
-                  token.side === 'defend' && 'border-red-100 bg-red-600 text-white',
-                  token.side === 'ball' && 'h-6 w-10 rounded-[50%] border-emerald-900 bg-slate-50 text-transparent',
-                  token.side !== 'ball' && 'h-7 w-7 rounded-full sm:h-8 sm:w-8',
+                  'absolute flex select-none items-center justify-center border-2 font-bold shadow-lg focus:outline-none',
+                  canDrag && 'touch-none hover:brightness-110 focus:ring-2 focus:ring-yellow-300',
+                  token.side === 'attack' && 'rounded-full border-blue-100 bg-blue-600 text-white',
+                  token.side === 'defend' && 'rounded-full border-red-100 bg-red-600 text-white',
+                  isBall && 'rounded-[50%] border-emerald-900 bg-slate-50 text-transparent',
                   !viewOnly && board.selectedPlayerIds.has(token.id) && 'ring-2 ring-yellow-400 ring-offset-1',
                 )}
                 style={{
                   left: `${player.x}%`,
                   top: `${player.y}%`,
-                  transform: 'translate(-50%, -50%)',
+                  transform: `translate(-50%, -50%) ${counterScale}`,
                   pointerEvents: canDrag ? undefined : 'none',
+                  width: isBall ? sizes.ball.w : sizes.player,
+                  height: isBall ? sizes.ball.h : sizes.player,
+                  fontSize: isBall ? 0 : sizes.fontSize,
                 }}
-                aria-label={
-                  token.side === 'ball'
-                    ? 'Ball'
-                    : `${token.side === 'attack' ? 'Attacking' : 'Defending'} player ${token.label}`
-                }
+                aria-label={isBall ? 'Ball' : `${token.side === 'attack' ? 'Attacking' : 'Defending'} player ${token.label}`}
               >
-                {token.side === 'ball' ? (
+                {isBall ? (
                   <>
                     <span className="absolute inset-[2px] rounded-[50%] border-t-2 border-[#e11d48]" />
                     <span className="absolute inset-[4px] rounded-[50%] border-b-2 border-[#2563eb]" />
-                    <span className="absolute left-[5px] top-1/2 h-[14px] w-[4px] -translate-y-1/2 rounded-[50%] border-l-2 border-[#16a34a]" />
-                    <span className="absolute right-[5px] top-1/2 h-[14px] w-[4px] -translate-y-1/2 rounded-[50%] border-r-2 border-[#16a34a]" />
-                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[6px] font-black tracking-[0.08em] text-slate-900">
+                    <span className="absolute left-[5px] top-1/2 h-[10px] w-[3px] -translate-y-1/2 rounded-[50%] border-l-2 border-[#16a34a]" />
+                    <span className="absolute right-[5px] top-1/2 h-[10px] w-[3px] -translate-y-1/2 rounded-[50%] border-r-2 border-[#16a34a]" />
+                    <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[5px] font-black tracking-[0.08em] text-slate-900">
                       G
                     </span>
                   </>

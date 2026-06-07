@@ -21,6 +21,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
   const { playTitle = 'Untitled move', viewOnly: viewOnlyProp = false } = props
   const [desktopViewOnly, setDesktopViewOnly] = useState(false)
   const [showAddPlayers, setShowAddPlayers] = useState(false)
+  const [tokenSize, setTokenSize] = useState<'sm' | 'md' | 'lg'>('md')
   const viewOnly = viewOnlyProp || isMobile || desktopViewOnly
 
   const gestures = useBoardGestures({
@@ -43,6 +44,8 @@ export default function TacticalBoard(props: TacticalBoardProps) {
         desktopViewOnly={desktopViewOnly}
         onToggleViewOnly={() => setDesktopViewOnly((v) => !v)}
         onShowAddPlayers={() => setShowAddPlayers(true)}
+        tokenSize={tokenSize}
+        onTokenSizeChange={setTokenSize}
       />
 
       {/* Side tab — opens the save/formations panel */}
@@ -73,7 +76,7 @@ export default function TacticalBoard(props: TacticalBoardProps) {
           onScrub={board.scrubTo}
           onDeleteFrame={board.deleteFrame}
         />
-        <PitchCanvas board={board} gestures={gestures} viewOnly={viewOnly} />
+        <PitchCanvas board={board} gestures={gestures} viewOnly={viewOnly} tokenSize={tokenSize} />
       </div>
 
       {!viewOnly && (

@@ -31,6 +31,8 @@ type Props = {
   desktopViewOnly: boolean
   onToggleViewOnly: () => void
   onShowAddPlayers: () => void
+  tokenSize: 'sm' | 'md' | 'lg'
+  onTokenSizeChange: (size: 'sm' | 'md' | 'lg') => void
 }
 
 export default function TacticalBoardToolbar({
@@ -39,6 +41,8 @@ export default function TacticalBoardToolbar({
   desktopViewOnly,
   onToggleViewOnly,
   onShowAddPlayers,
+  tokenSize,
+  onTokenSizeChange,
 }: Props) {
   return (
     <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-3 py-2.5 sm:px-4 sm:py-3">
@@ -186,6 +190,27 @@ export default function TacticalBoardToolbar({
           >
             <RotateCw className="h-4 w-4" />
           </button>
+
+          <div className="h-5 w-px bg-white/10" />
+
+          {/* Player size toggle */}
+          <div className="flex items-center rounded-xl border border-white/15 bg-white/5 overflow-hidden">
+            {(['sm', 'md', 'lg'] as const).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => onTokenSizeChange(s)}
+                className={cn(
+                  'px-2.5 py-1.5 text-xs font-semibold transition',
+                  tokenSize === s
+                    ? 'bg-white/15 text-white'
+                    : 'text-white/40 hover:text-white/70',
+                )}
+              >
+                {s.toUpperCase()}
+              </button>
+            ))}
+          </div>
 
           {board.tool === 'draw' && !desktopViewOnly && (
             <>
