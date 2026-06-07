@@ -8,22 +8,28 @@
 - Frame capture, delete, reorder (drag timeline)
 - Variable frame durations with scrub bar
 - Playback interpolation via `requestAnimationFrame`
-- Zoom and pan (scroll wheel / pinch; drag when zoomed)
+- Zoom and pan (scroll wheel / pinch; drag when zoomed) — div-size zoom, no CSS transform; landscape + portrait both correct
 - Pitch portrait/landscape toggle — coordinates transform across all frames
 - **Formation rework** — abstract slot model (no player IDs); jersey picker on load; select-to-save flow; built-in Scrum + Lineout restored; user formations saved to Supabase
 - Draw lines tool with colour picker and dashed toggle
 - Snap-to-grid toggle (equal physical pixel steps on both axes)
 - Pointer / Group-Select (rubber-band) / Draw-line tools; keyboard shortcuts P/G/D/Escape
-- Zone overlays — add circular zones, drag, resize handle, rename, delete
+- Zone overlays — add circular zones, drag (offset-based), resize (drag handle at right edge), rename (double-click label), delete
 - Add players dialog — choose which attack/defence tokens appear on the pitch
 - Pitch aspect ratio fixed at 12:7 (landscape) / 7:12 (portrait) — no squash or overflow
 - GIF export (client-side, via `gifenc`)
+- S/M/L token size toggle — player and ball scale independently of zoom
+- Player position propagation — moving a player on frame N flows forward to subsequent frames until a barrier (explicit position)
+- Arrow key scrubbing — ← / → step through frames
+- Thicker pitch lines for improved legibility
+- Player/ball tokens fixed size regardless of zoom level
 
 ### Save & playbooks
 - Save move to Supabase — title, category, description, playbook
 - Save as copy (duplicate/variation)
 - Duplicate move from playbook list
 - Playbooks — create, list, add/remove moves, reorder, organise view
+- "Add move to playbook" picker on playbook page
 - Playbook access control — invite by username, editor/viewer roles
 
 ### Organisations
@@ -40,36 +46,31 @@
 
 ---
 
-## In Progress
+## In Progress / Up Next
 
-_(nothing currently active)_
+### 1. Undo / Redo
+- Ctrl+Z / Ctrl+Y (and Cmd equivalents) for all board mutations
+- Target: frames, player moves, zones, lines — not UI-only state (zoom, tool, panel)
 
----
+### 2. Org Settings page
+- Org name, description, logo/avatar
+- Invite link for coaches (not just players)
+- Role promotion/demotion (player → coach, etc.)
+- Bulk-assign playbook access to all org members
 
-## Up Next
-
-### 1. Player portal / read-only viewer
-- Dedicated view for players who have joined via code
+### 3. Player portal / read-only viewer
+- Dedicated view for players who have joined via invite code
 - Clean playback-only UI — no toolbar clutter
 - Show move title, category, description
-- Swipe through moves in a playbook
-
-### 2. Inline metadata editing on the board
-- Edit title, category, description directly from the editor header bar
-- Auto-save on blur (no separate Save panel trip for metadata changes)
-
-### 3. Export quality
-- Resolution and frame-rate options for GIF download
-- Optional: server-side render pipeline for higher-quality output
-- Include pitch lines, token movement and ball in export
+- Swipe / step through moves in a playbook
 
 ---
 
 ## Backlog
 
 ### Board / editor
+- Inline metadata editing — title, category, description editable in the editor header bar
 - Arrow/movement trail overlays per token
-- Undo/redo stack
 - Lock a token in place for a frame range
 
 ### Playbooks & moves
@@ -79,10 +80,12 @@ _(nothing currently active)_
 - Move comments / coaching notes per frame
 
 ### Organisations
-- Org-level settings page (name, description, logo)
-- Invite link for coaches (not just players)
-- Role promotion/demotion from org page (e.g. player → coach)
-- Bulk assign playbook access to all org members
+- Embed widget for playbooks (share to external sites)
+
+### Export
+- Resolution and frame-rate options for GIF download
+- Optional: server-side render pipeline for higher-quality output
+- Video/WebM export
 
 ### Mobile
 - Audit viewport-fit layout on phones and tablets
@@ -99,7 +102,5 @@ _(nothing currently active)_
 
 ## Deferred / Nice-to-have
 
-- Video/WebM export
 - Shared coaching sessions (real-time multiplayer board)
-- Embed widget for embedding a play in external sites
 - AI-assisted formation suggestions
