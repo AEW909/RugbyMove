@@ -119,6 +119,11 @@ export type UseTacticalBoardReturn = {
   togglePitchPortrait: () => void
   playFrames: () => void
   stopPlayback: () => void
+  markUndoCheckpoint: () => void
+  undo: () => void
+  redo: () => void
+  canUndo: boolean
+  canRedo: boolean
 }
 
 function rotatePitchCoords<T extends { x: number; y: number }>(p: T): T {
@@ -160,6 +165,17 @@ export function useTacticalBoard({
   const [isExporting, setIsExporting] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
   const initialLoadDone = useRef(false)
+
+  // Undo / redo history
+  type HistoryEntry = { frames: Frame[]; durations: number[] }
+  const undoStackRef = useRef<HistoryEntry[]>([])
+  const redoStackRef = useRef<HistoryEntry[]>([])
+  const framesRef = useRef(frames)
+  const durationsRef = useRef(durations)
+  useEffect(() => { framesRef.current = frames }, [frames])
+  useEffect(() => { durationsRef.current = durations }, [durations])
+  const [undoCount, setUndoCount] = useState(0)
+  const [redoCount, setRedoCount] = useState(0)
   const [activePlayers, setActivePlayers] = useState<string[]>(() => {
     if (mode === 'fresh') return []
     if (initialActivePlayers && initialActivePlayers.length > 0) return initialActivePlayers
@@ -168,6 +184,34 @@ export function useTacticalBoard({
   })
 
   const totalDuration = useMemo(() => durations.reduce((a, b) => a + b, 0), [durations])
+
+  const markUndoCheckpoint = useCallback(() => {
+    undoStackRef.current.push({ frames: framesRef.current, durations: durationsRef.current })
+    if (undoStackRef.current.length > 50) undoStackRef.current.shift()
+    redoStackRef.current = []
+    setUndoCount(undoStackRef.current.length)
+    setRedoCount(0)
+  }, [])
+
+  const undo = useCallback(() => {
+    const entry = undoStackRef.current.pop()
+    if (!entry) return
+    redoStackRef.current.push({ frames: framesRef.current, durations: durationsRef.current })
+    setFrames(entry.frames)
+    setDurations(entry.durations)
+    setUndoCount(undoStackRef.current.length)
+    setRedoCount(redoStackRef.current.length)
+  }, [])
+
+  const redo = useCallback(() => {
+    const entry = redoStackRef.current.pop()
+    if (!entry) return
+    undoStackRef.current.push({ frames: framesRef.current, durations: durationsRef.current })
+    setFrames(entry.frames)
+    setDurations(entry.durations)
+    setUndoCount(undoStackRef.current.length)
+    setRedoCount(redoStackRef.current.length)
+  }, [])
 
   // Mark dirty when frames/durations change after initial load
   useEffect(() => {
@@ -192,10 +236,19 @@ export function useTacticalBoard({
   const framesLenRef = useRef(0)
   useEffect(() => { framesLenRef.current = frames.length }, [frames])
 
+  // Stable refs so keyboard shortcuts always call the latest undo/redo without re-registering
+  const undoRef = useRef(undo)
+  const redoRef = useRef(redo)
+  useEffect(() => { undoRef.current = undo }, [undo])
+  useEffect(() => { redoRef.current = redo }, [redo])
+
   // Keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      const isMod = e.ctrlKey || e.metaKey
+      if (isMod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undoRef.current(); return }
+      if (isMod && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redoRef.current(); return }
       if (e.key === 'g' || e.key === 'G') setTool('select')
       if (e.key === 'd' || e.key === 'D') setTool('draw')
       if (e.key === 'p' || e.key === 'P') { setTool('pointer'); setSelectedPlayerIds(new Set()) }
@@ -365,6 +418,7 @@ export function useTacticalBoard({
   )
 
   const captureFrame = useCallback(() => {
+    markUndoCheckpoint()
     setFrames((currentFrames) => {
       const source = currentFrames[activeFrameIndex] ?? defaultFrame
       const nextFrames = [
@@ -384,10 +438,11 @@ export function useTacticalBoard({
       ...prev.slice(activeFrameIndex + 1),
     ])
     setActiveFrameIndex((i) => i + 1)
-  }, [activeFrameIndex])
+  }, [activeFrameIndex, markUndoCheckpoint])
 
   const deleteFrame = useCallback(
     (indexToDelete: number) => {
+      markUndoCheckpoint()
       stopPlayback()
       if (frames.length <= 1) {
         setFrames([defaultFrame])
@@ -407,7 +462,7 @@ export function useTacticalBoard({
         return Math.min(currentIndex, nextFrames.length - 1)
       })
     },
-    [frames, stopPlayback],
+    [frames, markUndoCheckpoint, stopPlayback],
   )
 
   const setDuration = useCallback((segIndex: number, ms: number) => {
@@ -464,6 +519,7 @@ export function useTacticalBoard({
   // Accepts a pre-resolved list of {id, x, y} produced by FormationLoadDialog
   const loadFormation = useCallback(
     (players: PlayerPosition[]) => {
+      markUndoCheckpoint()
       stopPlayback()
 
       // Add the loaded player IDs to the active set
@@ -494,10 +550,11 @@ export function useTacticalBoard({
         ),
       )
     },
-    [activeFrameIndex, pitchPortrait, stopPlayback],
+    [activeFrameIndex, markUndoCheckpoint, pitchPortrait, stopPlayback],
   )
 
   const togglePitchPortrait = useCallback(() => {
+    markUndoCheckpoint()
     // Transform all player positions and line endpoints across every frame
     setFrames((currentFrames) =>
       currentFrames.map((frame) => ({
@@ -511,7 +568,7 @@ export function useTacticalBoard({
       })),
     )
     setPitchPortrait((p) => !p)
-  }, [])
+  }, [markUndoCheckpoint])
 
   const exportMove = useCallback(() => {
     if (isExporting) return
@@ -582,6 +639,7 @@ export function useTacticalBoard({
 
   const addLine = useCallback(
     (line: Line) => {
+      markUndoCheckpoint()
       setFrames((currentFrames) =>
         currentFrames.map((frame, index) =>
           index !== activeFrameIndex
@@ -590,11 +648,12 @@ export function useTacticalBoard({
         ),
       )
     },
-    [activeFrameIndex],
+    [activeFrameIndex, markUndoCheckpoint],
   )
 
   const deleteLine = useCallback(
     (lineId: string) => {
+      markUndoCheckpoint()
       setFrames((currentFrames) =>
         currentFrames.map((frame, index) =>
           index !== activeFrameIndex
@@ -603,7 +662,7 @@ export function useTacticalBoard({
         ),
       )
     },
-    [activeFrameIndex],
+    [activeFrameIndex, markUndoCheckpoint],
   )
 
   const addPlayers = useCallback((ids: string[]) => {
@@ -619,6 +678,7 @@ export function useTacticalBoard({
   }, [])
 
   const addZone = useCallback((x: number, y: number) => {
+    markUndoCheckpoint()
     const id = crypto.randomUUID()
     setFrames((currentFrames) =>
       currentFrames.map((frame) => ({
@@ -626,7 +686,7 @@ export function useTacticalBoard({
         zones: [...(frame.zones ?? []), { id, x, y, r: 8, label: 'Zone' }],
       })),
     )
-  }, [])
+  }, [markUndoCheckpoint])
 
   const moveZone = useCallback(
     (id: string, x: number, y: number) => {
@@ -642,19 +702,21 @@ export function useTacticalBoard({
   )
 
   const deleteZone = useCallback((id: string) => {
+    markUndoCheckpoint()
     setFrames((currentFrames) =>
       currentFrames.map((frame) => ({ ...frame, zones: (frame.zones ?? []).filter((z) => z.id !== id) })),
     )
-  }, [])
+  }, [markUndoCheckpoint])
 
   const updateZoneLabel = useCallback((id: string, label: string) => {
+    markUndoCheckpoint()
     setFrames((currentFrames) =>
       currentFrames.map((frame) => ({
         ...frame,
         zones: (frame.zones ?? []).map((z) => (z.id === id ? { ...z, label } : z)),
       })),
     )
-  }, [])
+  }, [markUndoCheckpoint])
 
   const updateZoneRadius = useCallback(
     (id: string, r: number) => {
@@ -732,5 +794,10 @@ export function useTacticalBoard({
     togglePitchPortrait,
     playFrames,
     stopPlayback,
+    markUndoCheckpoint,
+    undo,
+    redo,
+    canUndo: undoCount > 0,
+    canRedo: redoCount > 0,
   }
 }
