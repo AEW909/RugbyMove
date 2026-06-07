@@ -131,12 +131,11 @@ export function useBoardGestures({
   const pitchPortraitRef = useRef(pitchPortrait)
   useEffect(() => { pitchPortraitRef.current = pitchPortrait }, [pitchPortrait])
 
+  // Refs are kept in sync immediately in the setters below (not via useEffect)
+  // so rapid wheel events never read stale values between renders.
   const zoomRef = useRef(zoom)
   const panXRef = useRef(panX)
   const panYRef = useRef(panY)
-  useEffect(() => { zoomRef.current = zoom }, [zoom])
-  useEffect(() => { panXRef.current = panX }, [panX])
-  useEffect(() => { panYRef.current = panY }, [panY])
 
   const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault()
@@ -172,11 +171,12 @@ export function useBoardGestures({
     const rawPanY = e.clientY - cRect.top - (cRect.height - pitchH_new) / 2 - pitchBy * pitchH_new
 
     const clamped = clampPan(rawPanX, rawPanY, pitchW_new, pitchH_new, cRect.width, cRect.height)
+    zoomRef.current = newZoom
+    panXRef.current = clamped.x
+    panYRef.current = clamped.y
     setZoom(newZoom)
     setPanX(clamped.x)
     setPanY(clamped.y)
-
-    void panX; void panY; void zoom // suppress unused-var lint (read via refs)
   }, [])
 
   useEffect(() => {
@@ -259,6 +259,9 @@ export function useBoardGestures({
       const rawPanX = newMidX - p.containerLeft - (p.containerW - pitchW_new) / 2 - p.pitchBx * pitchW_new
       const rawPanY = newMidY - p.containerTop - (p.containerH - pitchH_new) / 2 - p.pitchBy * pitchH_new
       const clamped = clampPan(rawPanX, rawPanY, pitchW_new, pitchH_new, p.containerW, p.containerH)
+      zoomRef.current = newZoom
+      panXRef.current = clamped.x
+      panYRef.current = clamped.y
       setZoom(newZoom)
       setPanX(clamped.x)
       setPanY(clamped.y)
@@ -276,6 +279,8 @@ export function useBoardGestures({
       const rawPanX = panStartRef.current.startPanX + (e.clientX - panStartRef.current.x)
       const rawPanY = panStartRef.current.startPanY + (e.clientY - panStartRef.current.y)
       const clamped = clampPan(rawPanX, rawPanY, boardRect.width, boardRect.height, cW, cH)
+      panXRef.current = clamped.x
+      panYRef.current = clamped.y
       setPanX(clamped.x)
       setPanY(clamped.y)
       return

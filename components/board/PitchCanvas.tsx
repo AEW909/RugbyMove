@@ -37,17 +37,27 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
       if (editingZoneId === id) return
       e.currentTarget.setPointerCapture(e.pointerId)
       e.stopPropagation()
-      const { x, y } = toBoard(e.clientX, e.clientY)
-      zoneDragOffset.current = { dx: zone.x - x, dy: zone.y - y }
+      const el = boardRef.current
+      if (!el) return
+      const r = el.getBoundingClientRect()
+      const cx = (e.clientX - r.left) / r.width * 100
+      const cy = (e.clientY - r.top) / r.height * 100
+      zoneDragOffset.current = { dx: zone.x - cx, dy: zone.y - cy }
     }
 
+  // Use raw (unclamped) coords for zone moves so zones can reach pitch edges freely.
   const handleZonePointerMove = (id: string) => (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.buttons !== 1 || editingZoneId === id) return
-    const { x, y } = toBoard(e.clientX, e.clientY)
+    e.stopPropagation()
+    const el = boardRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const x = (e.clientX - r.left) / r.width * 100
+    const y = (e.clientY - r.top) / r.height * 100
     board.moveZone(id, x + zoneDragOffset.current.dx, y + zoneDragOffset.current.dy)
   }
 
-  // Resize handle: drag changes radius based on distance from zone centre to cursor.
+  // Resize handle: drag distance from zone centre sets new radius.
   const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId)
     e.stopPropagation()
@@ -57,12 +67,15 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (e.buttons !== 1) return
       e.stopPropagation()
-      const { x, y } = toBoard(e.clientX, e.clientY)
-      const dx = x - zone.x
-      const dy = y - zone.y
-      // r is stored as % of board width; board is square-ish so use simple hypotenuse
       const el = boardRef.current
-      const aspect = el ? el.getBoundingClientRect().width / el.getBoundingClientRect().height : 1
+      if (!el) return
+      const rect = el.getBoundingClientRect()
+      const aspect = rect.width / rect.height
+      const cx = (e.clientX - rect.left) / rect.width * 100
+      const cy = (e.clientY - rect.top) / rect.height * 100
+      const dx = cx - zone.x
+      const dy = cy - zone.y
+      // Correct for non-square pitch: normalise dy to x-axis before computing distance.
       const dist = Math.sqrt(dx * dx + (dy * aspect) * (dy * aspect)) / aspect
       board.updateZoneRadius(id, dist)
     }
@@ -84,7 +97,7 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
     : 'min(100cqw, calc(100cqh * 12 / 7))'
   // Pitch div grows freely with zoom — NO cqw cap so it can overflow and clip.
   // The outer container's overflow:hidden is the clipping boundary.
-  const pitchWidth = zoom === 1 ? containedW : `calc((${containedW}) * ${zoom})`
+  const pitchWidth = `calc((${containedW}) * ${zoom})`
 
   return (
     <div
@@ -285,12 +298,12 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
                     >
                       <X className="h-2.5 w-2.5" />
                     </button>
-                    {/* Resize handle — bottom-right of circle */}
+                    {/* Resize handle — right edge of circle (3 o'clock), distance = r from centre */}
                     <div
                       title="Drag to resize"
                       onPointerDown={handleResizePointerDown}
                       onPointerMove={handleResizePointerMove(zone.id, zone)}
-                      className="absolute bottom-0 right-0 h-3.5 w-3.5 translate-x-1/2 translate-y-1/2 cursor-nwse-resize rounded-full border border-white/60 bg-white/30 touch-none hover:bg-white/60"
+                      className="absolute top-1/2 right-0 h-3.5 w-3.5 -translate-y-1/2 translate-x-1/2 cursor-ew-resize rounded-full border border-white/60 bg-white/30 touch-none hover:bg-white/60"
                     />
                   </>
                 )}
