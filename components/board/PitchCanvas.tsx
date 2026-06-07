@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import type { UseTacticalBoardReturn } from '@/hooks/useTacticalBoard'
@@ -24,23 +24,48 @@ type Props = {
 export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md' }: Props) {
   const sizes = TOKEN_PX[tokenSize]
   const [editingZoneId, setEditingZoneId] = useState<string | null>(null)
+  // Offset from pointer to zone centre, so drag doesn't snap the centre to the cursor.
+  const zoneDragOffset = useRef<{ dx: number; dy: number }>({ dx: 0, dy: 0 })
 
   const { boardRef, zoom, panX, panY, resetZoom, toBoard, updatePlayerPosition,
           selectionBox, pendingLine, boardCursor,
           handleBoardPointerDown, handleBoardPointerMove,
           handleBoardPointerUp, handleBoardPointerCancel } = gestures
 
-  const handleZonePointerDown = (id: string) => (e: React.PointerEvent<HTMLDivElement>) => {
-    if (editingZoneId === id) return
-    e.currentTarget.setPointerCapture(e.pointerId)
-    e.stopPropagation()
-  }
+  const handleZonePointerDown = (id: string, zone: { x: number; y: number }) =>
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (editingZoneId === id) return
+      e.currentTarget.setPointerCapture(e.pointerId)
+      e.stopPropagation()
+      const { x, y } = toBoard(e.clientX, e.clientY)
+      zoneDragOffset.current = { dx: zone.x - x, dy: zone.y - y }
+    }
 
   const handleZonePointerMove = (id: string) => (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.buttons !== 1 || editingZoneId === id) return
     const { x, y } = toBoard(e.clientX, e.clientY)
-    board.moveZone(id, x, y)
+    board.moveZone(id, x + zoneDragOffset.current.dx, y + zoneDragOffset.current.dy)
   }
+
+  // Resize handle: drag changes radius based on distance from zone centre to cursor.
+  const handleResizePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId)
+    e.stopPropagation()
+  }
+
+  const handleResizePointerMove = (id: string, zone: { x: number; y: number }) =>
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (e.buttons !== 1) return
+      e.stopPropagation()
+      const { x, y } = toBoard(e.clientX, e.clientY)
+      const dx = x - zone.x
+      const dy = y - zone.y
+      // r is stored as % of board width; board is square-ish so use simple hypotenuse
+      const el = boardRef.current
+      const aspect = el ? el.getBoundingClientRect().width / el.getBoundingClientRect().height : 1
+      const dist = Math.sqrt(dx * dx + (dy * aspect) * (dy * aspect)) / aspect
+      board.updateZoneRadius(id, dist)
+    }
 
   const handlePlayerPointerDown = (id: string) => (e: React.PointerEvent<HTMLButtonElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -213,7 +238,7 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
               <div
                 key={zone.id}
                 data-zone={zone.id}
-                onPointerDown={canEdit ? handleZonePointerDown(zone.id) : undefined}
+                onPointerDown={canEdit ? handleZonePointerDown(zone.id, zone) : undefined}
                 onPointerMove={canEdit ? handleZonePointerMove(zone.id) : undefined}
                 className={cn(
                   'absolute rounded-full border-2 border-dashed border-white/40 bg-white/10',
@@ -243,21 +268,30 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
                   ) : (
                     <span
                       className="select-none text-xs font-bold text-white/80"
-                      onDoubleClick={() => { if (canEdit) setEditingZoneId(zone.id) }}
+                      onDoubleClick={(e) => { if (canEdit) { e.stopPropagation(); setEditingZoneId(zone.id) } }}
                     >
                       {zone.label}
                     </span>
                   )}
                 </div>
                 {canEdit && (
-                  <button
-                    type="button"
-                    onPointerDown={(e) => e.stopPropagation()}
-                    onClick={(e) => { e.stopPropagation(); board.deleteZone(zone.id) }}
-                    className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-400"
-                  >
-                    <X className="h-2.5 w-2.5" />
-                  </button>
+                  <>
+                    <button
+                      type="button"
+                      onPointerDown={(e) => e.stopPropagation()}
+                      onClick={(e) => { e.stopPropagation(); board.deleteZone(zone.id) }}
+                      className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-white transition hover:bg-red-400"
+                    >
+                      <X className="h-2.5 w-2.5" />
+                    </button>
+                    {/* Resize handle — bottom-right of circle */}
+                    <div
+                      title="Drag to resize"
+                      onPointerDown={handleResizePointerDown}
+                      onPointerMove={handleResizePointerMove(zone.id, zone)}
+                      className="absolute bottom-0 right-0 h-3.5 w-3.5 translate-x-1/2 translate-y-1/2 cursor-nwse-resize rounded-full border border-white/60 bg-white/30 touch-none hover:bg-white/60"
+                    />
+                  </>
                 )}
               </div>
             )
