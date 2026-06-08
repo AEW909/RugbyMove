@@ -49,6 +49,7 @@ export type Play = {
   description: string | null
   category: PlayCategory
   animation_data: AnimationData
+  is_public: boolean
   updated_at: string
   profiles?: {
     username: string | null

@@ -34,6 +34,7 @@ export type TacticalBoardProps = {
   mode?: 'fresh' | 'saved'
   playTitle?: string
   playDescription?: string | null
+  playIsPublic?: boolean
   playCategory?: PlayCategory
   onFramesChange?: (frames: Frame[]) => void
   viewOnly?: boolean
@@ -95,8 +96,8 @@ export type UseTacticalBoardReturn = {
   isExporting: boolean
   setDuration: (segIndex: number, ms: number) => void
   scrubTo: (timeMs: number) => void
-  handleSaveToPlaybook: (playbookId: string, title: string, category: PlayCategory, description: string) => Promise<void>
-  handleSaveAsCopy: (playbookId: string, title: string, category: PlayCategory, description: string) => Promise<void>
+  handleSaveToPlaybook: (playbookId: string, title: string, category: PlayCategory, description: string, isPublic: boolean) => Promise<void>
+  handleSaveAsCopy: (playbookId: string, title: string, category: PlayCategory, description: string, isPublic: boolean) => Promise<void>
   pitchPortrait: boolean
   togglePitchPortrait: () => void
   playFrames: () => void
@@ -117,6 +118,7 @@ export function useTacticalBoard({
   mode = 'saved',
   playTitle = 'rugbymove-move',
   playDescription,
+  playIsPublic = false,
   playCategory = 'Other',
 }: TacticalBoardProps): UseTacticalBoardReturn {
   const originalFramesRef = useRef<Frame[] | null>(null)
@@ -541,6 +543,7 @@ export function useTacticalBoard({
       title: string,
       category: PlayCategory,
       description: string,
+      isPublic: boolean,
       { asCopy }: { asCopy: boolean },
     ) => {
       const existingId =
@@ -552,6 +555,7 @@ export function useTacticalBoard({
             title,
             description: description.trim() || null,
             category: category ?? 'Other',
+            is_public: isPublic,
             animation_data: {
               frames: normalizeFrames(frames),
               durations,
@@ -571,14 +575,14 @@ export function useTacticalBoard({
   )
 
   const handleSaveToPlaybook = useCallback(
-    (playbookId: string, title: string, category: PlayCategory, description: string) =>
-      persistToPlaybook(playbookId, title, category, description, { asCopy: false }),
+    (playbookId: string, title: string, category: PlayCategory, description: string, isPublic: boolean) =>
+      persistToPlaybook(playbookId, title, category, description, isPublic, { asCopy: false }),
     [persistToPlaybook],
   )
 
   const handleSaveAsCopy = useCallback(
-    (playbookId: string, title: string, category: PlayCategory, description: string) =>
-      persistToPlaybook(playbookId, title, category, description, { asCopy: true }),
+    (playbookId: string, title: string, category: PlayCategory, description: string, isPublic: boolean) =>
+      persistToPlaybook(playbookId, title, category, description, isPublic, { asCopy: true }),
     [persistToPlaybook],
   )
 

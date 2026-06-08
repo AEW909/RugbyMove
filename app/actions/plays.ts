@@ -52,6 +52,7 @@ const savePlaySchema = z.object({
   title: z.string().trim().min(1).max(120),
   description: z.string().trim().max(2000).optional().nullable(),
   category: z.enum(['Scrum', 'Lineout', 'Open Play', 'Penalty', 'Kick Off', 'Other']),
+  is_public: z.boolean().optional().default(false),
   animation_data: animationDataSchema,
 })
 

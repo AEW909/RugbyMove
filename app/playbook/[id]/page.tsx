@@ -59,6 +59,7 @@ async function getPlay(id: string): Promise<Play | null> {
       description: 'Start from a blank board or load one of your saved formations.',
       category: 'Other' as const,
       animation_data: { frames: [] },
+      is_public: false,
       updated_at: new Date().toISOString(),
       profiles: null,
     }
@@ -73,6 +74,7 @@ async function getPlay(id: string): Promise<Play | null> {
         'A simple two-frame pattern that shifts the defensive line before releasing the ball wide.',
       category: 'Open Play' as const,
       animation_data: demoAnimationData,
+      is_public: true,
       updated_at: new Date().toISOString(),
       profiles: {
         username: 'coach-demo',
@@ -200,6 +202,7 @@ playId={play.id}
           mode={mode}
           playTitle={play.title}
           playDescription={play.description}
+          playIsPublic={play.is_public}
           playCategory={play.category}
           viewOnly={viewOnly}
         />

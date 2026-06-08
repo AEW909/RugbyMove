@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { BookOpen, ChevronDown, ChevronUp, Download, Layers, Loader2, Save, X } from 'lucide-react'
+import { BookOpen, ChevronDown, ChevronUp, Download, Globe, Layers, Loader2, Lock, Save, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FORMATION_CATEGORIES } from '@/lib/board/storage'
 import type { Formation, FormationSlot } from '@/lib/board/storage'
@@ -45,13 +45,14 @@ type Props = {
   onLoadFormation: (players: PlayerPosition[]) => void
   onOpenSaveFormation: () => void
   playCategory?: PlayCategory
-  onSaveToPlaybook: (playbookId: string, title: string, category: PlayCategory, description: string) => void
-  onSaveAsCopy: (playbookId: string, title: string, category: PlayCategory, description: string) => void
+  onSaveToPlaybook: (playbookId: string, title: string, category: PlayCategory, description: string, isPublic: boolean) => void
+  onSaveAsCopy: (playbookId: string, title: string, category: PlayCategory, description: string, isPublic: boolean) => void
   onLoadPlay: (playId: string) => void
   onExport: () => void
   isExporting: boolean
   initialTitle: string
   initialDescription?: string | null
+  initialIsPublic?: boolean
   saveStatus: string
 }
 
@@ -72,10 +73,12 @@ export default function PanelSlideOver({
   isExporting,
   initialTitle,
   initialDescription,
+  initialIsPublic = false,
   saveStatus,
 }: Props) {
   const [saveTitle, setSaveTitle] = useState(initialTitle)
   const [saveDescription, setSaveDescription] = useState(initialDescription ?? '')
+  const [saveIsPublic, setSaveIsPublic] = useState(initialIsPublic)
   const [saveCategory, setSaveCategory] = useState<PlayCategory>(playCategory ?? 'Other')
   const [selectedPlaybook, setSelectedPlaybook] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -103,6 +106,10 @@ export default function PanelSlideOver({
   useEffect(() => {
     setSaveDescription(initialDescription ?? '')
   }, [initialDescription])
+
+  useEffect(() => {
+    setSaveIsPublic(initialIsPublic ?? false)
+  }, [initialIsPublic])
 
   useEffect(() => {
     if (playCategory) setSaveCategory(playCategory)
@@ -380,6 +387,49 @@ export default function PanelSlideOver({
                 </select>
               </label>
 
+              <label className="block text-sm font-semibold text-white/80">
+                Description{' '}
+                <span className="font-normal text-white/30">(optional)</span>
+                <textarea
+                  value={saveDescription}
+                  onChange={(e) => setSaveDescription(e.target.value)}
+                  placeholder="Brief description of this move…"
+                  rows={2}
+                  maxLength={2000}
+                  className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-normal text-white placeholder:text-white/30 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
+                />
+              </label>
+
+              <fieldset>
+                <legend className="text-sm font-semibold text-white/80">Visibility</legend>
+                <div className="mt-2 flex gap-2">
+                  {([
+                    { value: false, label: 'Private', Icon: Lock },
+                    { value: true,  label: 'Public',  Icon: Globe },
+                  ] as const).map(({ value, label, Icon }) => (
+                    <label
+                      key={label}
+                      className={cn(
+                        'flex flex-1 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm transition',
+                        saveIsPublic === value
+                          ? 'border-blue-500 bg-blue-500/10 text-white'
+                          : 'border-white/10 bg-white/5 text-white/60 hover:bg-white/10',
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="visibility"
+                        className="sr-only"
+                        checked={saveIsPublic === value}
+                        onChange={() => setSaveIsPublic(value)}
+                      />
+                      <Icon className="h-3.5 w-3.5 shrink-0" />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+
               <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                 <p className="mb-3 text-sm font-semibold text-white/80">Save to playbook</p>
                 <select
@@ -408,7 +458,7 @@ export default function PanelSlideOver({
                 <button
                   type="button"
                   disabled={!selectedPlaybook || !saveTitle.trim() || isSaving}
-                  onClick={() => { setIsSaving(true); onSaveToPlaybook(selectedPlaybook, saveTitle.trim(), saveCategory, saveDescription.trim()) }}
+                  onClick={() => { setIsSaving(true); onSaveToPlaybook(selectedPlaybook, saveTitle.trim(), saveCategory, saveDescription.trim(), saveIsPublic) }}
                   className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90 disabled:opacity-40"
                 >
                   {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -417,7 +467,7 @@ export default function PanelSlideOver({
                 <button
                   type="button"
                   disabled={!selectedPlaybook || !saveTitle.trim() || isCopying}
-                  onClick={() => { setIsCopying(true); onSaveAsCopy(selectedPlaybook, saveTitle.trim(), saveCategory, saveDescription.trim()) }}
+                  onClick={() => { setIsCopying(true); onSaveAsCopy(selectedPlaybook, saveTitle.trim(), saveCategory, saveDescription.trim(), saveIsPublic) }}
                   className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 disabled:opacity-40"
                 >
                   {isCopying && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
