@@ -1,8 +1,19 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { BookOpen, ChevronDown, Globe, Lock, Trash2, Users } from 'lucide-react'
+import { BookOpen, Globe, Lock, Trash2, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import AppHeader from '@/components/AppHeader'
+import {
+  Badge,
+  Banner,
+  Collapsible,
+  FormField,
+  Input,
+  Select,
+  SubmitButton,
+  Textarea,
+  buttonVariants,
+} from '@/components/ui'
 import {
   addMember,
   removeMember,
@@ -106,17 +117,11 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Link
-              href={`/portal/${params.id}`}
-              className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-            >
+            <Link href={`/portal/${params.id}`} className={buttonVariants('secondary')}>
               Player view
             </Link>
             {isOwner && (
-              <Link
-                href={`/playbooks/${params.id}/organise`}
-                className="rounded-xl border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-              >
+              <Link href={`/playbooks/${params.id}/organise`} className={buttonVariants('secondary')}>
                 Organise
               </Link>
             )}
@@ -124,14 +129,10 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
         </div>
 
         {searchParams.message && (
-          <p className="mt-4 rounded-xl border border-green-500/20 bg-green-500/10 px-3 py-2 text-sm font-medium text-green-300">
-            {searchParams.message}
-          </p>
+          <Banner tone="success" className="mt-4">{searchParams.message}</Banner>
         )}
         {searchParams.error && (
-          <p className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-300">
-            {searchParams.error}
-          </p>
+          <Banner tone="error" className="mt-4">{searchParams.error}</Banner>
         )}
 
         <div className="mt-8 grid gap-8 lg:grid-cols-[1fr_300px]">
@@ -155,186 +156,144 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
           <aside className="space-y-3">
 
             {/* Members panel */}
-            <details className="group rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm">
-              <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 select-none">
-                <span className="font-bold text-white">
+            <Collapsible
+              summary={
+                <>
                   Members
                   {members && members.length > 0 && (
                     <span className="ml-2 text-sm font-normal text-white/40">{members.length + 1}</span>
                   )}
-                </span>
-                <ChevronDown className="h-4 w-4 shrink-0 text-white/40 transition-transform duration-200 group-open:rotate-180" />
-              </summary>
+                </>
+              }
+            >
+              <ul className="space-y-2">
+                <li className="flex items-center justify-between gap-2 text-sm">
+                  <span className="font-medium text-white">{isOwner ? 'You' : '(owner)'}</span>
+                  <Badge tone="blue">owner</Badge>
+                </li>
 
-              <div className="px-5 pb-5">
-                <ul className="space-y-2">
-                  <li className="flex items-center justify-between gap-2 text-sm">
-                    <span className="font-medium text-white">{isOwner ? 'You' : '(owner)'}</span>
-                    <span className="rounded-full border border-blue-500/20 bg-blue-500/20 px-2 py-0.5 text-xs font-semibold text-blue-300">
-                      owner
-                    </span>
-                  </li>
+                {members?.map((m) => {
+                  const profile = m.profiles as unknown as { username: string | null } | null
+                  return (
+                    <li key={m.id} className="flex items-center justify-between gap-2 text-sm">
+                      <span className="truncate font-medium text-white/80">
+                        {profile?.username ?? m.user_id.slice(0, 8)}
+                      </span>
+                      <div className="flex shrink-0 items-center gap-1">
+                        <Badge>{m.role}</Badge>
+                        {canManage && (
+                          <form action={removeMember}>
+                            <input type="hidden" name="playbook_id" value={params.id} />
+                            <input type="hidden" name="user_id" value={m.user_id} />
+                            <button
+                              type="submit"
+                              aria-label="Remove member"
+                              className="rounded-lg p-1 text-white/30 transition hover:bg-red-500/10 hover:text-red-400"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </form>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
 
-                  {members?.map((m) => {
-                    const profile = m.profiles as unknown as { username: string | null } | null
-                    return (
-                      <li key={m.id} className="flex items-center justify-between gap-2 text-sm">
-                        <span className="truncate font-medium text-white/80">
-                          {profile?.username ?? m.user_id.slice(0, 8)}
-                        </span>
-                        <div className="flex shrink-0 items-center gap-1">
-                          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-xs font-semibold text-white/60">
-                            {m.role}
-                          </span>
-                          {canManage && (
-                            <form action={removeMember}>
-                              <input type="hidden" name="playbook_id" value={params.id} />
-                              <input type="hidden" name="user_id" value={m.user_id} />
-                              <button
-                                type="submit"
-                                aria-label="Remove member"
-                                className="rounded-lg p-1 text-white/30 transition hover:bg-red-500/10 hover:text-red-400"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                              </button>
-                            </form>
-                          )}
-                        </div>
-                      </li>
-                    )
-                  })}
-
-                  {(!members || members.length === 0) && (
-                    <li className="text-sm text-white/40">No members yet.</li>
-                  )}
-                </ul>
-
-                {canManage && (
-                  <form action={addMember} className="mt-5 space-y-3 border-t border-white/10 pt-4">
-                    <input type="hidden" name="playbook_id" value={params.id} />
-                    <div>
-                      <label htmlFor="username" className="block text-sm font-semibold text-white/80">
-                        Add by username
-                      </label>
-                      <input
-                        id="username"
-                        name="username"
-                        type="text"
-                        required
-                        placeholder="e.g. coach_jones"
-                        className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/30 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
-                      />
-                    </div>
-                    <div>
-                      <label htmlFor="role" className="block text-sm font-semibold text-white/80">
-                        Role
-                      </label>
-                      <select
-                        id="role"
-                        name="role"
-                        className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 [&>option]:bg-zinc-900"
-                      >
-                        <option value="viewer">Player (view only)</option>
-                        <option value="editor">Coach (can edit)</option>
-                      </select>
-                    </div>
-                    <button
-                      type="submit"
-                      className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90"
-                    >
-                      Add member
-                    </button>
-                  </form>
+                {(!members || members.length === 0) && (
+                  <li className="text-sm text-white/40">No members yet.</li>
                 )}
-              </div>
-            </details>
+              </ul>
+
+              {canManage && (
+                <form action={addMember} className="mt-5 space-y-3 border-t border-white/10 pt-4">
+                  <input type="hidden" name="playbook_id" value={params.id} />
+                  <FormField htmlFor="username" label="Add by username">
+                    <Input
+                      id="username"
+                      name="username"
+                      type="text"
+                      required
+                      placeholder="e.g. coach_jones"
+                    />
+                  </FormField>
+                  <FormField htmlFor="role" label="Role">
+                    <Select id="role" name="role">
+                      <option value="viewer">Player (view only)</option>
+                      <option value="editor">Coach (can edit)</option>
+                    </Select>
+                  </FormField>
+                  <SubmitButton pendingLabel="Adding…" className="w-full">
+                    Add member
+                  </SubmitButton>
+                </form>
+              )}
+            </Collapsible>
 
             {/* Settings panel (owner only) */}
             {isOwner && (
-              <details className="group rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 select-none">
-                  <span className="font-bold text-white">Settings</span>
-                  <ChevronDown className="h-4 w-4 shrink-0 text-white/40 transition-transform duration-200 group-open:rotate-180" />
-                </summary>
+              <Collapsible summary="Settings">
+                <form action={updatePlaybook} className="space-y-4">
+                  <input type="hidden" name="id" value={params.id} />
 
-                <div className="px-5 pb-5">
-                  <form action={updatePlaybook} className="space-y-4">
-                    <input type="hidden" name="id" value={params.id} />
+                  <FormField htmlFor="name" label="Name">
+                    <Input
+                      id="name"
+                      name="name"
+                      type="text"
+                      required
+                      maxLength={120}
+                      defaultValue={playbook.name}
+                    />
+                  </FormField>
 
-                    <div>
-                      <label htmlFor="name" className="block text-sm font-semibold text-white/80">
-                        Name
-                      </label>
-                      <input
-                        id="name"
-                        name="name"
-                        type="text"
-                        required
-                        maxLength={120}
-                        defaultValue={playbook.name}
-                        className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
-                      />
-                    </div>
+                  <FormField htmlFor="description" label="Description" optional>
+                    <Textarea
+                      id="description"
+                      name="description"
+                      rows={2}
+                      maxLength={2000}
+                      defaultValue={playbook.description ?? ''}
+                    />
+                  </FormField>
 
-                    <div>
-                      <label htmlFor="description" className="block text-sm font-semibold text-white/80">
-                        Description{' '}
-                        <span className="font-normal text-white/30">(optional)</span>
-                      </label>
-                      <textarea
-                        id="description"
-                        name="description"
-                        rows={2}
-                        maxLength={2000}
-                        defaultValue={playbook.description ?? ''}
-                        className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
-                      />
-                    </div>
-
-                    <fieldset>
-                      <legend className="block text-sm font-semibold text-white/80">
-                        Visibility
-                      </legend>
-                      <div className="mt-2 space-y-2">
-                        {visibilityOptions.map(({ value, label, desc, Icon }) => (
-                          <label
-                            key={value}
-                            className="flex cursor-pointer items-start gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm backdrop-blur-sm transition has-[:checked]:border-blue-500 has-[:checked]:bg-blue-500/10"
-                          >
-                            <input
-                              type="radio"
-                              name="visibility"
-                              value={value}
-                              defaultChecked={playbook.visibility === value}
-                              className="mt-0.5 accent-blue-500"
-                            />
-                            <span>
-                              <span className="flex items-center gap-1 font-semibold text-white">
-                                <Icon className="h-3 w-3" />
-                                {label}
-                              </span>
-                              <span className="block text-white/40">{desc}</span>
+                  <fieldset>
+                    <legend className="block text-sm font-semibold text-white/80">
+                      Visibility
+                    </legend>
+                    <div className="mt-2 space-y-2">
+                      {visibilityOptions.map(({ value, label, desc, Icon }) => (
+                        <label
+                          key={value}
+                          className="flex cursor-pointer items-start gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm backdrop-blur-sm transition has-[:checked]:border-blue-500 has-[:checked]:bg-blue-500/10"
+                        >
+                          <input
+                            type="radio"
+                            name="visibility"
+                            value={value}
+                            defaultChecked={playbook.visibility === value}
+                            className="mt-0.5 accent-blue-500"
+                          />
+                          <span>
+                            <span className="flex items-center gap-1 font-semibold text-white">
+                              <Icon className="h-3 w-3" />
+                              {label}
                             </span>
-                          </label>
-                        ))}
-                      </div>
-                    </fieldset>
-
-                    <div className="flex items-center gap-3 pt-1">
-                      <button
-                        type="submit"
-                        className="rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90"
-                      >
-                        Save
-                      </button>
-                      <DeletePlaybookButton
-                        playbookId={params.id}
-                        playbookName={playbook.name}
-                      />
+                            <span className="block text-white/40">{desc}</span>
+                          </span>
+                        </label>
+                      ))}
                     </div>
-                  </form>
-                </div>
-              </details>
+                  </fieldset>
+
+                  <div className="flex items-center gap-3 pt-1">
+                    <SubmitButton pendingLabel="Saving…">Save</SubmitButton>
+                    <DeletePlaybookButton
+                      playbookId={params.id}
+                      playbookName={playbook.name}
+                    />
+                  </div>
+                </form>
+              </Collapsible>
             )}
 
           </aside>
