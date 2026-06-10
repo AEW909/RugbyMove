@@ -1,4 +1,4 @@
-import type { Frame, PlayCategory } from '@/types/play'
+import type { PlayCategory } from '@/types/play'
 
 export type FormationCategory = Extract<PlayCategory, 'Scrum' | 'Lineout' | 'Penalty' | 'Open Play'>
 
@@ -14,14 +14,6 @@ export type Formation = {
   category: FormationCategory
   slots: FormationSlot[]
   createdAt: string
-}
-
-export type SavedMove = {
-  id: string
-  title: string
-  frames: Frame[]
-  updatedAt: string
-  sourceMoveId?: string
 }
 
 export const FORMATION_CATEGORIES: FormationCategory[] = [

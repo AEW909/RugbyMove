@@ -1,47 +1,29 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
-import { savePlay, saveFormation as saveFormationAction } from '@/app/actions/plays'
+import { saveFormation as saveFormationAction, savePlayToPlaybook } from '@/app/actions/plays'
 import { createClient } from '@/lib/supabase/client'
 import type { Formation, FormationCategory, FormationSlot } from '@/lib/board/storage'
 import type { Frame, Line, PlayerPosition, Zone, PlayCategory } from '@/types/play'
 import type { PanelTab } from '@/components/board/PanelSlideOver'
 import { tokens, defaultFrame, inferActivePlayers } from '@/lib/board/defaults'
+import {
+  DEFAULT_DURATION,
+  MIN_DURATION,
+  MAX_DURATION,
+  clamp,
+  normalizeFrame,
+  normalizeFrames,
+  normalizeDurations,
+  rotatePitchCoords,
+} from '@/lib/board/frames'
 import { exportGif } from '@/lib/board/exportGif'
 import { usePlayback } from '@/hooks/usePlayback'
 export { tokens, defaultFrame } from '@/lib/board/defaults'
 export type { Token } from '@/lib/board/defaults'
 export { SCRUM_FORMATION, LINEOUT_FORMATION } from '@/lib/board/defaults'
+export { DEFAULT_DURATION, MIN_DURATION, MAX_DURATION, normalizeDurations } from '@/lib/board/frames'
 
-export const DEFAULT_DURATION = 900
-export const MIN_DURATION = 200
-export const MAX_DURATION = 3000
-
-function normalizeFrame(frame: Partial<Frame> | undefined): Frame {
-  return {
-    players: Array.isArray(frame?.players) ? frame.players : defaultFrame.players,
-    zones: Array.isArray(frame?.zones) ? frame.zones : [],
-    lines: Array.isArray(frame?.lines) ? frame.lines : [],
-  }
-}
-
-function normalizeFrames(nextFrames: Partial<Frame>[] | undefined): Frame[] {
-  if (!Array.isArray(nextFrames) || nextFrames.length === 0) {
-    return [defaultFrame]
-  }
-  return nextFrames.map(normalizeFrame)
-}
-
-export function normalizeDurations(raw: number[] | undefined, frameCount: number): number[] {
-  const needed = Math.max(0, frameCount - 1)
-  const base = Array.isArray(raw) ? raw : []
-  return Array.from({ length: needed }, (_, i) =>
-    Math.min(MAX_DURATION, Math.max(MIN_DURATION, base[i] ?? DEFAULT_DURATION)),
-  )
-}
-
-function clamp(value: number) {
-  return Math.min(100, Math.max(0, value))
-}
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 export type TacticalBoardProps = {
   initialFrames?: Frame[]
@@ -126,10 +108,6 @@ export type UseTacticalBoardReturn = {
   canRedo: boolean
 }
 
-function rotatePitchCoords<T extends { x: number; y: number }>(p: T): T {
-  return { ...p, x: p.y, y: p.x }
-}
-
 export function useTacticalBoard({
   initialFrames,
   initialDurations,
@@ -195,9 +173,6 @@ export function useTacticalBoard({
     setRedoCount(0)
   }, [])
 
-  const undoRef = useRef<() => void>(() => {})
-  const redoRef = useRef<() => void>(() => {})
-
   const undo = useCallback(() => {
     const entry = undoStackRef.current.pop()
     if (!entry) return
@@ -220,8 +195,11 @@ export function useTacticalBoard({
     setRedoCount(redoStackRef.current.length)
   }, [])
 
-  useEffect(() => { undoRef.current = undo }, [undo])
-  useEffect(() => { redoRef.current = redo }, [redo])
+  // Stable refs so the keyboard handler (registered once) always calls the latest closures
+  const undoRef = useRef(undo)
+  const redoRef = useRef(redo)
+  undoRef.current = undo
+  redoRef.current = redo
 
   const totalDuration = useMemo(() => durations.reduce((a, b) => a + b, 0), [durations])
 
@@ -272,30 +250,6 @@ export function useTacticalBoard({
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
-  // Load formations from Supabase
-  useEffect(() => {
-    const supabase = createClient()
-    supabase.auth.getUser().then(({ data: { user } }) => {
-      if (!user) return
-      supabase
-        .from('formations')
-        .select('id,name,category,slots,updated_at')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false })
-        .limit(24)
-        .then(({ data }) => {
-          if (!data) return
-          setFormations(data.map((f) => ({
-            id: f.id,
-            name: f.name,
-            category: f.category as FormationCategory,
-            slots: f.slots as FormationSlot[],
-            createdAt: f.updated_at,
-          })))
-        })
-    })
-  }, [])
-
   // Initialise frames from pending move/formation or mode
   useEffect(() => {
     if (mode === 'fresh') {
@@ -305,7 +259,7 @@ export function useTacticalBoard({
     }
   }, [mode])
 
-  // Load saved plays and playbooks
+  // Load user, playbooks, and formations from Supabase
   useEffect(() => {
     const supabase = createClient()
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -321,10 +275,10 @@ export function useTacticalBoard({
 
       supabase
         .from('formations')
-        .select('id,name,category,slots,created_at')
+        .select('id,name,category,slots,updated_at')
         .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(12)
+        .order('updated_at', { ascending: false })
+        .limit(24)
         .then(({ data }) => {
           if (data) {
             setFormations(
@@ -333,7 +287,7 @@ export function useTacticalBoard({
                 name: f.name,
                 category: f.category as FormationCategory,
                 slots: f.slots as FormationSlot[],
-                createdAt: f.created_at,
+                createdAt: f.updated_at,
               })),
             )
           }
@@ -581,64 +535,51 @@ export function useTacticalBoard({
       .finally(() => setIsExporting(false))
   }, [frames, durations, isExporting, playTitle])
 
-  const handleSaveToPlaybook = useCallback(
-    async (playbookId: string, title: string, category: PlayCategory, description: string) => {
-      const normalizedFrames = normalizeFrames(frames)
+  const persistToPlaybook = useCallback(
+    async (
+      playbookId: string,
+      title: string,
+      category: PlayCategory,
+      description: string,
+      { asCopy }: { asCopy: boolean },
+    ) => {
+      const existingId =
+        !asCopy && playId && UUID_PATTERN.test(playId) ? playId : undefined
       try {
-        const play = await savePlay({
-          id:
-            playId &&
-            /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
-              playId,
-            )
-              ? playId
-              : undefined,
-          title,
-          description: description.trim() || null,
-          category: category ?? 'Other',
-          animation_data: { frames: normalizedFrames, durations, pitchPortrait: pitchPortrait || undefined, activePlayers },
-        })
-        const supabase = createClient()
-        await supabase
-          .from('playbook_plays')
-          .upsert(
-            { playbook_id: playbookId, play_id: play.id },
-            { onConflict: 'playbook_id,play_id' },
-          )
-        setSaveStatus('Saved to playbook.')
+        await savePlayToPlaybook(
+          {
+            id: existingId,
+            title,
+            description: description.trim() || null,
+            category: category ?? 'Other',
+            animation_data: {
+              frames: normalizeFrames(frames),
+              durations,
+              pitchPortrait: pitchPortrait || undefined,
+              activePlayers,
+            },
+          },
+          playbookId,
+        )
+        setSaveStatus(asCopy ? 'Saved as new copy.' : 'Saved to playbook.')
         setIsDirty(false)
       } catch {
         setSaveStatus('Save failed. Please try again.')
       }
     },
-    [playId, frames, durations, pitchPortrait],
+    [playId, frames, durations, pitchPortrait, activePlayers],
+  )
+
+  const handleSaveToPlaybook = useCallback(
+    (playbookId: string, title: string, category: PlayCategory, description: string) =>
+      persistToPlaybook(playbookId, title, category, description, { asCopy: false }),
+    [persistToPlaybook],
   )
 
   const handleSaveAsCopy = useCallback(
-    async (playbookId: string, title: string, category: PlayCategory, description: string) => {
-      const normalizedFrames = normalizeFrames(frames)
-      try {
-        const play = await savePlay({
-          // No id — always inserts a new play
-          title,
-          description: description.trim() || null,
-          category: category ?? 'Other',
-          animation_data: { frames: normalizedFrames, durations, pitchPortrait: pitchPortrait || undefined, activePlayers },
-        })
-        const supabase = createClient()
-        await supabase
-          .from('playbook_plays')
-          .upsert(
-            { playbook_id: playbookId, play_id: play.id },
-            { onConflict: 'playbook_id,play_id' },
-          )
-        setSaveStatus('Saved as new copy.')
-        setIsDirty(false)
-      } catch {
-        setSaveStatus('Save failed. Please try again.')
-      }
-    },
-    [frames, durations, pitchPortrait],
+    (playbookId: string, title: string, category: PlayCategory, description: string) =>
+      persistToPlaybook(playbookId, title, category, description, { asCopy: true }),
+    [persistToPlaybook],
   )
 
   const addLine = useCallback(

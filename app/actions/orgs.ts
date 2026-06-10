@@ -17,6 +17,24 @@ async function requireUser() {
   return { supabase, admin, user: user! }
 }
 
+/** Require the caller to be the org's head coach; redirects with an error otherwise. */
+async function requireHeadCoach(orgId: string) {
+  const { supabase, admin, user } = await requireUser()
+
+  const { data: member } = await admin
+    .from('org_members')
+    .select('role')
+    .eq('org_id', orgId)
+    .eq('user_id', user.id)
+    .single()
+
+  if (!member || member.role !== 'head_coach') {
+    redirect(`/org/${orgId}?error=Not+authorized`)
+  }
+
+  return { supabase, admin, user }
+}
+
 export async function createOrg(formData: FormData): Promise<void> {
   let id: string | null = null
   let errorMessage: string | null = null
@@ -125,18 +143,7 @@ export async function joinViaCode(formData: FormData): Promise<void> {
 export async function deleteOrgPlaybook(formData: FormData): Promise<void> {
   const orgId = z.string().uuid().parse(formData.get('org_id'))
   const playbookId = z.string().uuid().parse(formData.get('playbook_id'))
-  const { admin, user } = await requireUser()
-
-  const { data: member } = await admin
-    .from('org_members')
-    .select('role')
-    .eq('org_id', orgId)
-    .eq('user_id', user.id)
-    .single()
-
-  if (!member || member.role !== 'head_coach') {
-    redirect(`/org/${orgId}?error=Not+authorized`)
-  }
+  const { admin } = await requireHeadCoach(orgId)
 
   const { error } = await admin
     .from('playbooks')
@@ -153,18 +160,7 @@ export async function addOrgMember(formData: FormData): Promise<void> {
   const orgId = z.string().uuid().parse(formData.get('org_id'))
   const username = z.string().trim().min(1).max(80).parse(formData.get('username'))
   const role = z.enum(['coach', 'player']).parse(formData.get('role') ?? 'coach')
-  const { admin, supabase, user } = await requireUser()
-
-  const { data: myMembership } = await admin
-    .from('org_members')
-    .select('role')
-    .eq('org_id', orgId)
-    .eq('user_id', user.id)
-    .single()
-
-  if (!myMembership || myMembership.role !== 'head_coach') {
-    redirect(`/org/${orgId}?error=Not+authorized`)
-  }
+  const { admin, supabase } = await requireHeadCoach(orgId)
 
   const { data: profile } = await supabase
     .from('profiles')
@@ -188,18 +184,7 @@ export async function addOrgMember(formData: FormData): Promise<void> {
 export async function removeOrgMember(formData: FormData): Promise<void> {
   const orgId = z.string().uuid().parse(formData.get('org_id'))
   const userId = z.string().uuid().parse(formData.get('user_id'))
-  const { admin, user } = await requireUser()
-
-  const { data: myMembership } = await admin
-    .from('org_members')
-    .select('role')
-    .eq('org_id', orgId)
-    .eq('user_id', user.id)
-    .single()
-
-  if (!myMembership || myMembership.role !== 'head_coach') {
-    redirect(`/org/${orgId}?error=Not+authorized`)
-  }
+  const { admin, user } = await requireHeadCoach(orgId)
 
   if (userId === user.id) {
     redirect(`/org/${orgId}?error=Cannot+remove+yourself`)
@@ -219,18 +204,7 @@ export async function removeOrgMember(formData: FormData): Promise<void> {
 export async function setPlaybookJoinCode(formData: FormData): Promise<void> {
   const orgId = z.string().uuid().parse(formData.get('org_id'))
   const playbookId = z.string().uuid().parse(formData.get('playbook_id'))
-  const { admin, user } = await requireUser()
-
-  const { data: member } = await admin
-    .from('org_members')
-    .select('role')
-    .eq('org_id', orgId)
-    .eq('user_id', user.id)
-    .single()
-
-  if (!member || member.role !== 'head_coach') {
-    redirect(`/org/${orgId}?error=Not+authorized`)
-  }
+  const { admin } = await requireHeadCoach(orgId)
 
   const code = randomBytes(4).toString('hex').toUpperCase()
 
@@ -251,18 +225,7 @@ export async function updateOrg(formData: FormData): Promise<void> {
   const description = z.string().trim().max(2000).optional().nullable().parse(
     formData.get('description') || null,
   ) ?? null
-  const { admin, user } = await requireUser()
-
-  const { data: member } = await admin
-    .from('org_members')
-    .select('role')
-    .eq('org_id', orgId)
-    .eq('user_id', user.id)
-    .single()
-
-  if (!member || member.role !== 'head_coach') {
-    redirect(`/org/${orgId}?error=Not+authorized`)
-  }
+  const { admin } = await requireHeadCoach(orgId)
 
   const { error } = await admin
     .from('organisations')
@@ -278,18 +241,7 @@ export async function updateOrgMemberRole(formData: FormData): Promise<void> {
   const orgId = z.string().uuid().parse(formData.get('org_id'))
   const targetUserId = z.string().uuid().parse(formData.get('user_id'))
   const role = z.enum(['coach', 'player']).parse(formData.get('role'))
-  const { admin, user } = await requireUser()
-
-  const { data: myMembership } = await admin
-    .from('org_members')
-    .select('role')
-    .eq('org_id', orgId)
-    .eq('user_id', user.id)
-    .single()
-
-  if (!myMembership || myMembership.role !== 'head_coach') {
-    redirect(`/org/${orgId}?error=Not+authorized`)
-  }
+  const { admin, user } = await requireHeadCoach(orgId)
 
   if (targetUserId === user.id) {
     redirect(`/org/${orgId}?error=Cannot+change+your+own+role`)
@@ -308,18 +260,7 @@ export async function updateOrgMemberRole(formData: FormData): Promise<void> {
 
 export async function setCoachInviteCode(formData: FormData): Promise<void> {
   const orgId = z.string().uuid().parse(formData.get('org_id'))
-  const { admin, user } = await requireUser()
-
-  const { data: member } = await admin
-    .from('org_members')
-    .select('role')
-    .eq('org_id', orgId)
-    .eq('user_id', user.id)
-    .single()
-
-  if (!member || member.role !== 'head_coach') {
-    redirect(`/org/${orgId}?error=Not+authorized`)
-  }
+  const { admin } = await requireHeadCoach(orgId)
 
   const code = randomBytes(4).toString('hex').toUpperCase()
 

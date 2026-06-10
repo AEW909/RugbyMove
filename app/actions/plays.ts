@@ -111,6 +111,27 @@ export async function savePlay(input: SavePlayInput) {
   return data
 }
 
+export async function savePlayToPlaybook(input: SavePlayInput, playbookId: string) {
+  const parsedPlaybookId = z.string().uuid().parse(playbookId)
+  const play = await savePlay(input)
+
+  const { supabase } = await requireUser()
+  const { error } = await supabase
+    .from('playbook_plays')
+    .upsert(
+      { playbook_id: parsedPlaybookId, play_id: play.id },
+      { onConflict: 'playbook_id,play_id' },
+    )
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  revalidatePath(`/playbooks/${parsedPlaybookId}`)
+
+  return play
+}
+
 export async function duplicatePlay(formData: FormData): Promise<void> {
   const id = z.string().uuid().parse(formData.get('play_id'))
   const playbookId = z.string().uuid().optional().parse(formData.get('playbook_id') || undefined)

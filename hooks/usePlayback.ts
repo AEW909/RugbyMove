@@ -3,7 +3,8 @@
 import { useCallback, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { Frame, PlayerPosition, Zone } from '@/types/play'
-import { normalizeDurations } from '@/hooks/useTacticalBoard'
+import { normalizeDurations } from '@/lib/board/frames'
+import { buildCumulative } from '@/lib/board/math'
 
 function lerp(start: number, end: number, amount: number) {
   return start + (end - start) * amount
@@ -27,16 +28,8 @@ function interpolateZones(from: Zone[], to: Zone[], amount: number): Zone[] {
   })
 }
 
-function buildCumulative(durations: number[]): number[] {
-  const cum: number[] = []
-  let acc = 0
-  for (const d of durations) {
-    acc += d
-    cum.push(acc)
-  }
-  return cum
-}
-
+// Playback-specific normalization: unlike lib/board/frames.normalizeFrame, missing
+// players become [] (frame is skipped) rather than falling back to the default lineup.
 function normalizeFrame(frame: Partial<Frame>): Frame {
   return {
     players: Array.isArray(frame?.players) ? frame.players : [],
