@@ -43,17 +43,24 @@ See **[ROADMAP.md](./ROADMAP.md)** for the current feature backlog and prioritie
 | Auth/account | `/login`, `/recover`, `/signup`, `/account`, `/account/password` |
 | Playbooks | `/playbooks`, `/playbooks/new`, `/playbooks/[id]`, `/playbooks/[id]/organise` |
 | Organisations | `/orgs`, `/orgs/new`, `/org/[id]` |
+| Player portal (read-only) | `/portal/[id]` |
 | Demo (view-only) | `/playbook/demo` |
 | Fresh blank board | `/playbook/new` |
 
-Main components:
-- **`components/TacticalBoard.tsx`** — top-level board UI, all toolbar/modal rendering (~840 lines)
-- **`hooks/useTacticalBoard.ts`** — all board state logic (~620 lines)
+Main components (the board was split into focused modules — do not re-merge):
+- **`components/TacticalBoard.tsx`** — thin top-level wrapper; composes the toolbar, canvas, panel, and modals (~125 lines)
+- **`components/board/TacticalBoardToolbar.tsx`** — all toolbar buttons (play, frame, tools, zones, undo/redo, Present/Exit, etc.)
+- **`components/board/PitchCanvas.tsx`** — the pitch SVG + token/zone/line rendering
 - **`components/board/PanelSlideOver.tsx`** — right-side slide panel (save, formations, playbooks)
-- **`components/board/FormationLoadDialog.tsx`** — jersey picker modal for loading a formation
+- **`components/board/SaveFormationModal.tsx`** / **`AddPlayersDialog.tsx`** / **`FormationLoadDialog.tsx`** — board modals
 - **`components/board/FrameTimeline.tsx`** — frame strip below the board
+- **`components/portal/PlayerPortal.tsx`** — read-only step-through viewer for `/portal/[id]`
+- **`hooks/useTacticalBoard.ts`** — board state logic (~750 lines)
+- **`hooks/usePlayback.ts`** — playback/interpolation loop; **`hooks/useBoardGestures.ts`** — pointer drag/select/draw
 - **`lib/board/defaults.ts`** — default frame, built-in formations (Scrum, Lineout), token list
+- **`lib/board/frames.ts`** — frame normalization, duration helpers, `rotatePitchCoords`
 - **`lib/board/storage.ts`** — shared types (`Formation`, `FormationSlot`, `FormationCategory`)
+- **`components/ui/`** — shared UI primitives (`Button`, `Field`, `Banner`, `Collapsible`, etc.)
 
 ---
 
@@ -126,7 +133,9 @@ Formation     = { id, name, category: FormationCategory, slots: FormationSlot[],
 | `organisations` | Team/club grouping |
 | `org_members` | Roles: `head_coach | coach | player` |
 
-Migrations live in `supabase/migrations/`. Migration 0008 renamed `formations.players` → `formations.slots` and has been applied to the production DB.
+Migrations live in `supabase/migrations/` (0001–0010). Migration `0009` renamed `formations.players` → `formations.slots`; `0010` added `plays.is_public`. All have been applied to production.
+
+**Keep DB and migrations in sync.** Production has occasionally drifted from the migration history (manual changes applied to the live DB without a corresponding file). Any schema change must ship as a numbered migration file AND be applied — do not rely on one without the other. Use the next free number; never reuse an existing one.
 
 ---
 
@@ -152,4 +161,4 @@ Do not leave these files lagging. An inaccurate handover doc is worse than no do
 - Do not commit `.env.local`, build outputs, `node_modules`, `.next`, or secrets
 - The Vercel build runs `tsc --noEmit` — always run typecheck before pushing
 - Common past build failures: `zones` field mismatch on `Frame` literals, Zod schema out of sync with types, `normalizeFrame` not handling new fields. Check all three if the build breaks.
-- `TacticalBoard.tsx` and `useTacticalBoard.ts` are large files. They are candidates for splitting but this has not been done yet — do not split them unless the user asks.
+- The board has already been split into focused modules (toolbar, canvas, panel, modals, hooks). `useTacticalBoard.ts` remains the largest file (~750 lines) and holds most state logic — split further only if the user asks.
