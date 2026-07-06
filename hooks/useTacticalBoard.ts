@@ -15,6 +15,8 @@ import {
   normalizeFrames,
   normalizeDurations,
   rotatePitchCoords,
+  propagatePlayerMove,
+  activeIndexAfterDelete,
 } from '@/lib/board/frames'
 import { exportGif } from '@/lib/board/exportGif'
 import { usePlayback } from '@/hooks/usePlayback'
@@ -22,8 +24,7 @@ export { tokens, defaultFrame } from '@/lib/board/defaults'
 export type { Token } from '@/lib/board/defaults'
 export { SCRUM_FORMATION, LINEOUT_FORMATION } from '@/lib/board/defaults'
 export { DEFAULT_DURATION, MIN_DURATION, MAX_DURATION, normalizeDurations } from '@/lib/board/frames'
-
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+import { resolveSavePlayId } from '@/lib/board/persistence'
 
 export type TacticalBoardProps = {
   initialFrames?: Frame[]
@@ -320,61 +321,14 @@ export function useTacticalBoard({
       if (isPlaying) return
       const newX = clamp(rawX)
       const newY = clamp(rawY)
-      setFrames((currentFrames) => {
-        // Record the player's position on the active frame before the move so we
-        // know which subsequent frames still have the "inherited" position.
-        const prev = currentFrames[activeFrameIndex]?.players.find((p) => p.id === id)
-        const oldX = prev?.x ?? newX
-        const oldY = prev?.y ?? newY
-
-        const isGroupMove =
-          tool === 'select' && selectedPlayerIds.has(id) && selectedPlayerIds.size > 1
-
-        let hitBarrier = false
-
-        return normalizeFrames(
-          currentFrames.map((frame, index) => {
-            // Active frame — apply the move
-            if (index === activeFrameIndex) {
-              if (isGroupMove && prev) {
-                const dx = newX - prev.x
-                const dy = newY - prev.y
-                return {
-                  ...frame,
-                  players: frame.players.map((p) =>
-                    selectedPlayerIds.has(p.id)
-                      ? { ...p, x: clamp(p.x + dx), y: clamp(p.y + dy) }
-                      : p,
-                  ),
-                }
-              }
-              return {
-                ...frame,
-                players: frame.players.map((p) =>
-                  p.id === id ? { ...p, x: newX, y: newY } : p,
-                ),
-              }
-            }
-
-            // Subsequent frames — propagate only while the player's position
-            // matches the pre-move position (i.e. no explicit animation stored).
-            if (index > activeFrameIndex && !isGroupMove && !hitBarrier) {
-              const fp = frame.players.find((p) => p.id === id)
-              if (fp && fp.x === oldX && fp.y === oldY) {
-                return {
-                  ...frame,
-                  players: frame.players.map((p) =>
-                    p.id === id ? { ...p, x: newX, y: newY } : p,
-                  ),
-                }
-              }
-              hitBarrier = true
-            }
-
-            return frame
-          }),
-        )
-      })
+      const isGroupMove =
+        tool === 'select' && selectedPlayerIds.has(id) && selectedPlayerIds.size > 1
+      setFrames((currentFrames) =>
+        propagatePlayerMove(currentFrames, activeFrameIndex, id, newX, newY, {
+          isGroupMove,
+          selectedPlayerIds,
+        }),
+      )
     },
     [activeFrameIndex, isPlaying, snapGrid, tool, selectedPlayerIds],
   )
@@ -418,11 +372,9 @@ export function useTacticalBoard({
         const next = prev.filter((_, i) => i !== indexToDelete)
         return normalizeDurations(next, nextFrames.length)
       })
-      setActiveFrameIndex((currentIndex) => {
-        if (currentIndex > indexToDelete) return currentIndex - 1
-        if (currentIndex === indexToDelete) return Math.max(0, currentIndex - 1)
-        return Math.min(currentIndex, nextFrames.length - 1)
-      })
+      setActiveFrameIndex((currentIndex) =>
+        activeIndexAfterDelete(currentIndex, indexToDelete, nextFrames.length),
+      )
     },
     [frames, stopPlayback, markUndoCheckpoint],
   )
@@ -546,8 +498,7 @@ export function useTacticalBoard({
       isPublic: boolean,
       { asCopy }: { asCopy: boolean },
     ) => {
-      const existingId =
-        !asCopy && playId && UUID_PATTERN.test(playId) ? playId : undefined
+      const existingId = resolveSavePlayId(playId, asCopy)
       try {
         await savePlayToPlaybook(
           {
