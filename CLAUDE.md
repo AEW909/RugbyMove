@@ -157,7 +157,8 @@ Do not leave these files lagging. An inaccurate handover doc is worse than no do
 
 ## Developer Notes
 
-- Run before committing: `npm run typecheck`
+- Run before committing: `npm run typecheck` and `npm test`
+- Tests use **Vitest** (`npm test` for a single run, `npm run test:watch` to watch). Specs live next to the code as `*.test.ts` — currently `lib/board/{math,frames,propagation,persistence}.test.ts`. Prefer extracting board logic into pure functions in `lib/board/` (as done for interpolation, propagation, frame-delete, and save-id resolution) rather than testing it through the React hook.
 - Do not commit `.env.local`, build outputs, `node_modules`, `.next`, or secrets
 - The Vercel build runs `tsc --noEmit` — always run typecheck before pushing
 - Common past build failures: `zones` field mismatch on `Frame` literals, Zod schema out of sync with types, `normalizeFrame` not handling new fields. Check all three if the build breaks.

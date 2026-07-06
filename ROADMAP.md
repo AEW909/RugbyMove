@@ -51,10 +51,13 @@
 
 ## Up Next
 
-### 1. Tests (highest priority — currently zero coverage)
-- Pure logic: frame deletion, playback interpolation, position propagation, pitch rotation
-- Save-as-copy / variation behaviour
-- RLS assumptions (owner vs editor vs viewer vs org member)
+### 1. Tests (in progress)
+- ✅ Vitest set up; 54 tests across `lib/board/{math,frames,propagation,persistence}.test.ts`
+- ✅ Pure logic covered: interpolation, timing, clamp, pitch rotation, frame/duration
+  normalization, position propagation + barriers, frame-delete playhead, save-vs-copy id
+- ☐ RLS assumptions (owner vs editor vs viewer vs org member) — needs a Supabase
+  integration harness (test DB or mocked client); larger lift than the pure-logic tests
+- ☐ Component/interaction tests (would need jsdom + Testing Library)
 
 ### 2. Mobile audit
 - Verify viewport-fit layout on phones and tablets
