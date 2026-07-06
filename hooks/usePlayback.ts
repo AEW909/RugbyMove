@@ -4,29 +4,7 @@ import { useCallback, useRef, useState } from 'react'
 import type { Dispatch, SetStateAction } from 'react'
 import type { Frame, PlayerPosition, Zone } from '@/types/play'
 import { normalizeDurations } from '@/lib/board/frames'
-import { buildCumulative } from '@/lib/board/math'
-
-function lerp(start: number, end: number, amount: number) {
-  return start + (end - start) * amount
-}
-
-function interpolatePlayers(from: PlayerPosition[], to: PlayerPosition[], amount: number): PlayerPosition[] {
-  return from.map((player) => {
-    const next = to.find((item) => item.id === player.id) ?? player
-    return {
-      id: player.id,
-      x: lerp(player.x, next.x, amount),
-      y: lerp(player.y, next.y, amount),
-    }
-  })
-}
-
-function interpolateZones(from: Zone[], to: Zone[], amount: number): Zone[] {
-  return from.map((zone) => {
-    const next = to.find((z) => z.id === zone.id) ?? zone
-    return { ...zone, x: lerp(zone.x, next.x, amount), y: lerp(zone.y, next.y, amount) }
-  })
-}
+import { buildCumulative, interpolatePlayers, interpolateZones } from '@/lib/board/math'
 
 // Playback-specific normalization: unlike lib/board/frames.normalizeFrame, missing
 // players become [] (frame is skipped) rather than falling back to the default lineup.
