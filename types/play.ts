@@ -49,7 +49,6 @@ export type Play = {
   description: string | null
   category: PlayCategory
   animation_data: AnimationData
-  is_public: boolean
   updated_at: string
   profiles?: {
     username: string | null
@@ -63,7 +62,7 @@ export type Playbook = {
   owner_id: string
   name: string
   description: string | null
-  visibility: 'private' | 'team' | 'public'
+  visibility: 'private' | 'team'
   join_code: string | null
   created_at: string
   updated_at: string

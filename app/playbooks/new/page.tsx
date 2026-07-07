@@ -61,34 +61,10 @@ export default async function NewPlaybookPage({ searchParams }: PageProps) {
             />
           </div>
 
-          <fieldset>
-            <legend className="block text-sm font-semibold text-white/60">Visibility</legend>
-            <div className="mt-2 grid gap-2 sm:grid-cols-2">
-              {(
-                [
-                  { value: 'private', label: 'Private', desc: 'Only you and invited members' },
-                  { value: 'public', label: 'Public', desc: 'Anyone with the link' },
-                ] as const
-              ).map(({ value, label, desc }) => (
-                <label
-                  key={value}
-                  className="flex cursor-pointer items-start gap-2 rounded-2xl border border-white/10 bg-white/5 px-3 py-2 text-sm backdrop-blur-sm transition has-[:checked]:border-blue-500 has-[:checked]:bg-blue-500/10"
-                >
-                  <input
-                    type="radio"
-                    name="visibility"
-                    value={value}
-                    defaultChecked={value === 'private'}
-                    className="mt-0.5 accent-blue-500"
-                  />
-                  <span>
-                    <span className="block font-semibold text-white">{label}</span>
-                    <span className="block text-white/40">{desc}</span>
-                  </span>
-                </label>
-              ))}
-            </div>
-          </fieldset>
+          <p className="text-xs text-white/40">
+            New playbooks start private — only you and invited members can see them.
+            You can switch to &ldquo;Team&rdquo; sharing later from the playbook&apos;s Settings panel.
+          </p>
 
           <div className="flex gap-3 pt-2">
             <button

@@ -19,7 +19,7 @@ async function requireUser() {
   return { supabase, admin, user: user! }
 }
 
-const visibilitySchema = z.enum(['private', 'team', 'public'])
+const visibilitySchema = z.enum(['private', 'team'])
 const roleSchema = z.enum(['editor', 'viewer'])
 
 export async function createPlaybook(formData: FormData): Promise<void> {

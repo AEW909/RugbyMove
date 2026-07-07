@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { BookOpen, Globe, Key, Lock, Trash2, Users } from 'lucide-react'
+import { BookOpen, Key, Lock, Trash2, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import AppHeader from '@/components/AppHeader'
 import {
@@ -42,7 +42,6 @@ const CATEGORY_LABEL: Record<PlayCategory, string> = {
 const visibilityOptions = [
   { value: 'private', label: 'Private', desc: 'Only you', Icon: Lock },
   { value: 'team',    label: 'Team',    desc: 'Members you invite', Icon: Users },
-  { value: 'public',  label: 'Public',  desc: 'Anyone with the link', Icon: Globe },
 ] as const
 
 export default async function PlaybookDetailPage({ params, searchParams }: PageProps) {

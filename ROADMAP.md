@@ -28,9 +28,9 @@
 - Editor refactored into focused modules (`TacticalBoardToolbar`, `PitchCanvas`, `PanelSlideOver`, `FrameTimeline`, hooks)
 
 ### Save & playbooks
-- Save move to Supabase — title, category, description, **visibility (private/team/public — see note under Backlog)**, playbook
+- Save move to Supabase — title, category, description, playbook
 - Save as copy (variation); duplicate move from playbook list
-- Playbooks — create, list, add/remove moves, reorder, organise view, move picker
+- Playbooks — create, list, add/remove moves, reorder, organise view, move picker; visibility is `private` or `team`
 - Playbook access control — invite by username (editor/viewer roles), or a per-playbook `join_code` shared via `/join`
 
 ### Player portal
@@ -73,12 +73,11 @@
 
 ### Playbooks & moves
 - Move tags / filtering; search across moves
-- Public/shared move gallery (opt-in) — surfaces the existing `is_public` flag, **but
-  first needs an RLS policy allowing `is_public = true` rows to be read by other users**
-  (the live `plays`/`formations` policies are currently owner-only with no public-read
-  carve-out — see CLAUDE.md's Data Model section)
-- Account-page visibility indicator + standalone public/private toggle
-  (intentionally deferred — visibility currently set only via the save panel)
+- Public/shared move gallery (opt-in) — **`is_public` and `playbooks.visibility = 'public'`
+  were both removed 2026-07-08** (cosmetic, never backed by an RLS policy, never built
+  on). Building this properly means adding the flag/value back **together with** a
+  matching RLS policy this time — see CLAUDE.md's Data Model section — not resurrecting
+  the old cosmetic version.
 - Move comments / coaching notes per frame
 
 ### Export

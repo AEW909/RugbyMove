@@ -132,19 +132,19 @@ Formation     = { id, name, category: FormationCategory, slots: FormationSlot[],
 | Table | Purpose |
 |---|---|
 | `profiles` | User profile (username, display_name) |
-| `plays` | Saved moves with JSONB `animation_data`; `is_public` flag exists but is **not currently enforced by RLS** (see below) |
+| `plays` | Saved moves with JSONB `animation_data` |
 | `formations` | Reusable shapes — `slots` column (JSONB), renamed from `players` in migration 0009 |
-| `playbooks` | Named collections; visibility: `private | team | public`; `join_code` for direct sharing |
+| `playbooks` | Named collections; visibility: `private | team`; `join_code` for direct sharing |
 | `playbook_members` | Roles: `editor | viewer` — added via username or by joining with `join_code` at `/join` |
 | `playbook_plays` | Ordered join table between playbooks and plays |
 
 `organisations` and `org_members` existed but were dropped in migration `0011` (2026-07-07) — every row belonged to the app's single owner account, the feature was never used by a second person. If you're looking for squad/multi-coach grouping, it doesn't exist anymore; playbook-level sharing via `playbook_members`/`join_code` is the only sharing mechanism now.
 
-Migrations live in `supabase/migrations/` (0001–0011, though see the drift warning under Supabase above — the folder is not fully authoritative for what's live). `0009` renamed `formations.players` → `formations.slots`; `0010` added `plays.is_public`; `0011` removed the organisations layer. All have been applied to production.
+There is no "public" visibility anywhere anymore — `plays.is_public` and the `'public'` value of `playbooks.visibility` were both removed in migration `0012` (2026-07-08). Neither was ever backed by an RLS policy (the live `plays`/`formations` policy is a single owner-scoped `ALL`, and `playbooks` had no policy checking `visibility` at all), so "Public" was a cosmetic label with no actual sharing effect. Deliberately removed rather than left as a decorative toggle. If a public gallery is wanted later, it needs a fresh `is_public` column/flag **and** a matching RLS policy — added together this time, not one without the other.
+
+Migrations live in `supabase/migrations/` (0001–0012, though see the drift warning under Supabase above — the folder is not fully authoritative for what's live). `0009` renamed `formations.players` → `formations.slots`; `0010` added `plays.is_public` (removed again in `0012`); `0011` removed the organisations layer; `0012` removed the non-functional public-visibility surfaces. All have been applied to production.
 
 **Keep DB and migrations in sync.** Production has drifted from the migration history before — see the `clean_redesign_v2` note above. Any schema change must ship as a numbered migration file AND be applied — do not rely on one without the other. Use the next free number; never reuse an existing one.
-
-**Known gap, not yet fixed:** the live RLS policies on `plays` and `formations` are a single `ALL` policy scoped to `user_id = auth.uid()` — there is no policy allowing anyone to read another user's `is_public = true` rows. The "public" visibility option in the save panel and on playbooks is thus currently cosmetic; nothing in the app queries other users' public data yet either (the Backlog's "public move gallery" was never built), so this hasn't caused a visible bug, but building that gallery will require an RLS policy change first.
 
 ---
 
