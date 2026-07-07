@@ -4,11 +4,12 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { BookOpen, FolderOpen, Plus, Users } from 'lucide-react'
+import type { FormationSlot } from '@/lib/board/storage'
 
 type CloudPlay = { id: string; title: string; category: string; updated_at: string }
 type CloudPlaybook = { id: string; name: string }
 type CloudOrg = { id: string; name: string; role: string }
-type CloudFormation = { id: string; name: string; category: string; players: Array<{ id: string; x: number; y: number }>; createdAt: string }
+type CloudFormation = { id: string; name: string; category: string; slots: FormationSlot[]; createdAt: string }
 
 const orgRoleLabel: Record<string, string> = {
   head_coach: 'Head Coach',

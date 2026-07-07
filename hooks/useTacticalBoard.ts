@@ -5,13 +5,12 @@ import { createClient } from '@/lib/supabase/client'
 import type { Formation, FormationCategory, FormationSlot } from '@/lib/board/storage'
 import type { Frame, Line, PlayerPosition, Zone, PlayCategory } from '@/types/play'
 import type { PanelTab } from '@/components/board/PanelSlideOver'
-import { tokens, defaultFrame, inferActivePlayers } from '@/lib/board/defaults'
+import { tokens, defaultFrame, playersMovedFromDefault } from '@/lib/board/defaults'
 import {
   DEFAULT_DURATION,
   MIN_DURATION,
   MAX_DURATION,
   clamp,
-  normalizeFrame,
   normalizeFrames,
   normalizeDurations,
   rotatePitchCoords,
@@ -30,7 +29,6 @@ export type TacticalBoardProps = {
   initialFrames?: Frame[]
   initialDurations?: number[]
   initialPitchPortrait?: boolean
-  initialActivePlayers?: string[]
   playId?: string
   mode?: 'fresh' | 'saved'
   playTitle?: string
@@ -75,8 +73,6 @@ export type UseTacticalBoardReturn = {
   lineDashed: boolean
   setLineColor: (color: string) => void
   setLineDashed: (dashed: boolean) => void
-  activePlayers: string[]
-  addPlayers: (ids: string[]) => void
   addZone: (x: number, y: number) => void
   moveZone: (id: string, x: number, y: number) => void
   deleteZone: (id: string) => void
@@ -114,7 +110,6 @@ export function useTacticalBoard({
   initialFrames,
   initialDurations,
   initialPitchPortrait = false,
-  initialActivePlayers,
   playId,
   mode = 'saved',
   playTitle = 'rugbymove-move',
@@ -146,12 +141,6 @@ export function useTacticalBoard({
   const [isExporting, setIsExporting] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
   const initialLoadDone = useRef(false)
-  const [activePlayers, setActivePlayers] = useState<string[]>(() => {
-    if (mode === 'fresh') return []
-    if (initialActivePlayers && initialActivePlayers.length > 0) return initialActivePlayers
-    if (initialFrames && initialFrames.length > 0) return inferActivePlayers(normalizeFrame(initialFrames[0]))
-    return []
-  })
 
   // ── Undo / Redo ──
   type HistoryEntry = { frames: Frame[]; durations: number[] }
@@ -398,9 +387,10 @@ export function useTacticalBoard({
     const trimmedName = formationName.trim()
     if (!trimmedName || !userId) return
 
-    // Build abstract slots from active players' current positions (no player IDs stored)
+    // Build abstract slots from players moved off the tray (no player IDs stored)
+    const movedIds = new Set(playersMovedFromDefault(activeFrame))
     const slots: FormationSlot[] = activeFrame.players
-      .filter((p) => p.id === 'ball' || activePlayers.includes(p.id))
+      .filter((p) => p.id === 'ball' || movedIds.has(p.id))
       .map((p) => {
         const side: FormationSlot['side'] = p.id === 'ball' ? 'ball' : p.id.startsWith('attack-') ? 'attack' : 'defend'
         const pos = pitchPortrait ? rotatePitchCoords(p) : p
@@ -424,28 +414,19 @@ export function useTacticalBoard({
           )
         }
       })
-      .catch(() => setSaveStatus('Formation save failed.'))
+      .catch((err) => {
+        console.error('[useTacticalBoard] formation save failed:', err)
+        setSaveStatus(err instanceof Error ? err.message : 'Formation save failed.')
+      })
 
     setFormationName('')
     setShowFormationModal(false)
-  }, [activeFrame.players, activePlayers, formationCategory, formationName, pitchPortrait, userId])
+  }, [activeFrame, formationCategory, formationName, pitchPortrait, userId])
 
   // Accepts a pre-resolved list of {id, x, y} produced by FormationLoadDialog
   const loadFormation = useCallback(
     (players: PlayerPosition[]) => {
       stopPlayback()
-
-      // Add the loaded player IDs to the active set
-      const incomingIds = players.filter((p) => p.id !== 'ball').map((p) => p.id)
-      if (incomingIds.length > 0) {
-        setActivePlayers((prev) => {
-          const next = [...(prev ?? [])]
-          for (const id of incomingIds) {
-            if (!next.includes(id)) next.push(id)
-          }
-          return next
-        })
-      }
 
       setFrames((currentFrames) =>
         normalizeFrames(
@@ -511,18 +492,19 @@ export function useTacticalBoard({
               frames: normalizeFrames(frames),
               durations,
               pitchPortrait: pitchPortrait || undefined,
-              activePlayers,
             },
           },
           playbookId,
         )
         setSaveStatus(asCopy ? 'Saved as new copy.' : 'Saved to playbook.')
         setIsDirty(false)
-      } catch {
-        setSaveStatus('Save failed. Please try again.')
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Save failed. Please try again.'
+        console.error('[useTacticalBoard] save failed:', err)
+        setSaveStatus(message)
       }
     },
-    [playId, frames, durations, pitchPortrait, activePlayers],
+    [playId, frames, durations, pitchPortrait],
   )
 
   const handleSaveToPlaybook = useCallback(
@@ -564,18 +546,6 @@ export function useTacticalBoard({
     },
     [activeFrameIndex, markUndoCheckpoint],
   )
-
-  const addPlayers = useCallback((ids: string[]) => {
-    setActivePlayers((prev) => {
-      const current = prev ?? []
-      const next = [...current]
-      for (const id of ids) {
-        if (!next.includes(id)) next.push(id)
-      }
-      return next
-    })
-    setIsDirty(true)
-  }, [])
 
   const addZone = useCallback((x: number, y: number) => {
     const id = crypto.randomUUID()
@@ -663,8 +633,6 @@ export function useTacticalBoard({
     lineDashed,
     setLineColor,
     setLineDashed,
-    activePlayers,
-    addPlayers,
     addZone,
     moveZone,
     deleteZone,

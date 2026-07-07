@@ -387,19 +387,6 @@ export default function PanelSlideOver({
                 </select>
               </label>
 
-              <label className="block text-sm font-semibold text-white/80">
-                Description{' '}
-                <span className="font-normal text-white/30">(optional)</span>
-                <textarea
-                  value={saveDescription}
-                  onChange={(e) => setSaveDescription(e.target.value)}
-                  placeholder="Brief description of this move…"
-                  rows={2}
-                  maxLength={2000}
-                  className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-normal text-white placeholder:text-white/30 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
-                />
-              </label>
-
               <fieldset>
                 <legend className="text-sm font-semibold text-white/80">Visibility</legend>
                 <div className="mt-2 flex gap-2">

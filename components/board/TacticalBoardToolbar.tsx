@@ -15,7 +15,6 @@ import {
   Presentation,
   RotateCw,
   Undo2,
-  Users,
   X,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -33,7 +32,6 @@ type Props = {
   viewOnly: boolean
   desktopViewOnly: boolean
   onToggleViewOnly: () => void
-  onShowAddPlayers: () => void
   tokenSize: 'sm' | 'md' | 'lg'
   onTokenSizeChange: (size: 'sm' | 'md' | 'lg') => void
 }
@@ -43,7 +41,6 @@ export default function TacticalBoardToolbar({
   viewOnly,
   desktopViewOnly,
   onToggleViewOnly,
-  onShowAddPlayers,
   tokenSize,
   onTokenSizeChange,
 }: Props) {
@@ -131,14 +128,6 @@ export default function TacticalBoardToolbar({
           >
             <Circle className="h-4 w-4" />
             Zone
-          </button>
-          <button
-            type="button"
-            onClick={onShowAddPlayers}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-          >
-            <Users className="h-4 w-4" />
-            Add players
           </button>
 
           <div className="h-5 w-px bg-white/10" />

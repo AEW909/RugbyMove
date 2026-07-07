@@ -43,8 +43,12 @@ export const defaultFrame: Frame = {
 
 const defaultPlayerMap = new Map(createDefaultPlayers().map((p) => [p.id, p]))
 
-/** Infer which players are "active" (not in the default tray) from a saved frame. */
-export function inferActivePlayers(frame: Frame): string[] {
+/**
+ * IDs of players who have been moved off their default tray position in this frame.
+ * Used only when saving a formation, so untouched tray players don't pollute the
+ * abstract shape — there is no other "active/inactive" distinction in the app.
+ */
+export function playersMovedFromDefault(frame: Frame): string[] {
   return frame.players
     .filter((p) => {
       if (p.id === 'ball') return false

@@ -15,6 +15,9 @@ export function rotatePitchCoords<T extends { x: number; y: number }>(p: T): T {
 }
 
 export function normalizeFrame(frame: Partial<Frame> | undefined): Frame {
+  if (frame && !Array.isArray(frame.players)) {
+    console.warn('[normalizeFrame] frame is missing a valid players array — defaulting to the tray lineup. Data may be corrupted:', frame)
+  }
   return {
     players: Array.isArray(frame?.players) ? frame.players : defaultFrame.players,
     zones: Array.isArray(frame?.zones) ? frame.zones : [],

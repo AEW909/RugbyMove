@@ -12,7 +12,6 @@ import FrameTimeline from '@/components/board/FrameTimeline'
 import PitchCanvas from '@/components/board/PitchCanvas'
 import PanelSlideOver from '@/components/board/PanelSlideOver'
 import SaveFormationModal from '@/components/board/SaveFormationModal'
-import AddPlayersDialog from '@/components/board/AddPlayersDialog'
 
 export default function TacticalBoard(props: TacticalBoardProps) {
   const board = useTacticalBoard(props)
@@ -20,7 +19,6 @@ export default function TacticalBoard(props: TacticalBoardProps) {
 
   const { playTitle = 'Untitled move', viewOnly: viewOnlyProp = false } = props
   const [desktopViewOnly, setDesktopViewOnly] = useState(false)
-  const [showAddPlayers, setShowAddPlayers] = useState(false)
   const [tokenSize, setTokenSize] = useState<'sm' | 'md' | 'lg'>('md')
   const viewOnly = viewOnlyProp || isMobile || desktopViewOnly
 
@@ -44,7 +42,6 @@ export default function TacticalBoard(props: TacticalBoardProps) {
         viewOnly={viewOnly}
         desktopViewOnly={desktopViewOnly}
         onToggleViewOnly={() => setDesktopViewOnly((v) => !v)}
-        onShowAddPlayers={() => setShowAddPlayers(true)}
         tokenSize={tokenSize}
         onTokenSizeChange={setTokenSize}
       />
@@ -110,14 +107,6 @@ export default function TacticalBoard(props: TacticalBoardProps) {
         <SaveFormationModal
           board={board}
           onClose={() => board.setShowFormationModal(false)}
-        />
-      )}
-
-      {showAddPlayers && (
-        <AddPlayersDialog
-          activePlayers={board.activePlayers}
-          onAdd={(ids) => { board.addPlayers(ids); setShowAddPlayers(false) }}
-          onClose={() => setShowAddPlayers(false)}
         />
       )}
     </section>

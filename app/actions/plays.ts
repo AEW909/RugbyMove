@@ -4,48 +4,7 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
-
-const pointSchema = z.object({
-  x: z.number().min(0).max(100),
-  y: z.number().min(0).max(100),
-})
-
-const animationDataSchema = z.object({
-  frames: z
-    .array(
-      z.object({
-        players: z.array(
-          z.object({
-            id: z.string().min(1).max(12),
-            x: z.number().min(0).max(100),
-            y: z.number().min(0).max(100),
-          }),
-        ),
-        zones: z.array(
-          z.object({
-            id: z.string().min(1).max(64),
-            x: z.number().min(0).max(100),
-            y: z.number().min(0).max(100),
-            r: z.number().min(1).max(50),
-            label: z.string().max(40),
-          }),
-        ).optional(),
-        lines: z.array(
-          z.object({
-            id: z.string().min(1).max(64),
-            from: pointSchema,
-            to: pointSchema,
-            color: z.string().max(32).optional(),
-            dashed: z.boolean().optional(),
-          }),
-        ),
-      }),
-    )
-    .min(1),
-  durations: z.array(z.number().min(200).max(3000)).optional(),
-  pitchPortrait: z.boolean().optional(),
-  activePlayers: z.array(z.string().min(1).max(20)).optional(),
-})
+import { animationDataSchema } from '@/lib/board/schema'
 
 const savePlaySchema = z.object({
   id: z.string().uuid().optional(),
@@ -87,7 +46,20 @@ async function requireUser() {
 }
 
 export async function savePlay(input: SavePlayInput) {
-  const parsed = savePlaySchema.parse(input)
+  let parsed: z.infer<typeof savePlaySchema>
+  try {
+    parsed = savePlaySchema.parse(input)
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      const detail = e.issues
+        .map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
+        .join('; ')
+      console.error('[savePlay] validation failed:', detail)
+      throw new Error(`Save rejected — invalid data (${detail})`)
+    }
+    throw e
+  }
+
   const { supabase, user } = await requireUser()
 
   const { data, error } = await supabase
@@ -103,7 +75,14 @@ export async function savePlay(input: SavePlayInput) {
     .single()
 
   if (error) {
-    throw new Error(error.message)
+    console.error('[savePlay] upsert failed:', error.message)
+    throw new Error(`Save failed: ${error.message}`)
+  }
+
+  if (parsed.id && data.id !== parsed.id) {
+    console.warn(
+      `[savePlay] upsert returned id ${data.id}, expected ${parsed.id} — the write may not have targeted the intended row (check RLS policies).`,
+    )
   }
 
   revalidatePath('/')
@@ -125,7 +104,8 @@ export async function savePlayToPlaybook(input: SavePlayInput, playbookId: strin
     )
 
   if (error) {
-    throw new Error(error.message)
+    console.error('[savePlayToPlaybook] linking failed:', error.message)
+    throw new Error(`Saved the move, but linking it to the playbook failed: ${error.message}`)
   }
 
   revalidatePath(`/playbooks/${parsedPlaybookId}`)
@@ -192,7 +172,20 @@ export async function deletePlay(formData: FormData): Promise<void> {
 }
 
 export async function saveFormation(input: SaveFormationInput) {
-  const parsed = formationSchema.parse(input)
+  let parsed: z.infer<typeof formationSchema>
+  try {
+    parsed = formationSchema.parse(input)
+  } catch (e) {
+    if (e instanceof z.ZodError) {
+      const detail = e.issues
+        .map((issue) => `${issue.path.join('.') || '(root)'}: ${issue.message}`)
+        .join('; ')
+      console.error('[saveFormation] validation failed:', detail)
+      throw new Error(`Save rejected — invalid data (${detail})`)
+    }
+    throw e
+  }
+
   const { supabase, user } = await requireUser()
 
   const { data, error } = await supabase
@@ -208,7 +201,8 @@ export async function saveFormation(input: SaveFormationInput) {
     .single()
 
   if (error) {
-    throw new Error(error.message)
+    console.error('[saveFormation] upsert failed:', error.message)
+    throw new Error(`Save failed: ${error.message}`)
   }
 
   revalidatePath('/')

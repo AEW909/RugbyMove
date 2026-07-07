@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation'
 import { CalendarDays } from 'lucide-react'
 import TacticalBoard from '@/components/TacticalBoard'
 import { createClient } from '@/lib/supabase/server'
+import { animationDataSchema } from '@/lib/board/schema'
 import type { AnimationData, Play } from '@/types/play'
 
 type PageProps = {
@@ -86,7 +87,7 @@ async function getPlay(id: string): Promise<Play | null> {
   const { data, error } = await supabase
     .from('plays')
     .select(
-      'id,user_id,title,description,category,animation_data,updated_at,profiles(username)',
+      'id,user_id,title,description,category,animation_data,is_public,updated_at,profiles(username)',
     )
     .eq('id', id)
     .single()
@@ -145,6 +146,40 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
     notFound()
   }
 
+  // 'new' and 'demo' are synthetic, code-authored plays (see demoAnimationData / the
+  // 'new' branch above) — trust them and skip validation. Everything else came out of
+  // the database and may be from an older schema version or otherwise corrupted, so it
+  // must be validated before it's handed to the board. A failed parse means the data
+  // can't be safely normalised — show an explicit error instead of silently falling
+  // back to defaults (that fallback is exactly what hid the activePlayers bug).
+  let animationData: AnimationData = play.animation_data
+  if (play.id !== 'new' && play.id !== 'demo') {
+    const parsedAnimation = animationDataSchema.safeParse(play.animation_data)
+    if (!parsedAnimation.success) {
+      console.error(
+        `[playbook/${play.id}] malformed animation_data:`,
+        parsedAnimation.error.flatten(),
+      )
+      return (
+        <main className="flex h-dvh flex-col items-center justify-center gap-4 bg-black px-4 text-center text-white">
+          <p className="text-lg font-semibold">This move couldn&apos;t be loaded.</p>
+          <p className="max-w-sm text-sm text-white/50">
+            Its saved data is missing or in a format this version of the app doesn&apos;t
+            recognise. Nothing has been changed — the original data is still in the database.
+          </p>
+          <Link
+            href="/"
+            className="rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90"
+          >
+            ← Back home
+          </Link>
+        </main>
+      )
+    }
+    // Zod strips unrecognised keys (e.g. a legacy `activePlayers`) rather than failing.
+    animationData = parsedAnimation.data
+  }
+
   const supabase = await createClient()
   const {
     data: { user },
@@ -195,10 +230,10 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
       {/* Board fills remaining space */}
       <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
         <TacticalBoard
-          initialFrames={play.animation_data.frames}
-          initialDurations={play.animation_data.durations}
-          initialPitchPortrait={play.animation_data.pitchPortrait}
-playId={play.id}
+          initialFrames={animationData.frames}
+          initialDurations={animationData.durations}
+          initialPitchPortrait={animationData.pitchPortrait}
+          playId={play.id}
           mode={mode}
           playTitle={play.title}
           playDescription={play.description}

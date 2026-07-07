@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 import HomeDashboard from '@/components/home/HomeDashboard'
 import type { OrgRole } from '@/types/play'
+import type { FormationSlot } from '@/lib/board/storage'
 
 export default async function HomePage() {
   const supabase = await createClient()
@@ -32,7 +33,7 @@ export default async function HomePage() {
         .limit(10),
       supabase
         .from('formations')
-        .select('id,name,category,players,created_at')
+        .select('id,name,category,slots,created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(12),
@@ -49,7 +50,7 @@ export default async function HomePage() {
       id: f.id,
       name: f.name,
       category: f.category as string,
-      players: f.players as unknown as Array<{ id: string; x: number; y: number }>,
+      slots: f.slots as unknown as FormationSlot[],
       createdAt: f.created_at,
     }))
     return <HomeDashboard cloudPlays={cloudPlays} cloudPlaybooks={cloudPlaybooks} cloudOrgs={cloudOrgs} cloudFormations={cloudFormations} />

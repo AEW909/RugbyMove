@@ -321,7 +321,6 @@ export default function PitchCanvas({ board, gestures, viewOnly, tokenSize = 'md
           {tokens.map((token) => {
             const player = board.playerById.get(token.id)
             if (!player) return null
-            if (token.side !== 'ball' && !board.activePlayers.includes(token.id)) return null
             const canDrag = !viewOnly && board.tool !== 'draw'
             const isBall = token.side === 'ball'
             return (
