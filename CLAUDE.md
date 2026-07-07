@@ -153,7 +153,7 @@ Migrations live in `supabase/migrations/` (0001–0011, though see the drift war
 - Owner/primary account: `awilkinson@lrgs.org.uk` (password never committed — use env vars or Supabase dashboard)
 - No guest/unauthenticated access — all routes redirect to `/login`
 - `localStorage` is not used; all data lives in Supabase
-- **"Master user" is not currently implemented, despite `scripts/create-master-user.mjs` and `.env.example` suggesting otherwise.** That script upserts `profiles.is_master` and `profiles.team_name` — neither column exists on the live `profiles` table (confirmed via Supabase MCP `list_tables`), and there's no `is_master_user()` function or master-bypass RLS policy live either. Running the script today would fail. This was presumably real before the undocumented `clean_redesign_v2` migration and never restored. If master-user access is wanted again, it needs a new migration (add the column/function/policies) — don't just re-run the existing script.
+- There is no "master user" / admin-bypass mechanism. One existed before an undocumented `clean_redesign_v2` migration (see the drift warning under Supabase above) but was never restored, and the seed script that claimed to set it up (`scripts/create-master-user.mjs`) was deleted 2026-07-07 rather than fixed — it upserted `profiles.is_master`/`profiles.team_name`, neither of which exist on the live schema. If admin/master access is wanted, it's a fresh feature (new migration for the column/function/policies), not a restore.
 
 ---
 

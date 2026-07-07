@@ -96,9 +96,6 @@
   now that the organisations layer (which had genuinely policy-less tables) is gone —
   circumstantial evidence suggests it isn't for `playbooks`/`playbook_members`
   specifically, since they have proper owner-scoped RLS policies
-- `scripts/create-master-user.mjs` is broken against the live schema (writes
-  `is_master`/`team_name` columns that don't exist) — either restore the master-user
-  DB objects via a migration or delete the script and its `.env.example` entries
 
 ---
 

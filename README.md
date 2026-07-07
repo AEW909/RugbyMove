@@ -40,20 +40,6 @@ supabase db push
 
 Or apply `supabase/migrations/*.sql` manually via the Supabase dashboard (SQL editor). All tables live in the **rugby** schema.
 
-## Master User
-
-**Currently broken** — the script below writes `profiles.is_master`/`profiles.team_name`,
-neither of which exist on the live schema anymore (see CLAUDE.md's Auth section). Fix the
-script or the schema before relying on this.
-
-```bash
-set SUPABASE_MASTER_EMAIL=awilkinson@lrgs.org.uk
-set SUPABASE_MASTER_PASSWORD=your-password
-npm run seed:master-user
-```
-
-The password belongs in your shell or secret manager only. Do not commit it.
-
 ## Key Routes
 
 | Route | Description |
