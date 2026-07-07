@@ -42,6 +42,10 @@ Or apply `supabase/migrations/*.sql` manually via the Supabase dashboard (SQL ed
 
 ## Master User
 
+**Currently broken** — the script below writes `profiles.is_master`/`profiles.team_name`,
+neither of which exist on the live schema anymore (see CLAUDE.md's Auth section). Fix the
+script or the schema before relying on this.
+
 ```bash
 set SUPABASE_MASTER_EMAIL=awilkinson@lrgs.org.uk
 set SUPABASE_MASTER_PASSWORD=your-password
@@ -58,7 +62,7 @@ The password belongs in your shell or secret manager only. Do not commit it.
 | `/playbook/[id]` | Tactical editor |
 | `/playbook/new` | Blank board |
 | `/playbooks` | Playbook library |
-| `/org/[id]` | Organisation management |
+| `/join` | Join a playbook by code |
 | `/login` | Auth entry point |
 
 For architecture details and agent handover notes see [CLAUDE.md](./CLAUDE.md).

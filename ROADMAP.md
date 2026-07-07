@@ -1,7 +1,10 @@
 # RugbyMove — Roadmap
 
-> Last reviewed: 2026-06-09. The app is a feature-complete v1 coaching tool.
-> Remaining work is mostly polish, mobile, testing, and export quality.
+> Last reviewed: 2026-07-07, after a recovery audit found (and fixed) a save/load
+> corruption bug and a fair amount of doc/code drift — see CLAUDE.md's Supabase
+> section for what "drift" meant in practice. The app is a single-owner v1
+> coaching tool; the multi-user/organisations layer was removed as unused.
+> Remaining work is mostly UX polish, mobile, testing, and export quality.
 
 ## Done
 
@@ -12,12 +15,11 @@
 - Zoom and pan (scroll/pinch; drag when zoomed) — div-size zoom, no CSS transform; landscape + portrait both correct
 - Pitch portrait/landscape toggle — coordinates transform across all frames
 - **Undo / redo** — Ctrl+Z / Ctrl+Y for board mutations (frames, moves, zones, lines)
-- Formation rework — abstract slot model (no player IDs); jersey picker on load; select-to-save flow; built-in Scrum + Lineout; user formations in Supabase
+- Formation rework — abstract slot model (no player IDs); jersey picker on load; save auto-detects players moved off the tray (no manual selection step); built-in Scrum + Lineout; user formations in Supabase
 - Formation rotation — slots transform correctly when loaded in portrait
 - Draw lines tool with colour picker and dashed toggle
 - Snap-to-grid toggle; pointer / group-select / draw tools with P/G/D/Escape shortcuts
 - Zone overlays — add, drag, resize, rename (double-click), delete
-- Add players dialog — choose which tokens appear on the pitch
 - Pitch aspect ratio fixed at 12:7 (landscape) / 7:12 (portrait)
 - GIF export (client-side, via `gifenc`)
 - S/M/L token size toggle; player/ball fixed size regardless of zoom
@@ -26,16 +28,10 @@
 - Editor refactored into focused modules (`TacticalBoardToolbar`, `PitchCanvas`, `PanelSlideOver`, `FrameTimeline`, hooks)
 
 ### Save & playbooks
-- Save move to Supabase — title, category, description, **visibility (public/private)**, playbook
+- Save move to Supabase — title, category, description, **visibility (private/team/public — see note under Backlog)**, playbook
 - Save as copy (variation); duplicate move from playbook list
 - Playbooks — create, list, add/remove moves, reorder, organise view, move picker
-- Playbook access control — invite by username, editor/viewer roles
-
-### Organisations
-- Organisations — create, member management (head_coach / coach / player)
-- Org settings — name, description
-- Per-playbook access management from org page — grant/revoke, role toggle
-- **Coach invite codes** + player join via invite code (joins playbook and parent org)
+- Playbook access control — invite by username (editor/viewer roles), or a per-playbook `join_code` shared via `/join`
 
 ### Player portal
 - `/portal/[id]` — read-only step-through viewer; prev/next + dot navigation
@@ -43,8 +39,7 @@
 
 ### Platform
 - Viewport-fit editor; auto view-only on mobile
-- RLS policies — non-recursive org_members, SECURITY DEFINER helpers
-- Master user / admin account
+- RLS policies — simple owner-scoped policies plus a `owns_playbook()` SECURITY DEFINER helper for playbook access checks
 - Auth flows — login, signup, recover, account settings, change password
 
 ---
@@ -52,11 +47,12 @@
 ## Up Next
 
 ### 1. Tests (in progress)
-- ✅ Vitest set up; 54 tests across `lib/board/{math,frames,propagation,persistence}.test.ts`
+- ✅ Vitest set up; 59 tests across `lib/board/{math,frames,propagation,persistence,schema}.test.ts`
 - ✅ Pure logic covered: interpolation, timing, clamp, pitch rotation, frame/duration
-  normalization, position propagation + barriers, frame-delete playhead, save-vs-copy id
-- ☐ RLS assumptions (owner vs editor vs viewer vs org member) — needs a Supabase
-  integration harness (test DB or mocked client); larger lift than the pure-logic tests
+  normalization, position propagation + barriers, frame-delete playhead, save-vs-copy id,
+  animation_data schema validation (incl. legacy-field tolerance and round-trip integrity)
+- ☐ RLS assumptions (owner vs editor vs viewer) — needs a Supabase integration harness
+  (test DB or mocked client); larger lift than the pure-logic tests
 - ☐ Component/interaction tests (would need jsdom + Testing Library)
 
 ### 2. Mobile audit
@@ -77,24 +73,32 @@
 
 ### Playbooks & moves
 - Move tags / filtering; search across moves
-- Public/shared move gallery (opt-in) — surface the existing `is_public` flag
+- Public/shared move gallery (opt-in) — surfaces the existing `is_public` flag, **but
+  first needs an RLS policy allowing `is_public = true` rows to be read by other users**
+  (the live `plays`/`formations` policies are currently owner-only with no public-read
+  carve-out — see CLAUDE.md's Data Model section)
 - Account-page visibility indicator + standalone public/private toggle
   (intentionally deferred — visibility currently set only via the save panel)
 - Move comments / coaching notes per frame
-
-### Organisations
-- Org logo/avatar
-- Bulk-assign playbook access to all org members
-- Embed widget for playbooks (share to external sites)
 
 ### Export
 - Resolution / frame-rate options for GIF
 - Video / WebM export; optional server-side render pipeline
 
 ### Quality & reliability
-- Error boundaries and user-facing error messages
-- Loading skeletons on playbook/org pages
+- ✅ Save failures surface the real error; malformed `animation_data` on load shows an
+  explicit error screen instead of silently falling back to defaults (2026-07-07)
+- Error boundaries for general React render failures (the above covers save/load
+  specifically, not a catch-all)
+- Loading skeletons on playbook pages
 - Rate-limiting on server actions
+- Decide whether `playbooks.ts`'s admin-client-for-all-writes pattern is still needed
+  now that the organisations layer (which had genuinely policy-less tables) is gone —
+  circumstantial evidence suggests it isn't for `playbooks`/`playbook_members`
+  specifically, since they have proper owner-scoped RLS policies
+- `scripts/create-master-user.mjs` is broken against the live schema (writes
+  `is_master`/`team_name` columns that don't exist) — either restore the master-user
+  DB objects via a migration or delete the script and its `.env.example` entries
 
 ---
 
