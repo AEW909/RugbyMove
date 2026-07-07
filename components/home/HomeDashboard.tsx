@@ -3,28 +3,20 @@
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { BookOpen, FolderOpen, Plus, Users } from 'lucide-react'
+import { BookOpen, FolderOpen, Plus } from 'lucide-react'
 import type { FormationSlot } from '@/lib/board/storage'
 
 type CloudPlay = { id: string; title: string; category: string; updated_at: string }
 type CloudPlaybook = { id: string; name: string }
-type CloudOrg = { id: string; name: string; role: string }
 type CloudFormation = { id: string; name: string; category: string; slots: FormationSlot[]; createdAt: string }
-
-const orgRoleLabel: Record<string, string> = {
-  head_coach: 'Head Coach',
-  coach: 'Coach',
-  player: 'Player',
-}
 
 type Props = {
   cloudPlays: CloudPlay[]
   cloudPlaybooks: CloudPlaybook[]
-  cloudOrgs: CloudOrg[]
   cloudFormations: CloudFormation[]
 }
 
-export default function HomeDashboard({ cloudPlays, cloudPlaybooks, cloudOrgs, cloudFormations }: Props) {
+export default function HomeDashboard({ cloudPlays, cloudPlaybooks, cloudFormations }: Props) {
   const router = useRouter()
 
   const startFromFormation = (formation: CloudFormation) => {
@@ -60,7 +52,7 @@ export default function HomeDashboard({ cloudPlays, cloudPlaybooks, cloudOrgs, c
         </header>
 
         {/* Quick actions */}
-        <section className="grid gap-3 sm:grid-cols-3">
+        <section className="grid gap-3 sm:grid-cols-2">
           <Link
             href="/playbook/new"
             className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm transition hover:bg-white/[0.08]"
@@ -76,14 +68,6 @@ export default function HomeDashboard({ cloudPlays, cloudPlaybooks, cloudOrgs, c
             <BookOpen className="h-5 w-5 text-blue-400" />
             <h2 className="mt-3 font-semibold text-white">Playbooks</h2>
             <p className="mt-1 text-sm text-white/50">Organise moves into shareable collections.</p>
-          </Link>
-          <Link
-            href="/orgs"
-            className="rounded-2xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm transition hover:bg-white/[0.08]"
-          >
-            <Users className="h-5 w-5 text-purple-400" />
-            <h2 className="mt-3 font-semibold text-white">Organisations</h2>
-            <p className="mt-1 text-sm text-white/50">Manage squads and share playbooks.</p>
           </Link>
         </section>
 
@@ -163,45 +147,6 @@ export default function HomeDashboard({ cloudPlays, cloudPlaybooks, cloudOrgs, c
                     >
                       <BookOpen className="h-4 w-4 shrink-0 text-blue-400" />
                       <span className="truncate text-sm font-medium text-white">{pb.name}</span>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Organisations */}
-            <div>
-              <div className="mb-3 flex items-center justify-between gap-2">
-                <h2 className="text-lg font-semibold text-white">Organisations</h2>
-                <Link
-                  href="/orgs/new"
-                  className="text-xs font-semibold text-blue-400 hover:text-blue-300"
-                >
-                  + New
-                </Link>
-              </div>
-              {cloudOrgs.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-white/10 p-4 text-sm text-white/40">
-                  No organisations yet.{' '}
-                  <Link href="/orgs/new" className="font-semibold text-blue-400 hover:text-blue-300">
-                    Create one
-                  </Link>
-                </div>
-              ) : (
-                <div className="grid gap-2">
-                  {cloudOrgs.map((org) => (
-                    <Link
-                      key={org.id}
-                      href={`/org/${org.id}`}
-                      className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 backdrop-blur-sm transition hover:bg-white/[0.08]"
-                    >
-                      <Users className="h-4 w-4 shrink-0 text-purple-400" />
-                      <div className="min-w-0 flex-1">
-                        <span className="truncate text-sm font-medium text-white">{org.name}</span>
-                        <span className="ml-2 text-xs text-white/40">
-                          {orgRoleLabel[org.role] ?? org.role}
-                        </span>
-                      </div>
                     </Link>
                   ))}
                 </div>

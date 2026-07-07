@@ -17,13 +17,13 @@ export default async function PortalPage({ params }: PageProps) {
 
   const { data: playbook } = await supabase
     .from('playbooks')
-    .select('id, name, org_id, owner_id, organisations(name)')
+    .select('id, name, owner_id')
     .eq('id', params.id)
     .single()
 
   if (!playbook) notFound()
 
-  // Access check: owner, playbook member, or org member (if org-linked)
+  // Access check: owner or playbook member
   const isOwner = playbook.owner_id === user.id
   let hasAccess = isOwner
 
@@ -35,16 +35,6 @@ export default async function PortalPage({ params }: PageProps) {
       .eq('user_id', user.id)
       .single()
     if (pbMember) hasAccess = true
-  }
-
-  if (!hasAccess && playbook.org_id) {
-    const { data: orgMember } = await supabase
-      .from('org_members')
-      .select('role')
-      .eq('org_id', playbook.org_id)
-      .eq('user_id', user.id)
-      .single()
-    if (orgMember) hasAccess = true
   }
 
   if (!hasAccess) redirect('/?error=Access+denied')
@@ -75,12 +65,9 @@ export default async function PortalPage({ params }: PageProps) {
     })
     .filter((m): m is NonNullable<typeof m> => m !== null)
 
-  const orgName = (playbook.organisations as unknown as { name: string } | null)?.name ?? null
-
   return (
     <PlayerPortal
       playbookName={playbook.name}
-      orgName={orgName}
       moves={moves}
     />
   )

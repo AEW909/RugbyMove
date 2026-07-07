@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { randomBytes } from 'crypto'
 import { z } from 'zod'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
 
@@ -24,7 +25,6 @@ const roleSchema = z.enum(['editor', 'viewer'])
 export async function createPlaybook(formData: FormData): Promise<void> {
   let id: string | null = null
   let errorMessage: string | null = null
-  let orgId: string | null = null
 
   try {
     const name = z.string().trim().min(1).max(120).parse(formData.get('name'))
@@ -33,13 +33,11 @@ export async function createPlaybook(formData: FormData): Promise<void> {
         formData.get('description') || null,
       ) ?? null
     const visibility = visibilitySchema.parse(formData.get('visibility') ?? 'private')
-    const rawOrgId = formData.get('org_id')
-    orgId = rawOrgId ? z.string().uuid().parse(rawOrgId) : null
 
     const { admin, user } = await requireUser()
     const { data, error } = await admin
       .from('playbooks')
-      .insert({ name, description, visibility, owner_id: user.id, ...(orgId ? { org_id: orgId } : {}) })
+      .insert({ name, description, visibility, owner_id: user.id })
       .select('id')
       .single()
 
@@ -48,15 +46,13 @@ export async function createPlaybook(formData: FormData): Promise<void> {
     } else {
       id = data.id
       revalidatePath('/playbooks')
-      if (orgId) revalidatePath(`/org/${orgId}`)
     }
   } catch (e) {
     errorMessage = e instanceof Error ? e.message : 'Something went wrong.'
   }
 
   if (errorMessage) {
-    const base = orgId ? `/playbooks/new?org_id=${orgId}` : '/playbooks/new'
-    redirect(`${base}${orgId ? '&' : '?'}error=${encodeURIComponent(errorMessage)}`)
+    redirect(`/playbooks/new?error=${encodeURIComponent(errorMessage)}`)
   }
   redirect(`/playbooks/${id}`)
 }
@@ -263,7 +259,7 @@ export async function addPlaybookMemberById(formData: FormData): Promise<void> {
   // Caller must own the playbook or be an editor
   const { data: playbook } = await admin
     .from('playbooks')
-    .select('owner_id, org_id')
+    .select('owner_id')
     .eq('id', playbookId)
     .single()
 
@@ -277,19 +273,7 @@ export async function addPlaybookMemberById(formData: FormData): Promise<void> {
     .eq('user_id', user.id)
     .single()
 
-  // Also allow org head_coach to manage
-  let isOrgHeadCoach = false
-  if (playbook.org_id) {
-    const { data: orgMembership } = await admin
-      .from('org_members')
-      .select('role')
-      .eq('org_id', playbook.org_id)
-      .eq('user_id', user.id)
-      .single()
-    isOrgHeadCoach = orgMembership?.role === 'head_coach'
-  }
-
-  if (!isOwner && callerMembership?.role !== 'editor' && !isOrgHeadCoach) {
+  if (!isOwner && callerMembership?.role !== 'editor') {
     const dest = returnPath ?? `/playbooks/${playbookId}`
     redirect(`${dest}?error=Not+authorized`)
   }
@@ -301,7 +285,6 @@ export async function addPlaybookMemberById(formData: FormData): Promise<void> {
   const dest = returnPath ?? `/playbooks/${playbookId}`
   if (error) redirect(`${dest}?error=${encodeURIComponent(error.message)}`)
   revalidatePath(dest)
-  if (playbook.org_id) revalidatePath(`/org/${playbook.org_id}`)
   redirect(`${dest}?message=Access+granted`)
 }
 
@@ -314,25 +297,15 @@ export async function updatePlaybookMemberRole(formData: FormData): Promise<void
 
   const { data: playbook } = await admin
     .from('playbooks')
-    .select('owner_id, org_id')
+    .select('owner_id')
     .eq('id', playbookId)
     .single()
 
   if (!playbook) redirect(returnPath ?? `/playbooks/${playbookId}`)
 
   const isOwner = playbook.owner_id === user.id
-  let isOrgHeadCoach = false
-  if (playbook.org_id) {
-    const { data: orgMembership } = await admin
-      .from('org_members')
-      .select('role')
-      .eq('org_id', playbook.org_id)
-      .eq('user_id', user.id)
-      .single()
-    isOrgHeadCoach = orgMembership?.role === 'head_coach'
-  }
 
-  if (!isOwner && !isOrgHeadCoach) {
+  if (!isOwner) {
     redirect(`${returnPath ?? `/playbooks/${playbookId}`}?error=Not+authorized`)
   }
 
@@ -345,6 +318,72 @@ export async function updatePlaybookMemberRole(formData: FormData): Promise<void
   const dest = returnPath ?? `/playbooks/${playbookId}`
   if (error) redirect(`${dest}?error=${encodeURIComponent(error.message)}`)
   revalidatePath(dest)
-  if (playbook.org_id) revalidatePath(`/org/${playbook.org_id}`)
   redirect(`${dest}?message=Role+updated`)
+}
+
+export async function setPlaybookJoinCode(formData: FormData): Promise<void> {
+  const playbookId = z.string().uuid().parse(formData.get('playbook_id'))
+  const { admin, user } = await requireUser()
+
+  const { data: playbook } = await admin
+    .from('playbooks')
+    .select('owner_id')
+    .eq('id', playbookId)
+    .single()
+
+  if (!playbook || playbook.owner_id !== user.id) {
+    redirect(`/playbooks/${playbookId}?error=Not+authorized`)
+  }
+
+  const code = randomBytes(4).toString('hex').toUpperCase()
+
+  const { error } = await admin
+    .from('playbooks')
+    .update({ join_code: code })
+    .eq('id', playbookId)
+
+  if (error) redirect(`/playbooks/${playbookId}?error=${encodeURIComponent(error.message)}`)
+  revalidatePath(`/playbooks/${playbookId}`)
+  redirect(`/playbooks/${playbookId}?message=Join+code+generated`)
+}
+
+export async function joinPlaybookByCode(formData: FormData): Promise<void> {
+  let errorMessage: string | null = null
+  let playbookId: string | null = null
+
+  try {
+    const code = z.string().trim().min(1).parse(formData.get('code'))
+    const { admin, user } = await requireUser()
+
+    const { data: playbook, error } = await admin
+      .from('playbooks')
+      .select('id')
+      .eq('join_code', code)
+      .single()
+
+    if (error || !playbook) {
+      errorMessage = 'No playbook found with that code.'
+    } else {
+      const { error: memberError } = await admin
+        .from('playbook_members')
+        .upsert(
+          { playbook_id: playbook.id, user_id: user.id, role: 'viewer' },
+          { onConflict: 'playbook_id,user_id' },
+        )
+
+      if (memberError) {
+        errorMessage = memberError.message
+      } else {
+        playbookId = playbook.id
+        revalidatePath(`/playbooks/${playbook.id}`)
+      }
+    }
+  } catch (e) {
+    errorMessage = e instanceof Error ? e.message : 'Something went wrong.'
+  }
+
+  if (errorMessage) {
+    redirect(`/join?error=${encodeURIComponent(errorMessage)}`)
+  }
+  redirect(`/playbooks/${playbookId}?message=Joined+successfully`)
 }

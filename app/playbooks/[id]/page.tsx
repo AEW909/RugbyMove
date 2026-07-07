@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound, redirect } from 'next/navigation'
-import { BookOpen, Globe, Lock, Trash2, Users } from 'lucide-react'
+import { BookOpen, Globe, Key, Lock, Trash2, Users } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import AppHeader from '@/components/AppHeader'
 import {
@@ -17,6 +17,7 @@ import {
 import {
   addMember,
   removeMember,
+  setPlaybookJoinCode,
   updatePlaybook,
 } from '@/app/actions/playbooks'
 import DeletePlaybookButton from '@/components/playbooks/DeletePlaybookButton'
@@ -58,19 +59,13 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
 
   const { data: playbook } = await supabase
     .from('playbooks')
-    .select('*, organisations(id, name)')
+    .select('*')
     .eq('id', params.id)
     .single()
 
   if (!playbook) notFound()
 
   const isOwner = playbook.owner_id === user.id
-  const orgLink = playbook.org_id
-    ? {
-        id: playbook.org_id,
-        name: (playbook.organisations as unknown as { id: string; name: string } | null)?.name ?? 'Organisation',
-      }
-    : null
 
   const { data: members } = await supabase
     .from('playbook_members')
@@ -104,7 +99,7 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
 
       <div className="relative z-10 mx-auto max-w-4xl">
-        <AppHeader backHref={orgLink ? `/org/${orgLink.id}` : '/playbooks'} backLabel={orgLink ? orgLink.name : 'Playbooks'} />
+        <AppHeader backHref="/playbooks" backLabel="Playbooks" />
 
         <div className="mt-4 flex items-start justify-between gap-4">
           <div className="flex items-start gap-3">
@@ -226,6 +221,46 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
                     Add member
                   </SubmitButton>
                 </form>
+              )}
+
+              {isOwner && (
+                <div className="mt-5 space-y-2 border-t border-white/10 pt-4">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-white/30">
+                    Join code
+                  </p>
+                  <p className="text-xs text-white/40">
+                    Anyone with this code can join as a viewer from{' '}
+                    <Link href="/join" className="font-semibold text-blue-400 hover:text-blue-300">
+                      /join
+                    </Link>
+                    .
+                  </p>
+                  {playbook.join_code ? (
+                    <div className="flex items-center gap-2">
+                      <Key className="h-3.5 w-3.5 shrink-0 text-white/30" />
+                      <code className="rounded-lg border border-white/10 bg-black/30 px-2 py-1 text-xs font-mono font-bold tracking-widest text-white/70">
+                        {playbook.join_code}
+                      </code>
+                      <form action={setPlaybookJoinCode}>
+                        <input type="hidden" name="playbook_id" value={params.id} />
+                        <button type="submit" className="text-xs text-white/40 transition hover:text-white/70">
+                          Regenerate
+                        </button>
+                      </form>
+                    </div>
+                  ) : (
+                    <form action={setPlaybookJoinCode}>
+                      <input type="hidden" name="playbook_id" value={params.id} />
+                      <button
+                        type="submit"
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-400 transition hover:text-blue-300"
+                      >
+                        <Key className="h-3.5 w-3.5" />
+                        Generate join code
+                      </button>
+                    </form>
+                  )}
+                </div>
               )}
             </Collapsible>
 

@@ -5,7 +5,7 @@ import { createPlaybook } from '@/app/actions/playbooks'
 import AppHeader from '@/components/AppHeader'
 
 type PageProps = {
-  searchParams: { error?: string; org_id?: string }
+  searchParams: { error?: string }
 }
 
 export default async function NewPlaybookPage({ searchParams }: PageProps) {
@@ -16,28 +16,13 @@ export default async function NewPlaybookPage({ searchParams }: PageProps) {
 
   if (!user) redirect('/login')
 
-  const orgId = searchParams.org_id ?? null
-
-  let orgName: string | null = null
-  if (orgId) {
-    const { data: org } = await supabase
-      .from('organisations')
-      .select('name')
-      .eq('id', orgId)
-      .single()
-    orgName = org?.name ?? null
-  }
-
   return (
     <main className="relative min-h-screen overflow-hidden bg-black px-4 py-8 text-white sm:px-8">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
 
       <div className="relative z-10 mx-auto max-w-lg">
-        <AppHeader backHref={orgId ? `/org/${orgId}` : '/playbooks'} backLabel={orgName ?? 'Playbooks'} />
+        <AppHeader backHref="/playbooks" backLabel="Playbooks" />
         <h1 className="mt-4 text-2xl font-black tracking-tight text-white">New playbook</h1>
-        {orgName && (
-          <p className="mt-1 text-sm text-white/60">Creating for <span className="font-semibold text-white/80">{orgName}</span></p>
-        )}
 
         {searchParams.error && (
           <p className="mt-4 rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm font-medium text-red-300">
@@ -46,7 +31,6 @@ export default async function NewPlaybookPage({ searchParams }: PageProps) {
         )}
 
         <form action={createPlaybook} className="mt-6 space-y-5">
-          {orgId && <input type="hidden" name="org_id" value={orgId} />}
           <div>
             <label htmlFor="name" className="block text-sm font-semibold text-white/60">
               Name

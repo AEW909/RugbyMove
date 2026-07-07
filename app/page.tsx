@@ -1,8 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
-import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { createClient } from '@/lib/supabase/server'
 import HomeDashboard from '@/components/home/HomeDashboard'
-import type { OrgRole } from '@/types/play'
 import type { FormationSlot } from '@/lib/board/storage'
 
 export default async function HomePage() {
@@ -12,7 +11,7 @@ export default async function HomePage() {
   } = await supabase.auth.getUser()
 
   if (user) {
-    const [{ data: rawPlays }, { data: rawPlaybooks }, { data: rawOrgs }, { data: rawFormations }] = await Promise.all([
+    const [{ data: rawPlays }, { data: rawPlaybooks }, { data: rawFormations }] = await Promise.all([
       supabase
         .from('plays')
         .select('id, title, category, updated_at')
@@ -26,12 +25,6 @@ export default async function HomePage() {
         .order('name')
         .limit(20),
       supabase
-        .from('org_members')
-        .select('role, organisations(id, name)')
-        .eq('user_id', user.id)
-        .order('joined_at')
-        .limit(10),
-      supabase
         .from('formations')
         .select('id,name,category,slots,created_at')
         .eq('user_id', user.id)
@@ -42,10 +35,6 @@ export default async function HomePage() {
       id: string; title: string; category: string; updated_at: string
     }>
     const cloudPlaybooks = (rawPlaybooks ?? []) as Array<{ id: string; name: string }>
-    const cloudOrgs = (rawOrgs ?? []).map((m) => {
-      const org = m.organisations as unknown as { id: string; name: string } | null
-      return org ? { id: org.id, name: org.name, role: m.role } : null
-    }).filter((o): o is { id: string; name: string; role: string } => o !== null)
     const cloudFormations = (rawFormations ?? []).map((f) => ({
       id: f.id,
       name: f.name,
@@ -53,7 +42,7 @@ export default async function HomePage() {
       slots: f.slots as unknown as FormationSlot[],
       createdAt: f.created_at,
     }))
-    return <HomeDashboard cloudPlays={cloudPlays} cloudPlaybooks={cloudPlaybooks} cloudOrgs={cloudOrgs} cloudFormations={cloudFormations} />
+    return <HomeDashboard cloudPlays={cloudPlays} cloudPlaybooks={cloudPlaybooks} cloudFormations={cloudFormations} />
   }
 
   return (

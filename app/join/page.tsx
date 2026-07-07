@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { joinViaCode } from '@/app/actions/orgs'
+import { joinPlaybookByCode } from '@/app/actions/playbooks'
 import AppHeader from '@/components/AppHeader'
 
 type PageProps = {
@@ -32,7 +32,7 @@ export default async function JoinPage({ searchParams }: PageProps) {
           </p>
         )}
 
-        <form action={joinViaCode} className="mt-6 space-y-4">
+        <form action={joinPlaybookByCode} className="mt-6 space-y-4">
           <div>
             <label htmlFor="code" className="block text-sm font-semibold text-white/60">
               Join code

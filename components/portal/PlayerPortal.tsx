@@ -15,7 +15,6 @@ type Move = {
 
 type Props = {
   playbookName: string
-  orgName: string | null
   moves: Move[]
 }
 
@@ -28,7 +27,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   Other: 'border-white/15 bg-white/5 text-white/60',
 }
 
-export default function PlayerPortal({ playbookName, orgName, moves }: Props) {
+export default function PlayerPortal({ playbookName, moves }: Props) {
   const [index, setIndex] = useState(0)
   const move = moves[index]
 
@@ -37,7 +36,7 @@ export default function PlayerPortal({ playbookName, orgName, moves }: Props) {
       {/* Header */}
       <header className="flex items-center justify-between gap-4 border-b border-white/10 px-4 py-3 sm:px-6">
         <div className="min-w-0">
-          <p className="truncate text-xs text-white/40">{orgName ?? 'Playbook'}</p>
+          <p className="truncate text-xs text-white/40">Playbook</p>
           <p className="truncate text-sm font-bold text-white">{playbookName}</p>
         </div>
         <span className="shrink-0 text-sm font-semibold text-white/50">
