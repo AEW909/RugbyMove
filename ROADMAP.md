@@ -24,8 +24,14 @@
 - GIF export (client-side, via `gifenc`)
 - S/M/L token size toggle; player/ball fixed size regardless of zoom
 - Player position propagation; arrow-key frame scrubbing
-- Present / Exit toggle — clean view-only presentation mode (always reachable)
+- Present / Exit toggle — clean view-only presentation mode, **actually always reachable
+  as of 2026-07-08** (the Exit button was previously gated on a condition that hid it the
+  moment Present mode was entered — no way back except reloading the page; fixed alongside
+  the toolbar restructure below)
 - Editor refactored into focused modules (`TacticalBoardToolbar`, `PitchCanvas`, `PanelSlideOver`, `FrameTimeline`, hooks)
+- **Toolbar restructured** (2026-07-08) — buttons grouped into labeled clusters (Edit,
+  Tools, View) instead of one flat row of individually-bordered buttons; fits on one row
+  at common desktop widths where the old layout wrapped to two
 
 ### Save & playbooks
 - Save move to Supabase — title, category, description, playbook

@@ -52,7 +52,7 @@ There is no organisations/squads concept — `/orgs`, `/orgs/new`, and `/org/[id
 
 Main components (the board was split into focused modules — do not re-merge):
 - **`components/TacticalBoard.tsx`** — thin top-level wrapper; composes the toolbar, canvas, panel, and modals (~125 lines)
-- **`components/board/TacticalBoardToolbar.tsx`** — all toolbar buttons (play, frame, tools, zones, undo/redo, Present/Exit, etc.)
+- **`components/board/TacticalBoardToolbar.tsx`** — toolbar buttons, grouped into labeled clusters (`ToolGroup` helper: Edit, Tools, View) rather than one flat row; Play and Save stay ungrouped/prominent. Restructured 2026-07-08 — see Tactical Board section below.
 - **`components/board/PitchCanvas.tsx`** — the pitch SVG + token/zone/line rendering
 - **`components/board/PanelSlideOver.tsx`** — right-side slide panel (save, formations, playbooks)
 - **`components/board/SaveFormationModal.tsx`** / **`FormationLoadDialog.tsx`** — board modals
@@ -97,6 +97,10 @@ There is no `AddPlayersDialog` — it was deleted 2026-07-07 along with the `act
 - Playback interpolates player positions between frames using `requestAnimationFrame`.
 - Draw tool adds `Line[]` per-frame (not interpolated).
 - Pitch can be rotated portrait/landscape — all coordinates are transformed on toggle.
+
+### Toolbar (restructured 2026-07-08)
+- `TacticalBoardToolbar.tsx` groups buttons into labeled clusters via a `ToolGroup` helper (bordered container + tiny uppercase label) instead of one flat row of individually-bordered buttons: **Edit** (frame/reset/undo/redo/snap), **Tools** (zone, pointer/select/draw + draw's own color/dashed/clear sub-controls), **View** (rotate pitch, token size). Play and Save stay ungrouped and prominent as the primary actions. This fits on one row at common desktop widths where the old flat layout wrapped to two.
+- **Present/Exit bug fixed**: the Exit button was gated on `!viewOnly`, but entering Present mode sets `viewOnly = true` (via `desktopViewOnly` in `TacticalBoard.tsx`), so the button meant to exit that mode hid itself — there was no way back except reloading the page. Fixed by gating on `!viewOnly || desktopViewOnly` instead, so the button stays reachable specifically when the *current user* toggled Present (as opposed to a genuine external viewer or mobile's auto-view-only, where it should stay hidden).
 
 ### Save flow
 - Manual save only (no autosave).

@@ -38,6 +38,23 @@ type Props = {
   onTokenSizeChange: (size: 'sm' | 'md' | 'lg') => void
 }
 
+/** A labeled, visually-bounded cluster of related toolbar buttons. */
+function ToolGroup({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-white/[0.03] py-1 pl-2 pr-1">
+      <span className="pr-1 text-[9px] font-bold uppercase tracking-wider text-white/25 select-none">
+        {label}
+      </span>
+      {children}
+    </div>
+  )
+}
+
+const groupButton =
+  'inline-flex items-center justify-center rounded-lg p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white disabled:opacity-30 disabled:hover:bg-transparent'
+const groupButtonActive = (active: boolean, colors: string) =>
+  cn(groupButton, active ? colors : undefined)
+
 export default function TacticalBoardToolbar({
   board,
   viewOnly,
@@ -57,6 +74,7 @@ export default function TacticalBoardToolbar({
         </>
       )}
 
+      {/* Primary actions — always prominent, never tucked into a group */}
       <button
         type="button"
         onClick={board.isPlaying ? board.stopPlayback : board.playFrames}
@@ -86,192 +104,148 @@ export default function TacticalBoardToolbar({
         </span>
       ) : (
         <>
-          <button
-            type="button"
-            onClick={board.captureFrame}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-          >
-            <Plus className="h-4 w-4" />
-            Frame
-          </button>
-          <button
-            type="button"
-            onClick={board.resetBoard}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-          >
-            <RotateCcw className="h-4 w-4" />
-            Reset
-          </button>
-          <button
-            type="button"
-            title="Undo (Ctrl+Z)"
-            onClick={board.undo}
-            disabled={!board.canUndo}
-            className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 p-2 text-white/80 transition hover:bg-white/10 disabled:opacity-30"
-          >
-            <Undo2 className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            title="Redo (Ctrl+Y)"
-            onClick={board.redo}
-            disabled={!board.canRedo}
-            className="inline-flex items-center justify-center rounded-xl border border-white/15 bg-white/5 p-2 text-white/80 transition hover:bg-white/10 disabled:opacity-30"
-          >
-            <Redo2 className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => board.setSnapGrid((prev) => !prev)}
-            className={cn(
-              'inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition',
-              board.snapGrid
-                ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
-                : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
-            )}
-          >
-            <Grid3x3 className="h-4 w-4" />
-            Snap
-          </button>
+          {/* Edit — frame/history management */}
+          <ToolGroup label="Edit">
+            <button type="button" title="Add frame" onClick={board.captureFrame} className={groupButton}>
+              <Plus className="h-4 w-4" />
+            </button>
+            <button type="button" title="Reset board" onClick={board.resetBoard} className={groupButton}>
+              <RotateCcw className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              title="Undo (Ctrl+Z)"
+              onClick={board.undo}
+              disabled={!board.canUndo}
+              className={groupButton}
+            >
+              <Undo2 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              title="Redo (Ctrl+Y)"
+              onClick={board.redo}
+              disabled={!board.canRedo}
+              className={groupButton}
+            >
+              <Redo2 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              title="Snap to grid"
+              onClick={() => board.setSnapGrid((prev) => !prev)}
+              className={groupButtonActive(board.snapGrid, 'bg-blue-500/20 text-blue-300')}
+            >
+              <Grid3x3 className="h-4 w-4" />
+            </button>
+          </ToolGroup>
 
-          <div className="h-5 w-px bg-white/10" />
+          {/* Tools — zone + pointer/select/draw, with draw's own sub-controls */}
+          <ToolGroup label="Tools">
+            <button type="button" title="Add zone" onClick={() => board.addZone(50, 50)} className={groupButton}>
+              <Circle className="h-4 w-4" />
+            </button>
+            <div className="mx-0.5 h-4 w-px bg-white/10" />
+            <button
+              type="button"
+              title="Pointer (P)"
+              onClick={() => { board.setTool('pointer'); board.setSelectedPlayerIds(new Set()) }}
+              className={groupButtonActive(board.tool === 'pointer', 'bg-blue-500/20 text-blue-300')}
+            >
+              <MousePointer2 className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              title="Group Select (G)"
+              onClick={() => board.setTool('select')}
+              className={groupButtonActive(board.tool === 'select', 'bg-purple-500/20 text-purple-300')}
+            >
+              <BoxSelect className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              title="Draw lines (D)"
+              onClick={() => board.setTool('draw')}
+              className={groupButtonActive(board.tool === 'draw', 'bg-emerald-500/20 text-emerald-300')}
+            >
+              <Pencil className="h-4 w-4" />
+            </button>
 
-          <button
-            type="button"
-            onClick={() => board.addZone(50, 50)}
-            className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10"
-          >
-            <Circle className="h-4 w-4" />
-            Zone
-          </button>
-
-          <div className="h-5 w-px bg-white/10" />
-
-          <button
-            type="button"
-            title="Pointer (P)"
-            onClick={() => { board.setTool('pointer'); board.setSelectedPlayerIds(new Set()) }}
-            className={cn(
-              'inline-flex items-center justify-center rounded-xl border p-2 transition',
-              board.tool === 'pointer'
-                ? 'border-blue-500/50 bg-blue-500/20 text-blue-300'
-                : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
-            )}
-          >
-            <MousePointer2 className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            title="Group Select (G)"
-            onClick={() => board.setTool('select')}
-            className={cn(
-              'inline-flex items-center justify-center rounded-xl border p-2 transition',
-              board.tool === 'select'
-                ? 'border-purple-500/50 bg-purple-500/20 text-purple-300'
-                : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
-            )}
-          >
-            <BoxSelect className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            title="Draw lines (D)"
-            onClick={() => board.setTool('draw')}
-            className={cn(
-              'inline-flex items-center justify-center rounded-xl border p-2 transition',
-              board.tool === 'draw'
-                ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
-                : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
-            )}
-          >
-            <Pencil className="h-4 w-4" />
-          </button>
-
-          <div className="h-5 w-px bg-white/10" />
-
-          <button
-            type="button"
-            title="Rotate pitch"
-            onClick={board.togglePitchPortrait}
-            className={cn(
-              'inline-flex items-center justify-center rounded-xl border p-2 transition',
-              board.pitchPortrait
-                ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
-                : 'border-white/15 bg-white/5 text-white/80 hover:bg-white/10',
-            )}
-          >
-            <RotateCw className="h-4 w-4" />
-          </button>
-
-          <div className="h-5 w-px bg-white/10" />
-
-          {/* Player size toggle */}
-          <div className="flex items-center rounded-xl border border-white/15 bg-white/5 overflow-hidden">
-            {(['sm', 'md', 'lg'] as const).map((s) => (
-              <button
-                key={s}
-                type="button"
-                onClick={() => onTokenSizeChange(s)}
-                className={cn(
-                  'px-2.5 py-1.5 text-xs font-semibold transition',
-                  tokenSize === s
-                    ? 'bg-white/15 text-white'
-                    : 'text-white/40 hover:text-white/70',
-                )}
-              >
-                {s.toUpperCase()}
-              </button>
-            ))}
-          </div>
-
-          {board.tool === 'draw' && !desktopViewOnly && (
-            <>
-              <div className="h-5 w-px bg-white/10" />
-              {LINE_COLORS.map((c) => (
-                <button
-                  key={c.value}
-                  type="button"
-                  title={c.label}
-                  onClick={() => board.setLineColor(c.value)}
-                  className={cn(
-                    'h-6 w-6 rounded-full border-2 transition hover:scale-110',
-                    board.lineColor === c.value ? 'scale-110 border-white' : 'border-white/20',
-                  )}
-                  style={{ backgroundColor: c.value }}
-                />
-              ))}
-              <button
-                type="button"
-                title="Toggle dashed"
-                onClick={() => board.setLineDashed(!board.lineDashed)}
-                className={cn(
-                  'rounded-xl border px-2 py-1.5 text-xs font-semibold transition',
-                  board.lineDashed
-                    ? 'border-emerald-500/50 bg-emerald-500/20 text-emerald-300'
-                    : 'border-white/15 bg-white/5 text-white/60 hover:bg-white/10',
-                )}
-              >
-                - - -
-              </button>
-              {board.activeFrame.lines.length > 0 && (
+            {board.tool === 'draw' && !desktopViewOnly && (
+              <>
+                <div className="mx-0.5 h-4 w-px bg-white/10" />
+                {LINE_COLORS.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    title={c.label}
+                    onClick={() => board.setLineColor(c.value)}
+                    className={cn(
+                      'h-5 w-5 shrink-0 rounded-full border-2 transition hover:scale-110',
+                      board.lineColor === c.value ? 'scale-110 border-white' : 'border-white/20',
+                    )}
+                    style={{ backgroundColor: c.value }}
+                  />
+                ))}
                 <button
                   type="button"
-                  onClick={() => {
-                    const ids = board.activeFrame.lines.map((l) => l.id)
-                    ids.forEach((id) => board.deleteLine(id))
-                  }}
-                  className="inline-flex items-center gap-1 rounded-xl border border-red-500/20 bg-red-500/10 px-2 py-1.5 text-xs font-semibold text-red-400 transition hover:bg-red-500/20"
+                  title="Toggle dashed"
+                  onClick={() => board.setLineDashed(!board.lineDashed)}
+                  className={groupButtonActive(board.lineDashed, 'bg-emerald-500/20 text-emerald-300')}
                 >
-                  <X className="h-3 w-3" />
-                  Clear
+                  <span className="text-xs font-bold">- -</span>
                 </button>
-              )}
-            </>
-          )}
+                {board.activeFrame.lines.length > 0 && (
+                  <button
+                    type="button"
+                    title="Clear all lines"
+                    onClick={() => {
+                      const ids = board.activeFrame.lines.map((l) => l.id)
+                      ids.forEach((id) => board.deleteLine(id))
+                    }}
+                    className={cn(groupButton, 'text-red-400 hover:bg-red-500/10')}
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </>
+            )}
+          </ToolGroup>
+
+          {/* View — pitch orientation + token size */}
+          <ToolGroup label="View">
+            <button
+              type="button"
+              title="Rotate pitch"
+              onClick={board.togglePitchPortrait}
+              className={groupButtonActive(board.pitchPortrait, 'bg-emerald-500/20 text-emerald-300')}
+            >
+              <RotateCw className="h-4 w-4" />
+            </button>
+            <div className="mx-0.5 h-4 w-px bg-white/10" />
+            <div className="flex items-center overflow-hidden rounded-lg">
+              {(['sm', 'md', 'lg'] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  title={`${s.toUpperCase()} tokens`}
+                  onClick={() => onTokenSizeChange(s)}
+                  className={cn(
+                    'px-2 py-1 text-xs font-semibold transition',
+                    tokenSize === s
+                      ? 'bg-white/15 text-white'
+                      : 'text-white/40 hover:text-white/70',
+                  )}
+                >
+                  {s.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </ToolGroup>
         </>
       )}
 
-      {!viewOnly && (
+      {(!viewOnly || desktopViewOnly) && (
         <button
           type="button"
           onClick={onToggleViewOnly}
