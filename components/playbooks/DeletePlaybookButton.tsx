@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Trash2 } from 'lucide-react'
 import { deletePlaybook } from '@/app/actions/playbooks'
 
@@ -34,7 +35,7 @@ export default function DeletePlaybookButton({
         Delete
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
           onClick={() => setOpen(false)}
@@ -84,7 +85,8 @@ export default function DeletePlaybookButton({
               </button>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   )
