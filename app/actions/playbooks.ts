@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { randomBytes } from 'crypto'
 import { z } from 'zod'
 import { createClient, createAdminClient } from '@/lib/supabase/server'
+import { canManagePlaybook } from '@/lib/playbooks/access'
 
 async function requireUser() {
   const supabase = await createClient()
@@ -21,6 +22,42 @@ async function requireUser() {
 
 const visibilitySchema = z.enum(['private', 'team'])
 const roleSchema = z.enum(['editor', 'viewer'])
+
+/**
+ * Owner-or-editor check for the admin client, which bypasses RLS — these
+ * actions have no other enforcement, so this is the only thing standing
+ * between "logged in" and "can modify this specific playbook".
+ */
+async function checkCanManagePlaybook(
+  admin: ReturnType<typeof createAdminClient>,
+  playbookId: string,
+  userId: string,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const { data: playbook } = await admin
+    .from('playbooks')
+    .select('owner_id')
+    .eq('id', playbookId)
+    .single()
+
+  if (!playbook) return { ok: false, message: 'Playbook not found.' }
+
+  const isOwner = playbook.owner_id === userId
+  let memberRole: string | null = null
+  if (!isOwner) {
+    const { data: membership } = await admin
+      .from('playbook_members')
+      .select('role')
+      .eq('playbook_id', playbookId)
+      .eq('user_id', userId)
+      .single()
+    memberRole = membership?.role ?? null
+  }
+
+  if (!canManagePlaybook({ isOwner, memberRole })) {
+    return { ok: false, message: 'Not authorized to manage this playbook.' }
+  }
+  return { ok: true }
+}
 
 export async function createPlaybook(formData: FormData): Promise<void> {
   let id: string | null = null
@@ -108,7 +145,10 @@ export async function addPlayToPlaybook(formData: FormData): Promise<void> {
     playbookId = z.string().uuid().parse(formData.get('playbook_id'))
     const playId = z.string().uuid().parse(formData.get('play_id'))
 
-    const { admin } = await requireUser()
+    const { admin, user } = await requireUser()
+    const check = await checkCanManagePlaybook(admin, playbookId, user.id)
+    if (!check.ok) throw new Error(check.message)
+
     const { error } = await admin
       .from('playbook_plays')
       .insert({ playbook_id: playbookId, play_id: playId })
@@ -129,7 +169,10 @@ export async function removePlayFromPlaybook(formData: FormData): Promise<void> 
   const playbookId = z.string().uuid().parse(formData.get('playbook_id'))
   const playId = z.string().uuid().parse(formData.get('play_id'))
 
-  const { admin } = await requireUser()
+  const { admin, user } = await requireUser()
+  const check = await checkCanManagePlaybook(admin, playbookId, user.id)
+  if (!check.ok) redirect(`/playbooks/${playbookId}?error=${encodeURIComponent(check.message)}`)
+
   const { error } = await admin
     .from('playbook_plays')
     .delete()
@@ -150,7 +193,9 @@ export async function addMember(formData: FormData): Promise<void> {
     const username = z.string().trim().min(1).max(80).parse(formData.get('username'))
     const role = roleSchema.parse(formData.get('role') ?? 'viewer')
 
-    const { admin, supabase } = await requireUser()
+    const { admin, supabase, user } = await requireUser()
+    const check = await checkCanManagePlaybook(admin, playbookId, user.id)
+    if (!check.ok) throw new Error(check.message)
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
@@ -185,7 +230,16 @@ export async function syncPlaybookPlay(
 ): Promise<void> {
   const pid = z.string().uuid().parse(playbookId)
   const ppid = z.string().uuid().parse(playId)
-  const { admin } = await requireUser()
+  const { admin, user } = await requireUser()
+
+  // Owner-only, matching reorderPlaybookPlays below and the /organise page
+  // this is called from (which already redirects non-owners away).
+  const { data: playbook } = await admin
+    .from('playbooks')
+    .select('owner_id')
+    .eq('id', pid)
+    .single()
+  if (!playbook || playbook.owner_id !== user.id) throw new Error('Not authorized')
 
   if (add) {
     await admin
@@ -273,7 +327,7 @@ export async function addPlaybookMemberById(formData: FormData): Promise<void> {
     .eq('user_id', user.id)
     .single()
 
-  if (!isOwner && callerMembership?.role !== 'editor') {
+  if (!canManagePlaybook({ isOwner, memberRole: callerMembership?.role })) {
     const dest = returnPath ?? `/playbooks/${playbookId}`
     redirect(`${dest}?error=Not+authorized`)
   }

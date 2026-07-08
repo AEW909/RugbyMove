@@ -56,14 +56,21 @@
 
 ## Up Next
 
-### 1. Tests (in progress)
-- ✅ Vitest set up; 59 tests across `lib/board/{math,frames,propagation,persistence,schema}.test.ts`
+### 1. Tests — done, within the project's pure-logic testing philosophy
+- ✅ Vitest set up; 70 tests across `lib/board/{math,frames,propagation,persistence,schema}.test.ts`
+  and `lib/playbooks/access.test.ts`
 - ✅ Pure logic covered: interpolation, timing, clamp, pitch rotation, frame/duration
   normalization, position propagation + barriers, frame-delete playhead, save-vs-copy id,
   animation_data schema validation (incl. legacy-field tolerance and round-trip integrity)
-- ☐ RLS assumptions (owner vs editor vs viewer) — needs a Supabase integration harness
-  (test DB or mocked client); larger lift than the pure-logic tests
-- ☐ Component/interaction tests (would need jsdom + Testing Library)
+- ✅ RLS assumptions (owner vs editor vs viewer) — reframed as pure-logic tests of the
+  authorization *decisions* (`lib/playbooks/access.ts`: `canManagePlaybook`,
+  `hasPlaybookAccess`, `isPlayViewOnly`) rather than a live Supabase integration harness —
+  no DB, no new tooling, matches how everything else here is tested. While extracting
+  these, found and fixed four server actions with no authorization check at all
+  (see Quality & reliability below) — 2026-07-08.
+- Component/interaction tests — **deliberately out of scope**, not a gap. Decided
+  2026-07-08 to keep the pure-logic-only testing approach rather than add jsdom +
+  Testing Library; this isn't a perpetually-unchecked box, it's a considered no.
 
 ### 2. Mobile audit
 - Verify viewport-fit layout on phones and tablets
@@ -106,6 +113,15 @@
 - Video / WebM export; optional server-side render pipeline
 
 ### Quality & reliability
+- ✅ Four server actions in `app/actions/playbooks.ts` had **no authorization check at
+  all** — `addMember`, `addPlayToPlaybook`, `removePlayFromPlaybook`, and
+  `syncPlaybookPlay` only checked "is logged in" before writing via the admin client
+  (which bypasses RLS). Any authenticated user who knew/guessed a playbook's UUID could
+  have added themselves as a member or manipulated any playbook's moves. UI already hid
+  these buttons for non-owners/editors, but nothing stopped a direct call. Fixed by
+  wiring in `canManagePlaybook`/an owner-only check (matching each function's existing
+  sibling/convention) — found while extracting RLS assumptions into pure-logic tests,
+  2026-07-08.
 - ✅ Save failures surface the real error; malformed `animation_data` on load shows an
   explicit error screen instead of silently falling back to defaults (2026-07-07)
 - ✅ `rugby.playbook_plays` was missing an UPDATE RLS policy, so any second save to a

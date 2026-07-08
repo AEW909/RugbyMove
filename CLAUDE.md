@@ -50,6 +50,10 @@ See **[ROADMAP.md](./ROADMAP.md)** for the current feature backlog and prioritie
 
 There is no organisations/squads concept — `/orgs`, `/orgs/new`, and `/org/[id]` were deleted (2026-07-07). Every row in those tables belonged to the app's single owner account; the feature was built but never used by a second person. Playbook sharing itself still works via `playbook_members` (invite by username, editor/viewer roles) and a per-playbook `join_code` (`/join`).
 
+**`lib/playbooks/access.ts`** (added 2026-07-08) holds the app's owner/editor/viewer authorization decisions as pure functions — `canManagePlaybook` (owner or editor), `hasPlaybookAccess` (owner or any member, used for portal access), `isPlayViewOnly` (a saved play is only editable by its owner). Tested in `lib/playbooks/access.test.ts`. Every place that used to compute these inline (`app/playbooks/[id]/page.tsx`, `app/portal/[id]/page.tsx`, `app/playbook/[id]/page.tsx`) now calls these instead. **If you add a new authorization decision anywhere in the playbook/portal flow, put it here as a pure function and test it — that's the established pattern now, not inline booleans scattered across pages.**
+
+While extracting these, found that `addMember`, `addPlayToPlaybook`, `removePlayFromPlaybook`, and `syncPlaybookPlay` in `app/actions/playbooks.ts` had **no authorization check at all** — they only verified the caller was logged in, then wrote via the admin client (which bypasses RLS). Fixed 2026-07-08 by wiring in `canManagePlaybook` (or an owner-only check for `syncPlaybookPlay`, matching its sibling `reorderPlaybookPlays`). If you add a new server action that writes to `playbooks`/`playbook_members`/`playbook_plays` via the admin client, it needs its own authorization check — nothing else is protecting it.
+
 Main components (the board was split into focused modules — do not re-merge):
 - **`components/TacticalBoard.tsx`** — thin top-level wrapper; composes the toolbar, canvas, panel, and modals (~125 lines)
 - **`components/board/TacticalBoardToolbar.tsx`** — toolbar buttons, grouped into labeled clusters (`ToolGroup` helper: Edit, Tools, View) rather than one flat row; Play and Save stay ungrouped/prominent. Restructured 2026-07-08 — see Tactical Board section below.
@@ -174,7 +178,7 @@ Do not leave these files lagging. An inaccurate handover doc is worse than no do
 ## Developer Notes
 
 - Run before committing: `npm run typecheck` and `npm test`
-- Tests use **Vitest** (`npm test` for a single run, `npm run test:watch` to watch). Specs live next to the code as `*.test.ts` — currently `lib/board/{math,frames,propagation,persistence,schema}.test.ts` (59 tests total). Prefer extracting board logic into pure functions in `lib/board/` (as done for interpolation, propagation, frame-delete, save-id resolution, and schema validation) rather than testing it through the React hook.
+- Tests use **Vitest** (`npm test` for a single run, `npm run test:watch` to watch). Specs live next to the code as `*.test.ts` — currently `lib/board/{math,frames,propagation,persistence,schema}.test.ts` and `lib/playbooks/access.test.ts` (70 tests total). Prefer extracting logic into pure functions (as done for board interpolation/propagation/frame-delete/save-id resolution/schema validation, and for playbook owner/editor/viewer authorization decisions) rather than testing through the React hook or a live Supabase harness. No jsdom/Testing Library — this is a deliberate project choice, not a gap to fill.
 - Do not commit `.env.local`, build outputs, `node_modules`, `.next`, or secrets
 - The Vercel build runs `tsc --noEmit` — always run typecheck before pushing
 - Common past build failures: `zones` field mismatch on `Frame` literals, Zod schema out of sync with types, `normalizeFrame` not handling new fields. Check all three if the build breaks.

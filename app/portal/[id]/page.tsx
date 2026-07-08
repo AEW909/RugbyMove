@@ -2,6 +2,7 @@ import { notFound, redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import PlayerPortal from '@/components/portal/PlayerPortal'
 import type { AnimationData } from '@/types/play'
+import { hasPlaybookAccess } from '@/lib/playbooks/access'
 
 type PageProps = {
   params: { id: string }
@@ -25,19 +26,19 @@ export default async function PortalPage({ params }: PageProps) {
 
   // Access check: owner or playbook member
   const isOwner = playbook.owner_id === user.id
-  let hasAccess = isOwner
+  let memberRole: string | null = null
 
-  if (!hasAccess) {
+  if (!isOwner) {
     const { data: pbMember } = await supabase
       .from('playbook_members')
       .select('role')
       .eq('playbook_id', params.id)
       .eq('user_id', user.id)
       .single()
-    if (pbMember) hasAccess = true
+    memberRole = pbMember?.role ?? null
   }
 
-  if (!hasAccess) redirect('/?error=Access+denied')
+  if (!hasPlaybookAccess({ isOwner, memberRole })) redirect('/?error=Access+denied')
 
   const { data: rows } = await supabase
     .from('playbook_plays')

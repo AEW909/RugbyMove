@@ -5,6 +5,7 @@ import { CalendarDays } from 'lucide-react'
 import TacticalBoard from '@/components/TacticalBoard'
 import { createClient } from '@/lib/supabase/server'
 import { animationDataSchema } from '@/lib/board/schema'
+import { isPlayViewOnly } from '@/lib/playbooks/access'
 import type { AnimationData, Play } from '@/types/play'
 
 type PageProps = {
@@ -185,8 +186,8 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
 
   const isGuest = !user
   const mode = play.id === 'new' ? 'fresh' : 'saved'
-  const isOwner = user && play.user_id === user.id
-  const viewOnly = mode === 'saved' && !isOwner
+  const isOwner = !!user && play.user_id === user.id
+  const viewOnly = isPlayViewOnly({ mode, isOwner })
 
   // Resolve back-link when navigating from a playbook
   const fromId = searchParams?.from

@@ -24,6 +24,7 @@ import DeletePlaybookButton from '@/components/playbooks/DeletePlaybookButton'
 import PlaybookMovesSection from '@/components/playbooks/PlaybookMovesSection'
 import type { PlayCategory } from '@/types/play'
 import { PLAY_CATEGORIES } from '@/types/play'
+import { canManagePlaybook } from '@/lib/playbooks/access'
 
 type PageProps = {
   params: { id: string }
@@ -73,7 +74,7 @@ export default async function PlaybookDetailPage({ params, searchParams }: PageP
     .order('joined_at')
 
   const currentMember = members?.find((m) => m.user_id === user.id)
-  const canManage = isOwner || currentMember?.role === 'editor'
+  const canManage = canManagePlaybook({ isOwner, memberRole: currentMember?.role })
 
   const { data: playbookPlaysRows } = await supabase
     .from('playbook_plays')
