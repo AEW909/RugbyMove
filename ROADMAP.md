@@ -82,7 +82,18 @@
 - Lock a token in place for a frame range
 
 ### Playbooks & moves
-- Move tags / filtering; search across moves
+- Move tags / filtering; search across moves — note: per-playbook category
+  filtering already exists (`?category=` on `/playbooks/[id]`,
+  `PlaybookMovesSection.tsx`), and the "add move" picker has a local text
+  search over that playbook's available plays. What's missing is any
+  cross-playbook/global search or a tagging system — confirmed via grep,
+  2026-07-08.
+- Home dashboard's Formations grid is a dead click — `HomeDashboard.tsx`
+  pushes `/playbook/new?formation_id=X` when a formation card is clicked, but
+  nothing reads `formation_id` anywhere (confirmed via grep, 2026-07-08).
+  Flagged during the Slice 1 audit but never made it into this file until now.
+  Either wire it up (load the formation into the fresh board) or remove the
+  click handler so the card isn't misleadingly clickable.
 - Public/shared move gallery (opt-in) — **`is_public` and `playbooks.visibility = 'public'`
   were both removed 2026-07-08** (cosmetic, never backed by an RLS policy, never built
   on). Building this properly means adding the flag/value back **together with** a
@@ -100,8 +111,12 @@
 - ✅ `rugby.playbook_plays` was missing an UPDATE RLS policy, so any second save to a
   playbook a play was already linked to failed with an RLS violation — fixed in
   migration 0013 (2026-07-08), found while building quick-save
-- Error boundaries for general React render failures (the above covers save/load
-  specifically, not a catch-all)
+- ✅ Error boundaries for general React render failures — **already existed**
+  (`app/error.tsx`, a root-level Next.js error boundary: catches unhandled render
+  errors app-wide, shows "Something went wrong" with Try again/Go home, logs to
+  console). This item was stale — confirmed present 2026-07-08, predates this
+  session. No route-level (nested) error boundaries beyond the root one, if
+  finer-grained recovery is ever wanted.
 - Loading skeletons on playbook pages
 - Rate-limiting on server actions
 - Decide whether `playbooks.ts`'s admin-client-for-all-writes pattern is still needed
