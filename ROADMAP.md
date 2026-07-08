@@ -111,6 +111,11 @@
 - ✅ `rugby.playbook_plays` was missing an UPDATE RLS policy, so any second save to a
   playbook a play was already linked to failed with an RLS violation — fixed in
   migration 0013 (2026-07-08), found while building quick-save
+- ✅ Delete-playbook confirmation modal was visually trapped inside the Settings
+  panel instead of covering the viewport — `Collapsible.tsx`'s `backdrop-blur-sm`
+  was creating a new CSS containing block for the modal's `position: fixed`.
+  Fixed by portaling the modal to `document.body` (`DeletePlaybookButton.tsx`).
+  Confirmed working live by the owner, 2026-07-08.
 - ✅ Error boundaries for general React render failures — **already existed**
   (`app/error.tsx`, a root-level Next.js error boundary: catches unhandled render
   errors app-wide, shows "Something went wrong" with Try again/Go home, logs to
