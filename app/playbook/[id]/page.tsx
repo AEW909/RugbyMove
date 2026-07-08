@@ -203,6 +203,22 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
   const backHref = fromPlaybook ? `/playbooks/${fromPlaybook.id}` : '/'
   const backLabel = fromPlaybook ? `← ${fromPlaybook.name}` : '← Home'
 
+  // Resolve the quick-save target (Ctrl+S / the toolbar Save button): prefer
+  // the playbook we navigated in from, otherwise fall back to the single
+  // playbook this play already belongs to, if unambiguous. Left undefined
+  // when neither is known — quick-save opens the Save panel instead rather
+  // than guessing where an unsaved-context move should land.
+  let defaultPlaybookId: string | undefined = fromPlaybook?.id
+  if (!defaultPlaybookId && play.id !== 'new' && play.id !== 'demo') {
+    const { data: links } = await supabase
+      .from('playbook_plays')
+      .select('playbook_id')
+      .eq('play_id', play.id)
+    if (links && links.length === 1) {
+      defaultPlaybookId = links[0].playbook_id
+    }
+  }
+
   return (
     <main className="relative flex h-dvh flex-col overflow-hidden bg-black text-white">
       {/* BG gradient overlay */}
@@ -236,6 +252,7 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
           playTitle={play.title}
           playDescription={play.description}
           playCategory={play.category}
+          defaultPlaybookId={defaultPlaybookId}
           viewOnly={viewOnly}
         />
 

@@ -5,6 +5,7 @@ import {
   BoxSelect,
   Circle,
   Grid3x3,
+  Loader2,
   MousePointer2,
   Pause,
   Pencil,
@@ -14,6 +15,7 @@ import {
   RotateCcw,
   Presentation,
   RotateCw,
+  Save,
   Undo2,
   X,
 } from 'lucide-react'
@@ -64,6 +66,19 @@ export default function TacticalBoardToolbar({
         {board.isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
         {board.isPlaying ? 'Pause' : 'Play'}
       </button>
+
+      {!viewOnly && (
+        <button
+          type="button"
+          title="Save (Ctrl+S)"
+          onClick={board.quickSave}
+          disabled={board.isQuickSaving}
+          className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-3 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 disabled:opacity-50"
+        >
+          {board.isQuickSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          Save
+        </button>
+      )}
 
       {viewOnly ? (
         <span className="text-sm font-semibold text-white/50">
@@ -272,12 +287,43 @@ export default function TacticalBoardToolbar({
         </button>
       )}
 
-      {!viewOnly && board.isDirty && (
-        <span className="flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-300">
-          <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-          Unsaved changes
-        </span>
-      )}
+      {!viewOnly && (() => {
+        const isErrorStatus =
+          !!board.saveStatus &&
+          (board.saveStatus.toLowerCase().includes('failed') || board.saveStatus.toLowerCase().includes('error'))
+
+        if (board.isQuickSaving) {
+          return (
+            <span className="flex items-center gap-1.5 rounded-xl border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs font-semibold text-white/60">
+              <Loader2 className="h-3 w-3 animate-spin" />
+              Saving…
+            </span>
+          )
+        }
+        if (isErrorStatus) {
+          return (
+            <span className="rounded-xl border border-red-500/30 bg-red-500/10 px-2.5 py-1.5 text-xs font-semibold text-red-300">
+              {board.saveStatus}
+            </span>
+          )
+        }
+        if (board.isDirty) {
+          return (
+            <span className="flex items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-xs font-semibold text-amber-300">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+              Unsaved changes
+            </span>
+          )
+        }
+        if (board.saveStatus) {
+          return (
+            <span className="rounded-xl border border-green-500/30 bg-green-500/10 px-2.5 py-1.5 text-xs font-semibold text-green-300">
+              {board.saveStatus}
+            </span>
+          )
+        }
+        return null
+      })()}
     </div>
   )
 }

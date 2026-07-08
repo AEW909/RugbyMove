@@ -34,6 +34,9 @@ export type TacticalBoardProps = {
   playTitle?: string
   playDescription?: string | null
   playCategory?: PlayCategory
+  /** Playbook to quick-save into (Ctrl+S / toolbar Save button). Undefined when
+   *  there's no unambiguous target — quick-save opens the Save panel instead. */
+  defaultPlaybookId?: string
   onFramesChange?: (frames: Frame[]) => void
   viewOnly?: boolean
 }
@@ -94,6 +97,8 @@ export type UseTacticalBoardReturn = {
   scrubTo: (timeMs: number) => void
   handleSaveToPlaybook: (playbookId: string, title: string, category: PlayCategory, description: string) => Promise<void>
   handleSaveAsCopy: (playbookId: string, title: string, category: PlayCategory, description: string) => Promise<void>
+  quickSave: () => void
+  isQuickSaving: boolean
   pitchPortrait: boolean
   togglePitchPortrait: () => void
   playFrames: () => void
@@ -114,6 +119,7 @@ export function useTacticalBoard({
   playTitle = 'rugbymove-move',
   playDescription,
   playCategory = 'Other',
+  defaultPlaybookId,
 }: TacticalBoardProps): UseTacticalBoardReturn {
   const originalFramesRef = useRef<Frame[] | null>(null)
   const [frames, setFrames] = useState<Frame[]>(() => normalizeFrames(initialFrames))
@@ -138,6 +144,7 @@ export function useTacticalBoard({
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<Set<string>>(new Set())
   const [isExporting, setIsExporting] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
+  const [isQuickSaving, setIsQuickSaving] = useState(false)
   const initialLoadDone = useRef(false)
 
   // ── Undo / Redo ──
@@ -191,6 +198,11 @@ export function useTacticalBoard({
   undoRef.current = undo
   redoRef.current = redo
 
+  // quickSave is defined further down (after persistToPlaybook); this ref lets
+  // the keydown handler below (registered once, on mount) always call the
+  // latest closure without needing to declare it before this point.
+  const quickSaveRef = useRef<() => void>(() => {})
+
   const totalDuration = useMemo(() => durations.reduce((a, b) => a + b, 0), [durations])
 
   // Mark dirty when frames/durations change after initial load
@@ -235,6 +247,7 @@ export function useTacticalBoard({
       const mod = e.metaKey || e.ctrlKey
       if (mod && e.key === 'z' && !e.shiftKey) { e.preventDefault(); undoRef.current() }
       if (mod && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) { e.preventDefault(); redoRef.current() }
+      if (mod && (e.key === 's' || e.key === 'S')) { e.preventDefault(); quickSaveRef.current() }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
@@ -515,6 +528,22 @@ export function useTacticalBoard({
     [persistToPlaybook],
   )
 
+  // Ctrl+S / toolbar Save button: silently re-save to the playbook this move
+  // is already associated with, using the title/category/description it was
+  // loaded with. No target known (e.g. a brand-new move) → open the Save
+  // panel instead, since there's nowhere safe to guess.
+  const quickSave = useCallback(() => {
+    if (!defaultPlaybookId) {
+      setPanelOpen(true)
+      setPanelTab('save')
+      return
+    }
+    setIsQuickSaving(true)
+    persistToPlaybook(defaultPlaybookId, playTitle, playCategory, playDescription ?? '', { asCopy: false })
+      .finally(() => setIsQuickSaving(false))
+  }, [defaultPlaybookId, persistToPlaybook, playTitle, playCategory, playDescription])
+  quickSaveRef.current = quickSave
+
   const addLine = useCallback(
     (line: Line) => {
       markUndoCheckpoint()
@@ -651,6 +680,8 @@ export function useTacticalBoard({
     scrubTo,
     handleSaveToPlaybook,
     handleSaveAsCopy,
+    quickSave,
+    isQuickSaving,
     pitchPortrait,
     togglePitchPortrait,
     playFrames,
