@@ -1,6 +1,6 @@
 # RugbyMove — Roadmap
 
-> Last reviewed: 2026-07-07, after a recovery audit found (and fixed) a save/load
+> Last reviewed: 2026-07-08, after a recovery audit found (and fixed) a save/load
 > corruption bug and a fair amount of doc/code drift — see CLAUDE.md's Supabase
 > section for what "drift" meant in practice. The app is a single-owner v1
 > coaching tool; the multi-user/organisations layer was removed as unused.
@@ -32,6 +32,10 @@
 - Save as copy (variation); duplicate move from playbook list
 - Playbooks — create, list, add/remove moves, reorder, organise view, move picker; visibility is `private` or `team`
 - Playbook access control — invite by username (editor/viewer roles), or a per-playbook `join_code` shared via `/join`
+- **Quick save** — Ctrl+S / a header Save button (toolbar, next to Play/Frame) silently
+  re-saves to the playbook this move is already associated with (resolved from `?from=`
+  or the single playbook it already belongs to), no panel required. Falls back to
+  opening the Save panel when no target is known (e.g. a brand-new move)
 
 ### Player portal
 - `/portal/[id]` — read-only step-through viewer; prev/next + dot navigation
@@ -87,6 +91,9 @@
 ### Quality & reliability
 - ✅ Save failures surface the real error; malformed `animation_data` on load shows an
   explicit error screen instead of silently falling back to defaults (2026-07-07)
+- ✅ `rugby.playbook_plays` was missing an UPDATE RLS policy, so any second save to a
+  playbook a play was already linked to failed with an RLS violation — fixed in
+  migration 0013 (2026-07-08), found while building quick-save
 - Error boundaries for general React render failures (the above covers save/load
   specifically, not a catch-all)
 - Loading skeletons on playbook pages

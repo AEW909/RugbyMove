@@ -100,9 +100,11 @@ There is no `AddPlayersDialog` — it was deleted 2026-07-07 along with the `act
 
 ### Save flow
 - Manual save only (no autosave).
-- User opens the slide-over panel → Save tab → picks a playbook → "Save to playbook" (upsert) or "Save as copy" (new play).
+- **Quick save** (added 2026-07-08): Ctrl+S / Cmd+S, or the Save button in `TacticalBoardToolbar.tsx` (next to Play/Frame), silently re-saves to the playbook this move is already associated with — same title/category/description it was loaded with, no panel. The target playbook is resolved server-side in `app/playbook/[id]/page.tsx` (`defaultPlaybookId`): prefer `?from=` (set when opening a play from within a playbook's move list — see `PlaybookMovesSection.tsx`/`PlaybookOrganiser.tsx`), else fall back to the single playbook this play already belongs to via `playbook_plays`, if unambiguous. If neither is known (e.g. a brand-new move), quick-save opens the slide-over panel to the Save tab instead of guessing. Implemented as `quickSave`/`isQuickSaving` in `hooks/useTacticalBoard.ts`.
+- The slide-over panel → Save tab flow still exists for picking a different playbook, changing title/category/description, or "Save as copy".
 - `animation_data` structure: `{ frames, durations?, pitchPortrait? }`. There is no `activePlayers` field and no "active/inactive player" concept anywhere in the app — a token is either in the tray or on the pitch, both are valid positions, and all 30 tokens + ball always render. (An older version of this app had a half-removed `activePlayers` field that gated rendering and caused saved moves to reload with players missing — fixed 2026-07-07, see git history / commit `7c13837` if debugging anything that looks like this again.)
 - Save failures surface the actual Zod/Postgres error message, not a generic string. Loading a play with malformed `animation_data` shows an explicit error screen rather than silently falling back to defaults.
+- **`rugby.playbook_plays` needs its UPDATE RLS policy** (migration `0013`, 2026-07-08) — without it, re-saving to a playbook a play is already linked to fails (`savePlayToPlaybook`'s upsert hits the UPDATE path on conflict). This was a real, pre-existing gap that predates quick-save; it just hadn't been triggered before.
 
 ---
 
@@ -142,7 +144,7 @@ Formation     = { id, name, category: FormationCategory, slots: FormationSlot[],
 
 There is no "public" visibility anywhere anymore — `plays.is_public` and the `'public'` value of `playbooks.visibility` were both removed in migration `0012` (2026-07-08). Neither was ever backed by an RLS policy (the live `plays`/`formations` policy is a single owner-scoped `ALL`, and `playbooks` had no policy checking `visibility` at all), so "Public" was a cosmetic label with no actual sharing effect. Deliberately removed rather than left as a decorative toggle. If a public gallery is wanted later, it needs a fresh `is_public` column/flag **and** a matching RLS policy — added together this time, not one without the other.
 
-Migrations live in `supabase/migrations/` (0001–0012, though see the drift warning under Supabase above — the folder is not fully authoritative for what's live). `0009` renamed `formations.players` → `formations.slots`; `0010` added `plays.is_public` (removed again in `0012`); `0011` removed the organisations layer; `0012` removed the non-functional public-visibility surfaces. All have been applied to production.
+Migrations live in `supabase/migrations/` (0001–0013, though see the drift warning under Supabase above — the folder is not fully authoritative for what's live). `0009` renamed `formations.players` → `formations.slots`; `0010` added `plays.is_public` (removed again in `0012`); `0011` removed the organisations layer; `0012` removed the non-functional public-visibility surfaces; `0013` added the missing UPDATE policy on `playbook_plays`. All have been applied to production.
 
 **Keep DB and migrations in sync.** Production has drifted from the migration history before — see the `clean_redesign_v2` note above. Any schema change must ship as a numbered migration file AND be applied — do not rely on one without the other. Use the next free number; never reuse an existing one.
 
