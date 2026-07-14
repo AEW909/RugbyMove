@@ -32,6 +32,14 @@
 - **Toolbar restructured** (2026-07-08) — buttons grouped into labeled clusters (Edit,
   Tools, View) instead of one flat row of individually-bordered buttons; fits on one row
   at common desktop widths where the old layout wrapped to two
+- **Inline metadata editing** (2026-07-08) — title/category directly editable in the
+  header (`TacticalBoard.tsx`), description behind a chevron-toggle textarea beneath it.
+  No autosave — shares the same state as the Save panel and quick-save, so editing
+  inline then hitting Ctrl+S (or editing in the panel) persists it either way, one
+  shared source of truth. ⚠️ Typecheck/tests/build all clean, but **not confirmed live**
+  this session — the browser tool session lost its authenticated cookie partway through
+  and no fresh login credentials were available to re-verify by clicking through it.
+  Owner should confirm the actual edit → Ctrl+S → reload round trip works.
 
 ### Save & playbooks
 - Save move to Supabase — title, category, description, playbook
@@ -76,9 +84,6 @@
 - Verify viewport-fit layout on phones and tablets
 - Touch-friendly token drag on small screens
 - Swipe gestures for frame navigation (editor + player portal)
-
-### 3. Inline metadata editing
-- Title, category, description editable in the editor header bar (not just the save panel)
 
 ---
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { BookOpen, ChevronDown, ChevronUp, Download, Layers, Loader2, Save, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { FORMATION_CATEGORIES } from '@/lib/board/storage'
@@ -44,14 +44,17 @@ type Props = {
   playbooks: Playbook[]
   onLoadFormation: (players: PlayerPosition[]) => void
   onOpenSaveFormation: () => void
-  playCategory?: PlayCategory
-  onSaveToPlaybook: (playbookId: string, title: string, category: PlayCategory, description: string) => void
-  onSaveAsCopy: (playbookId: string, title: string, category: PlayCategory, description: string) => void
+  title: string
+  setTitle: (title: string) => void
+  description: string
+  setDescription: (description: string) => void
+  category: PlayCategory
+  setCategory: (category: PlayCategory) => void
+  onSaveToPlaybook: (playbookId: string) => void
+  onSaveAsCopy: (playbookId: string) => void
   onLoadPlay: (playId: string) => void
   onExport: () => void
   isExporting: boolean
-  initialTitle: string
-  initialDescription?: string | null
   saveStatus: string
 }
 
@@ -64,19 +67,19 @@ export default function PanelSlideOver({
   playbooks,
   onLoadFormation,
   onOpenSaveFormation,
-  playCategory,
+  title,
+  setTitle,
+  description,
+  setDescription,
+  category,
+  setCategory,
   onSaveToPlaybook,
   onSaveAsCopy,
   onLoadPlay,
   onExport,
   isExporting,
-  initialTitle,
-  initialDescription,
   saveStatus,
 }: Props) {
-  const [saveTitle, setSaveTitle] = useState(initialTitle)
-  const [saveDescription, setSaveDescription] = useState(initialDescription ?? '')
-  const [saveCategory, setSaveCategory] = useState<PlayCategory>(playCategory ?? 'Other')
   const [selectedPlaybook, setSelectedPlaybook] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isCopying, setIsCopying] = useState(false)
@@ -95,18 +98,6 @@ export default function PanelSlideOver({
       prevSaveStatus.current = saveStatus
     }
   }, [saveStatus])
-
-  useEffect(() => {
-    setSaveTitle(initialTitle)
-  }, [initialTitle])
-
-  useEffect(() => {
-    setSaveDescription(initialDescription ?? '')
-  }, [initialDescription])
-
-  useEffect(() => {
-    if (playCategory) setSaveCategory(playCategory)
-  }, [playCategory])
 
   const toggleCategory = (cat: string) => {
     setExpandedCategories((prev) => {
@@ -348,8 +339,8 @@ export default function PanelSlideOver({
               <label className="block text-sm font-semibold text-white/80">
                 Title
                 <input
-                  value={saveTitle}
-                  onChange={(e) => setSaveTitle(e.target.value)}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                   placeholder="Untitled move"
                   className="mt-1 w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm font-normal text-white placeholder:text-white/30 outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30"
                 />
@@ -358,8 +349,8 @@ export default function PanelSlideOver({
               <label className="block text-sm font-semibold text-white/80">
                 Description
                 <textarea
-                  value={saveDescription}
-                  onChange={(e) => setSaveDescription(e.target.value)}
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
                   placeholder="Optional notes about this move…"
                   rows={2}
                   maxLength={2000}
@@ -370,8 +361,8 @@ export default function PanelSlideOver({
               <label className="block text-sm font-semibold text-white/80">
                 Category
                 <select
-                  value={saveCategory}
-                  onChange={(e) => setSaveCategory(e.target.value as PlayCategory)}
+                  value={category}
+                  onChange={(e) => setCategory(e.target.value as PlayCategory)}
                   className="mt-1 w-full rounded-xl border border-white/10 bg-zinc-800 px-3 py-2 text-sm font-normal text-white outline-none transition focus:border-blue-400 focus:ring-1 focus:ring-blue-400/30 [&>option]:bg-zinc-900"
                 >
                   {PLAY_CATEGORIES.map((cat) => (
@@ -407,8 +398,8 @@ export default function PanelSlideOver({
                 )}
                 <button
                   type="button"
-                  disabled={!selectedPlaybook || !saveTitle.trim() || isSaving}
-                  onClick={() => { setIsSaving(true); onSaveToPlaybook(selectedPlaybook, saveTitle.trim(), saveCategory, saveDescription.trim()) }}
+                  disabled={!selectedPlaybook || !title.trim() || isSaving}
+                  onClick={() => { setIsSaving(true); onSaveToPlaybook(selectedPlaybook) }}
                   className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-lg shadow-blue-500/20 transition hover:opacity-90 disabled:opacity-40"
                 >
                   {isSaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
@@ -416,8 +407,8 @@ export default function PanelSlideOver({
                 </button>
                 <button
                   type="button"
-                  disabled={!selectedPlaybook || !saveTitle.trim() || isCopying}
-                  onClick={() => { setIsCopying(true); onSaveAsCopy(selectedPlaybook, saveTitle.trim(), saveCategory, saveDescription.trim()) }}
+                  disabled={!selectedPlaybook || !title.trim() || isCopying}
+                  onClick={() => { setIsCopying(true); onSaveAsCopy(selectedPlaybook) }}
                   className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/80 transition hover:bg-white/10 disabled:opacity-40"
                 >
                   {isCopying && <Loader2 className="h-3.5 w-3.5 animate-spin" />}

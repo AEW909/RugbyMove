@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { CalendarDays } from 'lucide-react'
 import TacticalBoard from '@/components/TacticalBoard'
 import { createClient } from '@/lib/supabase/server'
 import { animationDataSchema } from '@/lib/board/schema'
@@ -225,24 +224,7 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
       {/* BG gradient overlay */}
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(59,130,246,0.2),transparent_40%),radial-gradient(circle_at_bottom_left,rgba(168,85,247,0.15),transparent_40%)]" />
 
-      {/* Compact top bar */}
-      <header className="relative z-10 flex shrink-0 items-center justify-between gap-4 border-b border-white/10 px-4 py-2 sm:px-6">
-        <Link href={backHref} className="text-sm font-medium text-white/40 transition-colors hover:text-white">
-          {backLabel}
-        </Link>
-        <div className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
-          <span className="hidden rounded-full bg-white/10 px-2 py-0.5 text-xs font-semibold uppercase text-white/50 sm:inline">
-            {play.category}
-          </span>
-          <h1 className="truncate text-sm font-bold text-white">{play.title}</h1>
-        </div>
-        <span className="hidden shrink-0 items-center gap-1.5 text-xs text-white/40 sm:inline-flex">
-          <CalendarDays className="h-3.5 w-3.5" />
-          {new Intl.DateTimeFormat('en-GB', { dateStyle: 'medium' }).format(new Date(play.updated_at))}
-        </span>
-      </header>
-
-      {/* Board fills remaining space */}
+      {/* Board fills remaining space (header is rendered inside TacticalBoard, editable) */}
       <div className="relative z-10 flex min-h-0 flex-1 flex-col overflow-hidden">
         <TacticalBoard
           initialFrames={animationData.frames}
@@ -255,6 +237,9 @@ export default async function PlaybookPage({ params, searchParams }: PageProps) 
           playCategory={play.category}
           defaultPlaybookId={defaultPlaybookId}
           viewOnly={viewOnly}
+          backHref={backHref}
+          backLabel={backLabel}
+          updatedAt={play.updated_at}
         />
 
         {isGuest && (

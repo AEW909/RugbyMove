@@ -95,8 +95,14 @@ export type UseTacticalBoardReturn = {
   isExporting: boolean
   setDuration: (segIndex: number, ms: number) => void
   scrubTo: (timeMs: number) => void
-  handleSaveToPlaybook: (playbookId: string, title: string, category: PlayCategory, description: string) => Promise<void>
-  handleSaveAsCopy: (playbookId: string, title: string, category: PlayCategory, description: string) => Promise<void>
+  title: string
+  setTitle: (title: string) => void
+  description: string
+  setDescription: (description: string) => void
+  category: PlayCategory
+  setCategory: (category: PlayCategory) => void
+  handleSaveToPlaybook: (playbookId: string) => Promise<void>
+  handleSaveAsCopy: (playbookId: string) => Promise<void>
   quickSave: () => void
   isQuickSaving: boolean
   pitchPortrait: boolean
@@ -145,6 +151,9 @@ export function useTacticalBoard({
   const [isExporting, setIsExporting] = useState(false)
   const [isDirty, setIsDirty] = useState(false)
   const [isQuickSaving, setIsQuickSaving] = useState(false)
+  const [title, setTitle] = useState(playTitle)
+  const [description, setDescription] = useState(playDescription ?? '')
+  const [category, setCategory] = useState<PlayCategory>(playCategory)
   const initialLoadDone = useRef(false)
 
   // ── Undo / Redo ──
@@ -477,18 +486,12 @@ export function useTacticalBoard({
   const exportMove = useCallback(() => {
     if (isExporting) return
     setIsExporting(true)
-    exportGif(normalizeFrames(frames), durations, playTitle)
+    exportGif(normalizeFrames(frames), durations, title)
       .finally(() => setIsExporting(false))
-  }, [frames, durations, isExporting, playTitle])
+  }, [frames, durations, isExporting, title])
 
   const persistToPlaybook = useCallback(
-    async (
-      playbookId: string,
-      title: string,
-      category: PlayCategory,
-      description: string,
-      { asCopy }: { asCopy: boolean },
-    ) => {
+    async (playbookId: string, { asCopy }: { asCopy: boolean }) => {
       const existingId = resolveSavePlayId(playId, asCopy)
       try {
         await savePlayToPlaybook(
@@ -513,25 +516,24 @@ export function useTacticalBoard({
         setSaveStatus(message)
       }
     },
-    [playId, frames, durations, pitchPortrait],
+    [playId, title, description, category, frames, durations, pitchPortrait],
   )
 
   const handleSaveToPlaybook = useCallback(
-    (playbookId: string, title: string, category: PlayCategory, description: string) =>
-      persistToPlaybook(playbookId, title, category, description, { asCopy: false }),
+    (playbookId: string) => persistToPlaybook(playbookId, { asCopy: false }),
     [persistToPlaybook],
   )
 
   const handleSaveAsCopy = useCallback(
-    (playbookId: string, title: string, category: PlayCategory, description: string) =>
-      persistToPlaybook(playbookId, title, category, description, { asCopy: true }),
+    (playbookId: string) => persistToPlaybook(playbookId, { asCopy: true }),
     [persistToPlaybook],
   )
 
   // Ctrl+S / toolbar Save button: silently re-save to the playbook this move
-  // is already associated with, using the title/category/description it was
-  // loaded with. No target known (e.g. a brand-new move) → open the Save
-  // panel instead, since there's nowhere safe to guess.
+  // is already associated with, using the current title/category/description
+  // (whatever was last edited inline in the header or the Save panel — they
+  // share the same state). No target known (e.g. a brand-new move) → open
+  // the Save panel instead, since there's nowhere safe to guess.
   const quickSave = useCallback(() => {
     if (!defaultPlaybookId) {
       setPanelOpen(true)
@@ -539,9 +541,9 @@ export function useTacticalBoard({
       return
     }
     setIsQuickSaving(true)
-    persistToPlaybook(defaultPlaybookId, playTitle, playCategory, playDescription ?? '', { asCopy: false })
+    persistToPlaybook(defaultPlaybookId, { asCopy: false })
       .finally(() => setIsQuickSaving(false))
-  }, [defaultPlaybookId, persistToPlaybook, playTitle, playCategory, playDescription])
+  }, [defaultPlaybookId, persistToPlaybook])
   quickSaveRef.current = quickSave
 
   const addLine = useCallback(
@@ -678,6 +680,12 @@ export function useTacticalBoard({
     isExporting,
     setDuration,
     scrubTo,
+    title,
+    setTitle,
+    description,
+    setDescription,
+    category,
+    setCategory,
     handleSaveToPlaybook,
     handleSaveAsCopy,
     quickSave,
